@@ -1,42 +1,58 @@
-import { StyleSheet } from "react-native";
-import { Button, type ButtonProps } from "react-native-paper";
+import React from "react";
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
+import { COLORES, BORDES } from "../../constants/theme";
 
-interface Props extends Omit<ButtonProps, "children"> {
+interface BotonProps {
   titulo: string;
+  alPresionar: () => void;
+  tipo?: "primario" | "peligro" | "secundario";
   cargando?: boolean;
-  variante?: "primario" | "secundario" | "texto";
 }
 
-export function Boton({
+export const Boton = ({
   titulo,
-  cargando,
-  variante = "primario",
-  style,
-  ...rest
-}: Props) {
-  const modeMap = {
-    primario: "contained",
-    secundario: "outlined",
-    texto: "text",
-  } as const;
+  alPresionar,
+  tipo = "primario",
+  cargando = false,
+}: BotonProps) => {
+  const colorFondo =
+    tipo === "peligro"
+      ? COLORES.peligro
+      : tipo === "secundario"
+        ? COLORES.grisClaro
+        : COLORES.primario;
 
   return (
-    <Button
-      mode={modeMap[variante]}
-      loading={cargando}
+    <TouchableOpacity
+      style={[styles.boton, { backgroundColor: colorFondo }]}
+      onPress={alPresionar}
       disabled={cargando}
-      style={[estilos.base, style]}
-      contentStyle={estilos.contenido}
-      labelStyle={estilos.etiqueta}
-      {...rest}
     >
-      {titulo}
-    </Button>
+      {cargando ? (
+        <ActivityIndicator color={COLORES.blanco} />
+      ) : (
+        <Text style={styles.texto}>{titulo}</Text>
+      )}
+    </TouchableOpacity>
   );
-}
+};
 
-const estilos = StyleSheet.create({
-  base: { borderRadius: 12, marginVertical: 6 },
-  contenido: { height: 52 },
-  etiqueta: { fontSize: 16, fontWeight: "600", letterSpacing: 0.3 },
+const styles = StyleSheet.create({
+  boton: {
+    paddingVertical: 15,
+    borderRadius: BORDES.radio,
+    alignItems: "center",
+    marginVertical: 10,
+    width: "100%",
+  },
+  texto: {
+    color: COLORES.blanco,
+    fontSize: 16,
+    fontWeight: "bold",
+  },
 });

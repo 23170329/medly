@@ -37,4 +37,20 @@ export const AppTheme: MD3Theme = {
   },
 };
 
+// medly/cliente/constants/theme.ts
+export const COLORES = {
+  primario: "#456B75", // El azul oscuro/verdoso de los encabezados y botones principales
+  fondo: "#F8F4F0", // El color crema de fondo de la app
+  exito: "#28A745", // Verde para los check de "Registro Exitoso"
+  alerta: "#FFC107", // Amarillo para "Esperando Pago"
+  peligro: "#DC3545", // Rojo para "Cancelar Cita"
+  texto: "#333333",
+  blanco: "#FFFFFF",
+  grisClaro: "#E0E0E0",
+};
+
+export const BORDES = {
+  radio: 12, // El redondeo que tienen casi todas tus tarjetas y botones
+};
+
 export { paleta };
