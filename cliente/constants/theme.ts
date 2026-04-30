@@ -51,5 +51,3 @@ export const COLORES = {
 export const BORDES = {
   radio: 12,
 };
-
-export { paleta };

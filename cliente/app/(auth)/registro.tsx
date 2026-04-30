@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   lineaPaso: {
     width: 25,
     height: 4,
-    backgroundColor: COLORES.grisClaro,
+    backgroundColor: COLORES.skyblue,
     borderRadius: 2,
     marginHorizontal: 4,
   },
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORES.blanco,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORES.grisClaro,
+    borderColor: COLORES.skyblue,
     height: 50,
   },
   botonGenero: {
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 6,
-    backgroundColor: COLORES.grisClaro,
+    backgroundColor: COLORES.skyblue,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
