@@ -1,6 +1,6 @@
 import { MD3LightTheme, type MD3Theme } from "react-native-paper";
 
-const paleta = {
+export const paleta = {
   navy: "#2F4156",
   teal: "#567C8D",
   skyblue: "#C8D9E6",
@@ -9,7 +9,7 @@ const paleta = {
   red: "#E53E3E",
   green: "#38A169",
   yellow: "#ECC94B",
-};
+} as const;
 
 export const AppTheme: MD3Theme = {
   ...MD3LightTheme,
@@ -37,20 +37,19 @@ export const AppTheme: MD3Theme = {
   },
 };
 
-// medly/cliente/constants/theme.ts
 export const COLORES = {
-  primario: "#456B75", // El azul oscuro/verdoso de los encabezados y botones principales
-  fondo: "#F8F4F0", // El color crema de fondo de la app
-  exito: "#28A745", // Verde para los check de "Registro Exitoso"
-  alerta: "#FFC107", // Amarillo para "Esperando Pago"
-  peligro: "#DC3545", // Rojo para "Cancelar Cita"
-  texto: "#333333",
-  blanco: "#FFFFFF",
-  grisClaro: "#E0E0E0",
-};
+  primario: AppTheme.colors.primary,
+  fondo: AppTheme.colors.background,
+  exito: paleta.green,
+  alerta: paleta.yellow,
+  peligro: AppTheme.colors.error,
+  texto: AppTheme.colors.onSurface,
+  blanco: paleta.white,
+  skyblue: paleta.skyblue,
+} as const;
 
 export const BORDES = {
-  radio: 12, // El redondeo que tienen casi todas tus tarjetas y botones
+  radio: 12,
 };
 
 export { paleta };

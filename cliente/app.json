@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "cliente",
+    "name": "medly - App",
     "slug": "cliente",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/medlylogo.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {

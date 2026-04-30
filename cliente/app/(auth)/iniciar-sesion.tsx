@@ -5,6 +5,7 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,9 +30,11 @@ export default function IniciarSesionScreen() {
       <View style={styles.contenedor}>
         {/* Logo y Encabezado */}
         <View style={styles.encabezado}>
-          <View style={styles.circuloLogo}>
-            <Ionicons name="medical" size={40} color={COLORES.blanco} />
-          </View>
+          <Image
+            source={require("../../assets/medlylogo.jpg")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={styles.titulo}>Bienvenido</Text>
           <Text style={styles.subtitulo}>
             Ingresa tus credenciales para continuar.
@@ -94,13 +97,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 40,
   },
-  circuloLogo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#8AB4F8", // Un azul clarito parecido a tu diseño
-    justifyContent: "center",
-    alignItems: "center",
+  logo: {
+    width: 120, // Ajusta este tamaño según veas en tu diseño
+    height: 120, // Ajusta este tamaño
     marginBottom: 16,
   },
   titulo: {
