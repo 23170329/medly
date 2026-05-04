@@ -227,7 +227,7 @@ export default function AgendaPantalla(): React.JSX.Element {
         <Text style={estilos.headerTitulo}>MI AGENDA</Text>
         <TouchableOpacity
           style={estilos.btnNueva}
-          onPress={() => router.push("/(privado)/citas/agendar/paso-1")}
+          onPress={() => router.push("/(privado)/citas/agendar")} // <-- Quitar el /paso-1 aquí
           accessibilityLabel="Agendar nueva cita"
           accessibilityRole="button"
         >

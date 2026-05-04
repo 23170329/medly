@@ -45,7 +45,7 @@ const ACCESOS: readonly AccesoRapido[] = [
     id: "1",
     icono: "calendar-outline",
     label: "Agendar",
-    ruta: "/(privado)/citas/agendar/paso-1",
+    ruta: "/(privado)/citas/agendar",
   },
   {
     id: "2",
@@ -98,7 +98,7 @@ export default function InicioPantalla(): React.JSX.Element {
   };
 
   const handleAgendar = (): void => {
-    router.push("/(privado)/citas/agendar/paso-1");
+    router.push("/(privado)/citas/agendar");
   };
 
   const handleVerCita = (): void => {
