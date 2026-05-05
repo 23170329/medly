@@ -10,6 +10,8 @@ import {
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
+// 1. Importamos tu store global
+import { useAuthStore } from "../../stores/auth.store";
 
 interface ProximaCita {
   readonly medico: string;
@@ -45,7 +47,7 @@ const ACCESOS: readonly AccesoRapido[] = [
     id: "1",
     icono: "calendar-outline",
     label: "Agendar",
-    ruta: "/(privado)/citas/agendar",
+    ruta: "/(privado)/citas/agendar/paso-1",
   },
   {
     id: "2",
@@ -90,15 +92,19 @@ function obtenerSaludo(): string {
 
 // ─── Pantalla ─────────────────────────────────────────────────────────────────
 export default function InicioPantalla(): React.JSX.Element {
-  // Reemplazar con useAuthStore() cuando el slice de auth esté integrado !!!!!!!!!!!
-  const nombreUsuario = "Ana García";
+  // 2. Traemos al usuario desde la bóveda de estado global
+  const { usuario } = useAuthStore();
+
+  // 3. Obtenemos el nombre y la inicial de forma dinámica
+  const nombreUsuario = usuario?.nombre || "Paciente";
+  const inicialNombre = (usuario?.nombre?.charAt(0) ?? "P").toUpperCase();
 
   const handleAcceso = (ruta: string): void => {
     router.push(ruta as Parameters<typeof router.push>[0]);
   };
 
   const handleAgendar = (): void => {
-    router.push("/(privado)/citas/agendar");
+    router.push("/(privado)/citas/agendar/paso-1");
   };
 
   const handleVerCita = (): void => {
@@ -124,7 +130,7 @@ export default function InicioPantalla(): React.JSX.Element {
           >
             <View style={estilos.avatar}>
               <Text style={estilos.avatarLetra}>
-                {nombreUsuario.charAt(0).toUpperCase()}
+                {inicialNombre}
               </Text>
             </View>
           </TouchableOpacity>

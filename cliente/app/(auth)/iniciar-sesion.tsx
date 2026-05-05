@@ -6,23 +6,62 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Image,
+  Alert
 } from "react-native";
+
 import { Link, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Entrada } from "../../componentes/comunes/Entrada";
 import { Boton } from "../../componentes/comunes/Boton";
 import { COLORES } from "../../constants/theme";
+import { useAuthStore } from "../../stores/auth.store";
 
 export default function IniciarSesionScreen() {
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
 
-  const manejarLogin = () => {
-    // Aquí luego conectaremos con tu backend en NestJS
-    console.log("Intentando iniciar sesión con:", correo);
+  const { setAuth } = useAuthStore();
 
-    // Simulamos que el login es exitoso y lo mandamos al inicio temporal
-    router.replace("/(privado)/inicio");
+  const manejarLogin = async () => {
+    // 1. Validamos que no envíen campos vacíos
+    if (!correo || !contrasena) {
+      Alert.alert("Atención", "Por favor ingresa tu correo y contraseña.");
+      return;
+    }
+
+    try {
+      // 2. Hacemos la petición al backend de NestJS
+      // Usamos la variable de entorno que configuraste antes en el .env de la carpeta cliente
+      const urlApi = process.env.EXPO_PUBLIC_API_URL;
+      
+      const respuesta = await fetch(`${urlApi}/auth/login`, { // Asegúrate de que esta ruta coincida con tu NestJS
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          correo: correo, 
+          contrasena: contrasena 
+        }),
+      });
+
+      const datos = await respuesta.json();
+
+      // 3. Verificamos si el backend dijo que todo está bien (código 200-299)
+      if (respuesta.ok) {
+        // Usamos setAuth y le pasamos un token temporal
+        await setAuth(datos.usuario, "token_temporal_hasta_que_hagan_jwt"); 
+        
+        router.replace("/(privado)/inicio");
+      } else {
+      Alert.alert("Error", datos.message);
+    }
+  
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error de conexión", "No se pudo conectar con el servidor. Revisa tu red.");
+    }
   };
 
   return (
