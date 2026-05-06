@@ -1,12 +1,12 @@
 import axios from "axios";
+import { API_URL } from "../constants/api";
 
 const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL,
+  baseURL: API_URL,
   timeout: 10000,
 });
 
 api.interceptors.request.use(async (config) => {
-  // Aquí agregarás el token JWT desde el store
   return config;
 });
 

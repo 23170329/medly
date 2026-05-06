@@ -8,12 +8,24 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Entrada } from "../../componentes/comunes/Entrada";
 import { Boton } from "../../componentes/comunes/Boton";
 import { COLORES } from "../../constants/theme";
+
+import Constants from "expo-constants";
+
+const getApiUrl = () => {
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (!hostUri) return "http://localhost:3000"; // Fallback
+
+  const ip = hostUri.split(":").shift();
+  return `http://${ip}:3000`;
+};
+
+const API_URL = getApiUrl();
 
 export default function RegistroScreen() {
   const [paso, setPaso] = useState(1);
@@ -24,7 +36,7 @@ export default function RegistroScreen() {
   const [apellidoMaterno, setApellidoMaterno] = useState("");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [fecha, setFecha] = useState(new Date()); // Guarda la fecha real
-  const [mostrarCalendario, setMostrarCalendario] = useState(false); 
+  const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [genero, setGenero] = useState("");
   const [telefono, setTelefono] = useState("");
   const [correo, setCorreo] = useState("");
@@ -34,66 +46,67 @@ export default function RegistroScreen() {
   const [consentimiento, setConsentimiento] = useState(false);
 
   const seleccionarFecha = (event: any, fechaSeleccionada?: Date) => {
-  setMostrarCalendario(false); 
-  
-  if (fechaSeleccionada) {
-    setFecha(fechaSeleccionada);
-    const dia = fechaSeleccionada.getDate().toString().padStart(2, '0');
-    const mes = (fechaSeleccionada.getMonth() + 1).toString().padStart(2, '0');
-    const anio = fechaSeleccionada.getFullYear();
-    
-    setFechaNacimiento(`${dia}/${mes}/${anio}`);
-  }
-};
+    setMostrarCalendario(false);
 
-const handleRegistro = async () => {
-  // Validación básica para asegurar que las contraseñas coincidan
-  if (contrasena !== confirmarContrasena) {
-    alert("Las contraseñas no coinciden");
-    return;
-  }
+    if (fechaSeleccionada) {
+      setFecha(fechaSeleccionada);
+      const dia = fechaSeleccionada.getDate().toString().padStart(2, "0");
+      const mes = (fechaSeleccionada.getMonth() + 1)
+        .toString()
+        .padStart(2, "0");
+      const anio = fechaSeleccionada.getFullYear();
 
-  if (!avisoPrivacidad || !consentimiento) {
-    alert("Debes aceptar los términos para continuar");
-    return;
-  }
-
-  const partesFecha = fechaNacimiento.split('/');   
-  const fechaNac = `${partesFecha[2]}-${partesFecha[1]}-${partesFecha[0]}`;
-
- try {
-  // @ts-ignore
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  
-  const response = await fetch(`${apiUrl}/usuarios/registro`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      nombre: nombres,
-      apellido_pat: apellidoPaterno,
-      apellido_mat: apellidoMaterno,
-      correoElectronico: correo,
-      telefono: telefono,
-      fechaNacimiento: fechaNac, // Asegúrate de que el formato sea YYYY-MM-DD
-      genero: genero,
-      password: contrasena, 
-    }),
-  });
-
-    if (response.ok) {
-      setPaso(4); 
-    } else {
-      const errorData = await response.json();
-      alert(`No se pudo registrar: ${errorData.message}`);
+      setFechaNacimiento(`${dia}/${mes}/${anio}`);
     }
-  } catch (error) {
-    console.error("Error en la conexión:", error);
-    alert("No se pudo conectar con el servidor. Verifica tu IP.");
-  }
-};
+  };
 
+  const handleRegistro = async () => {
+    // Validación básica para asegurar que las contraseñas coincidan
+    if (contrasena !== confirmarContrasena) {
+      alert("Las contraseñas no coinciden");
+      return;
+    }
+
+    if (!avisoPrivacidad || !consentimiento) {
+      alert("Debes aceptar los términos para continuar");
+      return;
+    }
+
+    const partesFecha = fechaNacimiento.split("/");
+    const fechaNac = `${partesFecha[2]}-${partesFecha[1]}-${partesFecha[0]}`;
+
+    try {
+      // @ts-ignore
+      //const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+
+      const response = await fetch(`${API_URL}/usuarios/registro`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: nombres,
+          apellido_pat: apellidoPaterno,
+          apellido_mat: apellidoMaterno,
+          correoElectronico: correo,
+          telefono: telefono,
+          fechaNacimiento: fechaNac, // Asegúrate de que el formato sea YYYY-MM-DD
+          genero: genero,
+          password: contrasena,
+        }),
+      });
+
+      if (response.ok) {
+        setPaso(4);
+      } else {
+        const errorData = await response.json();
+        alert(`No se pudo registrar: ${errorData.message}`);
+      }
+    } catch (error) {
+      console.error("Error en la conexión:", error);
+      alert("No se pudo conectar con el servidor. Verifica tu IP.");
+    }
+  };
 
   const avanzarPaso = () => setPaso(paso + 1);
   const finalizarRegistro = () => router.replace("/(auth)/iniciar-sesion");
@@ -156,26 +169,26 @@ const handleRegistro = async () => {
             <View style={styles.fila}>
               <View style={{ flex: 1, marginRight: 10 }}>
                 <TouchableOpacity onPress={() => setMostrarCalendario(true)}>
-               <View pointerEvents="none">
-      <Entrada
-        etiqueta="NACIMIENTO"
-        placeholder="AAAA/MM/DD"
-        icono="calendar-outline"
-        value={fechaNacimiento}
-        editable={false} // Evita la edición manual
-        onChangeText={setFechaNacimiento}
-      />
-    </View>
-  </TouchableOpacity>
-        {mostrarCalendario && (
-        <DateTimePicker
-        value={fecha}
-        mode="date"
-        display="default"
-        maximumDate={new Date()} // Opcional: evita elegir fechas futuras
-        onChange={seleccionarFecha}
-        />
-       )}
+                  <View pointerEvents="none">
+                    <Entrada
+                      etiqueta="NACIMIENTO"
+                      placeholder="AAAA/MM/DD"
+                      icono="calendar-outline"
+                      value={fechaNacimiento}
+                      editable={false} // Evita la edición manual
+                      onChangeText={setFechaNacimiento}
+                    />
+                  </View>
+                </TouchableOpacity>
+                {mostrarCalendario && (
+                  <DateTimePicker
+                    value={fecha}
+                    mode="date"
+                    display="default"
+                    maximumDate={new Date()} // Opcional: evita elegir fechas futuras
+                    onChange={seleccionarFecha}
+                  />
+                )}
               </View>
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={styles.etiqueta}>GÉNERO</Text>
