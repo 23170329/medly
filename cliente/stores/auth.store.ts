@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 
 interface Usuario {
   id: string;
+  pacienteId?: number;
   nombre: string;
   apellido: string;
   email: string;
@@ -43,6 +44,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ accessToken: token, usuario: JSON.parse(usuarioStr) });
       }
     } catch {
+      /* ignore */
     } finally {
       set({ cargando: false });
     }

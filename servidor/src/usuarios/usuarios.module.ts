@@ -1,17 +1,14 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm'; // Importante para la DB
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsuariosService } from './usuarios.service';
 import { UsuariosController } from './usuarios.controller';
-import { Paciente } from './entities/paciente.entity'; // Importa la entidad
-import { CuentaUsuario } from './entities/cuenta-usuario.entity'; // Importa la entidad
+import { Paciente } from './entities/paciente.entity';
+import { CuentaUsuario } from './entities/cuenta-usuario.entity';
 
 @Module({
-  imports: [
-    // Esto le dice a NestJS qué tablas debe manejar este módulo
-    TypeOrmModule.forFeature([Paciente, CuentaUsuario])
-  ],
+  imports: [TypeOrmModule.forFeature([Paciente, CuentaUsuario])],
   controllers: [UsuariosController],
   providers: [UsuariosService],
-  exports: [UsuariosService] // Exportarlo por si el módulo de Auth lo necesita
+  exports: [UsuariosService, TypeOrmModule],
 })
 export class UsuariosModule {}

@@ -1,43 +1,60 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-// Corregimos la importación con el guion medio exacto de tu archivo
-import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity'; 
+import * as bcrypt from 'bcryptjs';
+import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity';
+import { JwtPayload } from './jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(CuentaUsuario)
-    private cuentaUsuarioRepository: Repository<CuentaUsuario>,
+    private readonly cuentaUsuarioRepository: Repository<CuentaUsuario>,
+    private readonly jwtService: JwtService,
   ) {}
 
   async validarUsuario(correo: string, contrasena: string) {
-    // 1. Buscamos la cuenta de usuario, pero filtramos usando el correo
-    // que está guardado en la tabla paciente (relación)
     const usuario = await this.cuentaUsuarioRepository.findOne({
-      where: { 
+      where: {
         paciente: {
-          correoElectronico: correo // Aquí es donde realmente vive el correo
-        }
+          correoElectronico: correo,
+        },
       },
-      relations: ['paciente'], 
+      relations: ['paciente'],
     });
 
-    // 2. Validamos que exista y checamos el 'password' (así se llama en tu entidad)
-    if (!usuario || usuario.password !== contrasena) {
+    if (!usuario || !usuario.paciente) {
       throw new UnauthorizedException('Correo o contraseña incorrectos');
     }
 
-    // 3. Regresamos los datos listos para el Zustand de React Native
+    const ok = await bcrypt.compare(contrasena, usuario.password);
+    if (!ok) {
+      throw new UnauthorizedException('Correo o contraseña incorrectos');
+    }
+
+    const p = usuario.paciente;
+    const apellido = [p.apellido_pat, p.apellido_mat].filter(Boolean).join(' ');
+
+    const payload: JwtPayload = {
+      sub: p.pacienteID,
+      cuentaId: usuario.cuentaID,
+      email: p.correoElectronico,
+    };
+
+    const access_token = await this.jwtService.signAsync(payload);
+
     return {
       mensaje: 'Login exitoso',
+      access_token,
       usuario: {
-        id: usuario.cuentaID.toString(), // <-- AGREGA ESTA LÍNEA
-        nombre: usuario.paciente.nombre,
-        apellido: usuario.paciente.apellido_pat,
-        email: usuario.paciente.correoElectronico,
-        rol: 'PACIENTE'
-      }
+        id: usuario.cuentaID.toString(),
+        pacienteId: p.pacienteID,
+        nombre: p.nombre,
+        apellido,
+        email: p.correoElectronico,
+        rol: 'PACIENTE' as const,
+      },
     };
   }
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
@@ -9,20 +10,60 @@ import { MedicosModule } from './medicos/medicos.module';
 import { HorariosModule } from './horarios/horarios.module';
 import { CitasModule } from './citas/citas.module';
 import { PagosModule } from './pagos/pagos.module';
+import { EspecialidadesModule } from './especialidades/especialidades.module';
+import { envValidationSchema } from './config/env.validation';
+import { Paciente } from './usuarios/entities/paciente.entity';
+import { CuentaUsuario } from './usuarios/entities/cuenta-usuario.entity';
+import { Especialidad } from './especialidades/entities/especialidad.entity';
+import { Sucursal } from './sucursales/entities/sucursal.entity';
+import { Medico } from './medicos/entities/medico.entity';
+import { MedicoSucursal } from './medicos/entities/medico-sucursal.entity';
+import { SlotAgenda } from './horarios/entities/slot-agenda.entity';
+import { Cita } from './citas/entities/cita.entity';
+import { Pago } from './pagos/entities/pago.entity';
+
+const entities = [
+  Paciente,
+  CuentaUsuario,
+  Especialidad,
+  Sucursal,
+  Medico,
+  MedicoSucursal,
+  SlotAgenda,
+  Cita,
+  Pago,
+];
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'secret',
-      database: 'medly',
-      autoLoadEntities: true,
-      synchronize: true, 
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: envValidationSchema,
     }),
-    AuthModule, UsuariosModule, SucursalesModule, MedicosModule, HorariosModule, CitasModule, PagosModule],
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'postgres',
+        host: config.get<string>('DB_HOST'),
+        port: config.get<number>('DB_PORT'),
+        username: config.get<string>('DB_USER'),
+        password: config.get<string>('DB_PASS'),
+        database: config.get<string>('DB_NAME'),
+        entities,
+        synchronize: false,
+        logging: config.get('NODE_ENV') === 'development',
+      }),
+    }),
+    AuthModule,
+    UsuariosModule,
+    EspecialidadesModule,
+    SucursalesModule,
+    MedicosModule,
+    HorariosModule,
+    CitasModule,
+    PagosModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

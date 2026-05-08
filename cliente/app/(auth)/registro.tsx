@@ -15,17 +15,7 @@ import { Entrada } from "../../componentes/comunes/Entrada";
 import { Boton } from "../../componentes/comunes/Boton";
 import { COLORES } from "../../constants/theme";
 
-import Constants from "expo-constants";
-
-const getApiUrl = () => {
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (!hostUri) return "http://localhost:3000"; // Fallback
-
-  const ip = hostUri.split(":").shift();
-  return `http://${ip}:3000`;
-};
-
-const API_URL = getApiUrl();
+import { API_URL } from "../../constants/api";
 
 export default function RegistroScreen() {
   const [paso, setPaso] = useState(1);

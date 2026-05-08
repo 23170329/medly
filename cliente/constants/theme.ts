@@ -46,6 +46,7 @@ export const COLORES = {
   texto: AppTheme.colors.onSurface,
   blanco: paleta.white,
   skyblue: paleta.skyblue,
+  grisClaro: paleta.skyblue,
 } as const;
 
 export const BORDES = {

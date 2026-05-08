@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import { useAuthStore } from "../../../stores/auth.store";
+import { useFocusEffect } from "@react-navigation/native";
+import { fetchEstadisticasPerfil } from "../../../lib/medlyApi";
 
 type TipoItem = "nav" | "switch" | "danger";
 
@@ -90,9 +92,26 @@ function FilaMenu({ item, switchValue }: FilaMenuProps): React.JSX.Element {
 export default function PerfilPantalla(): React.JSX.Element {
   const { usuario, cerrarSesion } = useAuthStore();
   const [notificaciones, setNotificaciones] = useState<boolean>(true);
+  const [estadisticas, setEstadisticas] = useState({
+    total: 0,
+    completadas: 0,
+    proximas: 0,
+  });
 
-  // TODO: obtener estadísticas reales desde el store de citas
-  const estadisticas = { total: 4, completadas: 2, proximas: 1 } as const;
+  const cargarStats = useCallback(async () => {
+    try {
+      const s = await fetchEstadisticasPerfil();
+      setEstadisticas(s);
+    } catch {
+      setEstadisticas({ total: 0, completadas: 0, proximas: 0 });
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void cargarStats();
+    }, [cargarStats]),
+  );
 
   const inicialNombre: string = (
     usuario?.nombre?.charAt(0) ?? "U"

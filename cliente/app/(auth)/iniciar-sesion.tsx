@@ -43,14 +43,15 @@ export default function IniciarSesionScreen() {
 
       const datos = await response.json();
 
-      // 3. Verificamos si el backend dijo que todo está bien (código 200-299)
-      if (response.ok) {
-        // Usamos setAuth y le pasamos un token temporal
-        await setAuth(datos.usuario, "token_temporal_hasta_que_hagan_jwt");
+      if (response.ok && datos.access_token) {
+        await setAuth(datos.usuario, datos.access_token);
 
         router.replace("/(privado)/inicio");
       } else {
-        Alert.alert("Error", datos.message);
+        Alert.alert(
+          "Error",
+          datos.message ?? datos.error ?? "No se pudo iniciar sesión",
+        );
       }
     } catch (error) {
       console.error(error);

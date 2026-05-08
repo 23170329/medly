@@ -1,8 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
 import { Paciente } from './entities/paciente.entity';
 import { CuentaUsuario } from './entities/cuenta-usuario.entity';
+import { RegistroDto } from './dto/registro.dto';
+import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
 
 @Injectable()
 export class UsuariosService {
@@ -13,12 +20,20 @@ export class UsuariosService {
     private readonly cuentaRepo: Repository<CuentaUsuario>,
   ) {}
 
-  async registrarPaciente(datos: any) {
-    // 1. Creamos y guardamos el Paciente
+  async registrarPaciente(datos: RegistroDto) {
+    const existe = await this.pacienteRepo.exist({
+      where: { correoElectronico: datos.correoElectronico },
+    });
+    if (existe) {
+      throw new ConflictException('El correo ya está registrado');
+    }
+
+    const hash = await bcrypt.hash(datos.password, 10);
+
     const nuevoPaciente = this.pacienteRepo.create({
       nombre: datos.nombre,
       apellido_pat: datos.apellido_pat,
-      apellido_mat: datos.apellido_mat,
+      apellido_mat: datos.apellido_mat ?? undefined,
       correoElectronico: datos.correoElectronico,
       telefono: datos.telefono,
       fechaNacimiento: datos.fechaNacimiento,
@@ -26,13 +41,53 @@ export class UsuariosService {
     });
     const pacienteGuardado = await this.pacienteRepo.save(nuevoPaciente);
 
-    // 2. Creamos la Cuenta vinculada a ese Paciente
     const nuevaCuenta = this.cuentaRepo.create({
-      password: datos.password, // Nota: Más adelante añadiremos encriptación
+      password: hash,
       paciente: pacienteGuardado,
       esInvitado: false,
     });
 
     return await this.cuentaRepo.save(nuevaCuenta);
+  }
+
+  async obtenerPerfil(pacienteId: number) {
+    const p = await this.pacienteRepo.findOne({
+      where: { pacienteID: pacienteId },
+    });
+    if (!p) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+    const apellido = [p.apellido_pat, p.apellido_mat].filter(Boolean).join(' ');
+    return {
+      pacienteID: p.pacienteID,
+      nombre: p.nombre,
+      apellido_pat: p.apellido_pat,
+      apellido_mat: p.apellido_mat,
+      apellido,
+      correoElectronico: p.correoElectronico,
+      telefono: p.telefono,
+      fechaNacimiento: p.fechaNacimiento,
+      genero: p.genero,
+    };
+  }
+
+  async actualizarPerfil(pacienteId: number, dto: ActualizarPerfilDto) {
+    const p = await this.pacienteRepo.findOne({
+      where: { pacienteID: pacienteId },
+    });
+    if (!p) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+    if (dto.correoElectronico && dto.correoElectronico !== p.correoElectronico) {
+      const existe = await this.pacienteRepo.exist({
+        where: { correoElectronico: dto.correoElectronico },
+      });
+      if (existe) {
+        throw new ConflictException('El correo ya está en uso');
+      }
+    }
+    Object.assign(p, dto);
+    await this.pacienteRepo.save(p);
+    return this.obtenerPerfil(pacienteId);
   }
 }

@@ -1,5 +1,6 @@
 {
   "expo": {
+    "scheme": "medly",
     "name": "medly - App",
     "slug": "cliente",
     "version": "1.0.0",

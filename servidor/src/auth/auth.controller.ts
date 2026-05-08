@@ -1,18 +1,15 @@
-import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() body: { correo: string; contrasena: string }) {
-    // Validamos que la app móvil realmente haya enviado los datos
-    if (!body.correo || !body.contrasena) {
-      throw new HttpException('Faltan datos de acceso', HttpStatus.BAD_REQUEST);
-    }
-    
-    // Ejecutamos la lógica de validación que pusimos en el servicio
+  async login(@Body() body: LoginDto) {
     return this.authService.validarUsuario(body.correo, body.contrasena);
   }
 }

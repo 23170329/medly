@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -6,19 +6,19 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
-// 1. Importamos tu store global
 import { useAuthStore } from "../../stores/auth.store";
-
-interface ProximaCita {
-  readonly medico: string;
-  readonly especialidad: string;
-  readonly fecha: string;
-  readonly hora: string;
-}
+import {
+  fetchEspecialidades,
+  fetchProximaCita,
+  type EspecialidadDto,
+  type CitaDto,
+} from "../../lib/medlyApi";
 
 interface AccesoRapido {
   readonly id: string;
@@ -27,27 +27,12 @@ interface AccesoRapido {
   readonly ruta: string;
 }
 
-interface Especialidad {
-  readonly id: string;
-  readonly nombre: string;
-  readonly icono: React.ComponentProps<typeof Ionicons>["name"];
-  readonly fondo: string;
-}
-
-// ─── Mock data (reemplazar) ──────────────────────────────────
-const PROXIMA_CITA: ProximaCita = {
-  medico: "Dr. Carlos Mendoza",
-  especialidad: "Medicina General",
-  fecha: "Lun 14 jul 2025",
-  hora: "10:30 AM",
-};
-
 const ACCESOS: readonly AccesoRapido[] = [
   {
     id: "1",
     icono: "calendar-outline",
     label: "Agendar",
-    ruta: "/(privado)/citas/agendar/paso-1",
+    ruta: "/(privado)/citas/agendar",
   },
   {
     id: "2",
@@ -59,7 +44,7 @@ const ACCESOS: readonly AccesoRapido[] = [
     id: "3",
     icono: "business-outline",
     label: "Sucursales",
-    ruta: "/(privado)/sucursales/",
+    ruta: "/(privado)/sucursales",
   },
   {
     id: "4",
@@ -69,20 +54,6 @@ const ACCESOS: readonly AccesoRapido[] = [
   },
 ] as const;
 
-const ESPECIALIDADES: readonly Especialidad[] = [
-  {
-    id: "1",
-    nombre: "Medicina General",
-    icono: "medkit-outline",
-    fondo: "#DCE8F0",
-  },
-  { id: "2", nombre: "Cardiología", icono: "heart-outline", fondo: "#F0DCE0" },
-  { id: "3", nombre: "Pediatría", icono: "happy-outline", fondo: "#DCF0E4" },
-  { id: "4", nombre: "Dermatología", icono: "sunny-outline", fondo: "#F0EDDC" },
-  { id: "5", nombre: "Neurología", icono: "pulse-outline", fondo: "#E4DCF0" },
-  { id: "6", nombre: "Oftalmología", icono: "eye-outline", fondo: "#DCF0EE" },
-] as const;
-
 function obtenerSaludo(): string {
   const hora = new Date().getHours();
   if (hora < 12) return "Buenos días";
@@ -90,12 +61,49 @@ function obtenerSaludo(): string {
   return "Buenas noches";
 }
 
-// ─── Pantalla ─────────────────────────────────────────────────────────────────
-export default function InicioPantalla(): React.JSX.Element {
-  // 2. Traemos al usuario desde la bóveda de estado global
-  const { usuario } = useAuthStore();
+function iconoEsp(icono: string | null): React.ComponentProps<typeof Ionicons>["name"] {
+  const mapa: Record<string, React.ComponentProps<typeof Ionicons>["name"]> = {
+    "medkit-outline": "medkit-outline",
+    "heart-outline": "heart-outline",
+    "happy-outline": "happy-outline",
+    "sunny-outline": "sunny-outline",
+    "pulse-outline": "pulse-outline",
+    "eye-outline": "eye-outline",
+    "female-outline": "female-outline",
+    "git-network-outline": "git-network-outline",
+  };
+  return mapa[icono ?? ""] ?? "medkit-outline";
+}
 
-  // 3. Obtenemos el nombre y la inicial de forma dinámica
+export default function InicioPantalla(): React.JSX.Element {
+  const { usuario } = useAuthStore();
+  const [especialidades, setEspecialidades] = useState<EspecialidadDto[]>([]);
+  const [proxima, setProxima] = useState<CitaDto | null>(null);
+  const [cargando, setCargando] = useState(true);
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    try {
+      const [esp, px] = await Promise.all([
+        fetchEspecialidades().catch(() => []),
+        fetchProximaCita().catch(() => null),
+      ]);
+      setEspecialidades(esp.slice(0, 6));
+      setProxima(px);
+    } catch {
+      setEspecialidades([]);
+      setProxima(null);
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void cargar();
+    }, [cargar]),
+  );
+
   const nombreUsuario = usuario?.nombre || "Paciente";
   const inicialNombre = (usuario?.nombre?.charAt(0) ?? "P").toUpperCase();
 
@@ -103,13 +111,12 @@ export default function InicioPantalla(): React.JSX.Element {
     router.push(ruta as Parameters<typeof router.push>[0]);
   };
 
-  const handleAgendar = (): void => {
-    router.push("/(privado)/citas/agendar/paso-1");
-  };
-
-  const handleVerCita = (): void => {
-    router.push("/(privado)/agenda");
-  };
+  const bannerMedico = proxima?.medico
+    ? `${proxima.medico.nombre} ${proxima.medico.apellidoPat}`
+    : "Sin cita próxima";
+  const bannerEsp =
+    proxima?.medico?.especialidad?.nombre ?? "Agenda tu próxima visita";
+  const ini = proxima ? new Date(proxima.inicio) : null;
 
   return (
     <SafeAreaView style={estilos.areaSegura}>
@@ -117,7 +124,6 @@ export default function InicioPantalla(): React.JSX.Element {
         contentContainerStyle={estilos.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* */}
         <View style={estilos.encabezado}>
           <View>
             <Text style={estilos.saludo}>{obtenerSaludo()},</Text>
@@ -129,36 +135,58 @@ export default function InicioPantalla(): React.JSX.Element {
             accessibilityRole="button"
           >
             <View style={estilos.avatar}>
-              <Text style={estilos.avatarLetra}>
-                {inicialNombre}
-              </Text>
+              <Text style={estilos.avatarLetra}>{inicialNombre}</Text>
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* */}
         <View style={estilos.banner}>
           <View style={estilos.bannerIzq}>
             <Text style={estilos.bannerLabel}>PRÓXIMA CITA</Text>
-            <Text style={estilos.bannerMedico}>{PROXIMA_CITA.medico}</Text>
-            <Text style={estilos.bannerEsp}>{PROXIMA_CITA.especialidad}</Text>
-            <View style={estilos.bannerFila}>
-              <Ionicons
-                name="calendar-outline"
-                size={14}
-                color={paleta.white}
-              />
-              <Text style={estilos.bannerDato}>{PROXIMA_CITA.fecha}</Text>
-            </View>
-            <View style={estilos.bannerFila}>
-              <Ionicons name="time-outline" size={14} color={paleta.white} />
-              <Text style={estilos.bannerDato}>{PROXIMA_CITA.hora}</Text>
-            </View>
+            {cargando ? (
+              <ActivityIndicator color={paleta.white} />
+            ) : (
+              <>
+                <Text style={estilos.bannerMedico}>{bannerMedico}</Text>
+                <Text style={estilos.bannerEsp}>{bannerEsp}</Text>
+                {ini && (
+                  <>
+                    <View style={estilos.bannerFila}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={14}
+                        color={paleta.white}
+                      />
+                      <Text style={estilos.bannerDato}>
+                        {ini.toLocaleDateString("es-MX", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </Text>
+                    </View>
+                    <View style={estilos.bannerFila}>
+                      <Ionicons
+                        name="time-outline"
+                        size={14}
+                        color={paleta.white}
+                      />
+                      <Text style={estilos.bannerDato}>
+                        {ini.toLocaleTimeString("es-MX", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </>
+            )}
           </View>
           <TouchableOpacity
             style={estilos.bannerBtn}
-            onPress={handleVerCita}
-            accessibilityLabel="Ver detalle de la próxima cita"
+            onPress={() => router.push("/(privado)/agenda")}
+            accessibilityLabel="Ver agenda"
             accessibilityRole="button"
           >
             <Text style={estilos.bannerBtnTexto}>Ver</Text>
@@ -166,7 +194,6 @@ export default function InicioPantalla(): React.JSX.Element {
           </TouchableOpacity>
         </View>
 
-        {/* */}
         <Text style={estilos.seccionTitulo}>ACCESOS RÁPIDOS</Text>
         <View style={estilos.accesosFila}>
           {ACCESOS.map((item) => (
@@ -185,33 +212,38 @@ export default function InicioPantalla(): React.JSX.Element {
           ))}
         </View>
 
-        {/* */}
         <View style={estilos.seccionHeader}>
           <Text style={estilos.seccionTitulo}>ESPECIALIDADES</Text>
-          <TouchableOpacity onPress={handleAgendar}>
+          <TouchableOpacity onPress={() => router.push("/(privado)/citas/agendar")}>
             <Text style={estilos.verTodos}>Ver todas</Text>
           </TouchableOpacity>
         </View>
 
         <View style={estilos.grid}>
-          {ESPECIALIDADES.map((esp) => (
-            <TouchableOpacity
-              key={esp.id}
-              style={[estilos.espCard, { backgroundColor: esp.fondo }]}
-              onPress={handleAgendar}
-              accessibilityLabel={`Agendar cita de ${esp.nombre}`}
-              accessibilityRole="button"
-            >
-              <Ionicons name={esp.icono} size={28} color={paleta.navy} />
-              <Text style={estilos.espNombre}>{esp.nombre}</Text>
-            </TouchableOpacity>
-          ))}
+          {especialidades.map((esp, idx) => {
+            const fondos = ["#DCE8F0", "#F0DCE0", "#DCF0E4", "#F0EDDC", "#E4DCF0", "#DCF0EE"];
+            return (
+              <TouchableOpacity
+                key={esp.especialidadID}
+                style={[estilos.espCard, { backgroundColor: fondos[idx % fondos.length] }]}
+                onPress={() => router.push("/(privado)/citas/agendar")}
+                accessibilityLabel={`Agendar cita de ${esp.nombre}`}
+                accessibilityRole="button"
+              >
+                <Ionicons
+                  name={iconoEsp(esp.icono)}
+                  size={28}
+                  color={paleta.navy}
+                />
+                <Text style={estilos.espNombre}>{esp.nombre}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* */}
         <TouchableOpacity
           style={estilos.btnAgendar}
-          onPress={handleAgendar}
+          onPress={() => router.push("/(privado)/citas/agendar")}
           accessibilityLabel="Agendar nueva cita médica"
           accessibilityRole="button"
         >
@@ -223,13 +255,10 @@ export default function InicioPantalla(): React.JSX.Element {
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
-
 const estilos = StyleSheet.create({
   areaSegura: { flex: 1, backgroundColor: COLORES.fondo },
   scroll: { flexGrow: 1, padding: 24, paddingBottom: 40 },
 
-  // PERFIL
   encabezado: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -306,7 +335,6 @@ const estilos = StyleSheet.create({
   },
   verTodos: { fontSize: 12, color: paleta.teal, fontWeight: "600" },
 
-  // MENU
   accesosFila: {
     flexDirection: "row",
     justifyContent: "space-between",
