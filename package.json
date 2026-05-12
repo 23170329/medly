@@ -3,5 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "Medly - Plataforma de gestión de citas médicas",
-  "workspaces": ["servidor", "cliente"]
+  "workspaces": ["servidor", "cliente"],
+  "scripts": {
+    "build": "npm run build --workspace=servidor",
+    "start": "node servidor/dist/src/main.js"
+  }
 }
