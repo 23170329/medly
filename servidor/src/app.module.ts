@@ -43,17 +43,34 @@ const entities = [
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get<string>('DB_HOST'),
-        port: config.get<number>('DB_PORT'),
-        username: config.get<string>('DB_USER'),
-        password: config.get<string>('DB_PASS'),
-        database: config.get<string>('DB_NAME'),
-        entities,
-        synchronize: false,
-        logging: config.get('NODE_ENV') === 'development',
-      }),
+      useFactory: (config: ConfigService) => {
+        const dbUrl = config.get<string>('DATABASE_URL');
+        if (dbUrl) {
+          const parsed = new URL(dbUrl);
+          return {
+            type: 'postgres',
+            host: parsed.hostname,
+            port: Number(parsed.port || 5432),
+            username: parsed.username,
+            password: parsed.password,
+            database: parsed.pathname.slice(1),
+            entities,
+            synchronize: false,
+            logging: config.get('NODE_ENV') === 'development',
+          };
+        }
+        return {
+          type: 'postgres',
+          host: config.get<string>('DB_HOST'),
+          port: config.get<number>('DB_PORT'),
+          username: config.get<string>('DB_USER'),
+          password: config.get<string>('DB_PASS'),
+          database: config.get<string>('DB_NAME'),
+          entities,
+          synchronize: false,
+          logging: config.get('NODE_ENV') === 'development',
+        };
+      },
     }),
     AuthModule,
     UsuariosModule,
