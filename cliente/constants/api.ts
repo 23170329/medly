@@ -7,12 +7,11 @@ import Constants from "expo-constants";
 export function getApiUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (fromEnv) {
-    // Si quedó copiado desde `.env.example` con IP de ejemplo, lo ignoramos
-    // para permitir el modo dinámico (IP del Metro/packager).
     const looksLikeExample =
       fromEnv.includes("192.168.X.X") || fromEnv.includes("192.168.1.10");
     if (!looksLikeExample) {
-      return fromEnv.replace(/\/$/, "");
+      const url = fromEnv.replace(/\/$/, "");
+      return url;
     }
   }
 
