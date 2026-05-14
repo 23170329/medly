@@ -43,6 +43,9 @@ interface CitaUi {
   readonly especialidad: string;
   readonly fecha: string;
   readonly hora: string;
+  readonly diaSemanaCorta: string;
+  readonly diaNumero: string;
+  readonly mesCorto: string;
   readonly sucursal: string;
   readonly estado: EstadoCita;
   readonly monto: number;
@@ -102,6 +105,13 @@ function toUi(d: CitaDto): CitaUi {
     ? `${d.medico.nombre} ${d.medico.apellidoPat}`
     : "Médico";
   const esp = d.medico?.especialidad?.nombre ?? "—";
+  const diaSemanaCorta = ini
+    .toLocaleDateString("es-MX", { weekday: "short" })
+    .replace(".", "");
+  const diaNumero = ini.toLocaleDateString("es-MX", { day: "numeric" });
+  const mesCorto = ini
+    .toLocaleDateString("es-MX", { month: "short" })
+    .replace(".", "");
   return {
     id: String(d.citaID),
     medico: med,
@@ -116,6 +126,9 @@ function toUi(d: CitaDto): CitaUi {
       hour: "2-digit",
       minute: "2-digit",
     }),
+    diaSemanaCorta,
+    diaNumero,
+    mesCorto,
     sucursal: d.sucursal?.nombre ?? "—",
     estado: mapEstadoApi(d.estado),
     monto: Math.round(parseFloat(d.montoTotal)),
@@ -163,47 +176,55 @@ function TarjetaCita({ cita, onActualizar }: TarjetaCitaProps): React.JSX.Elemen
   };
 
   return (
-    <TouchableOpacity
-      style={estilos.tarjeta}
-      onPress={handleVerDetalle}
-      accessibilityLabel={`Cita con ${cita.medico}, ${cita.fecha}`}
-      accessibilityRole="button"
-    >
-      <View style={[estilos.franja, { backgroundColor: cfg.color }]} />
+    <View style={estilos.tarjeta} accessibilityLabel={`Cita con ${cita.medico}`}>
+      <View style={estilos.cajaFecha}>
+        <Text style={estilos.cajaFechaSem}>{cita.diaSemanaCorta}</Text>
+        <Text style={estilos.cajaFechaNum}>{cita.diaNumero}</Text>
+        <Text style={estilos.cajaFechaMes}>{cita.mesCorto}</Text>
+      </View>
 
       <View style={estilos.tarjetaBody}>
-        <View style={estilos.tarjetaHeader}>
-          <View style={estilos.medicoIcono}>
-            <Ionicons name="person-outline" size={20} color={paleta.navy} />
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={handleVerDetalle}
+          accessibilityLabel={`Cita con ${cita.medico}, ${cita.fecha}`}
+          accessibilityRole="button"
+        >
+          <View style={estilos.tarjetaHeader}>
+            <View style={estilos.medicoIcono}>
+              <Ionicons name="person-outline" size={20} color={paleta.navy} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={estilos.medicoNombre} numberOfLines={1}>
+                {cita.medico}
+              </Text>
+              <Text style={estilos.medicoEsp} numberOfLines={1}>
+                {cita.especialidad}
+              </Text>
+            </View>
+            <View style={[estilos.badge, { backgroundColor: cfg.fondo }]}>
+              <Ionicons name={cfg.icono} size={11} color={cfg.color} />
+              <Text style={[estilos.badgeTexto, { color: cfg.color }]}>
+                {cfg.etiqueta}
+              </Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={estilos.medicoNombre}>{cita.medico}</Text>
-            <Text style={estilos.medicoEsp}>{cita.especialidad}</Text>
-          </View>
-          <View style={[estilos.badge, { backgroundColor: cfg.fondo }]}>
-            <Ionicons name={cfg.icono} size={11} color={cfg.color} />
-            <Text style={[estilos.badgeTexto, { color: cfg.color }]}>
-              {cfg.etiqueta}
-            </Text>
-          </View>
-        </View>
 
-        <View style={estilos.divider} />
+          <View style={estilos.divider} />
 
-        <View style={estilos.detalles}>
-          <View style={estilos.detalleItem}>
-            <Ionicons name="calendar-outline" size={14} color={paleta.teal} />
-            <Text style={estilos.detalleTexto}>{cita.fecha}</Text>
+          <View style={estilos.detallesFila}>
+            <View style={estilos.detalleItem}>
+              <Ionicons name="time-outline" size={15} color={paleta.teal} />
+              <Text style={estilos.detalleTexto}>{cita.hora}</Text>
+            </View>
+            <View style={[estilos.detalleItem, { flex: 1, minWidth: 0 }]}>
+              <Ionicons name="location-outline" size={15} color={paleta.teal} />
+              <Text style={estilos.detalleTexto} numberOfLines={1}>
+                {cita.sucursal}
+              </Text>
+            </View>
           </View>
-          <View style={estilos.detalleItem}>
-            <Ionicons name="time-outline" size={14} color={paleta.teal} />
-            <Text style={estilos.detalleTexto}>{cita.hora}</Text>
-          </View>
-          <View style={estilos.detalleItem}>
-            <Ionicons name="location-outline" size={14} color={paleta.teal} />
-            <Text style={estilos.detalleTexto}>{cita.sucursal}</Text>
-          </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={estilos.tarjetaPie}>
           <Text style={estilos.monto}>${cita.monto} MXN</Text>
@@ -231,7 +252,7 @@ function TarjetaCita({ cita, onActualizar }: TarjetaCitaProps): React.JSX.Elemen
           </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -457,7 +478,33 @@ const estilos = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
   },
-  franja: { width: 5 },
+  cajaFecha: {
+    width: 76,
+    backgroundColor: paleta.headerBar,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cajaFechaSem: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.85)",
+    textTransform: "capitalize",
+  },
+  cajaFechaNum: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: paleta.white,
+    lineHeight: 30,
+    marginVertical: 2,
+  },
+  cajaFechaMes: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.9)",
+    textTransform: "capitalize",
+  },
   tarjetaBody: { flex: 1, padding: 14 },
   tarjetaHeader: {
     flexDirection: "row",
@@ -491,9 +538,15 @@ const estilos = StyleSheet.create({
     marginBottom: 10,
   },
 
-  detalles: { gap: 5, marginBottom: 12 },
-  detalleItem: { flexDirection: "row", alignItems: "center", gap: 7 },
-  detalleTexto: { fontSize: 13, color: paleta.navy, opacity: 0.75 },
+  detallesFila: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  detalleItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  detalleTexto: { fontSize: 13, color: paleta.navy, opacity: 0.8 },
 
   tarjetaPie: {
     flexDirection: "row",

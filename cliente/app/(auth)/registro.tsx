@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Entrada } from "../../componentes/comunes/Entrada";
 import { Boton } from "../../componentes/comunes/Boton";
 import { COLORES } from "../../constants/theme";
+import { useAuthStore, type Usuario } from "../../stores/auth.store";
 
 import { API_URL } from "../../constants/api";
 
@@ -34,6 +35,7 @@ export default function RegistroScreen() {
   const [confirmarContrasena, setConfirmarContrasena] = useState("");
   const [avisoPrivacidad, setAvisoPrivacidad] = useState(false);
   const [consentimiento, setConsentimiento] = useState(false);
+  const setAuth = useAuthStore((s) => s.setAuth);
 
   const seleccionarFecha = (event: any, fechaSeleccionada?: Date) => {
     setMostrarCalendario(false);
@@ -69,7 +71,7 @@ export default function RegistroScreen() {
       // @ts-ignore
       //const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
-      const response = await fetch(`${API_URL}/usuarios/registro`, {
+      const response = await fetch(`${API_URL}/auth/registro`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -80,17 +82,35 @@ export default function RegistroScreen() {
           apellido_mat: apellidoMaterno,
           correoElectronico: correo,
           telefono: telefono,
-          fechaNacimiento: fechaNac, // Asegúrate de que el formato sea YYYY-MM-DD
+          fechaNacimiento: fechaNac,
           genero: genero,
           password: contrasena,
         }),
       });
 
-      if (response.ok) {
+      let datos: Record<string, unknown> = {};
+      try {
+        datos = (await response.json()) as Record<string, unknown>;
+      } catch {
+        /* no JSON */
+      }
+
+      if (
+        response.ok &&
+        datos.access_token &&
+        datos.refresh_token &&
+        datos.usuario
+      ) {
+        await setAuth(
+          datos.usuario as Usuario,
+          String(datos.access_token),
+          String(datos.refresh_token),
+        );
         setPaso(4);
       } else {
-        const errorData = await response.json();
-        alert(`No se pudo registrar: ${errorData.message}`);
+        const raw = datos.message ?? datos.error ?? "No se pudo registrar";
+        const mensaje = Array.isArray(raw) ? raw.join("\n") : String(raw);
+        alert(`No se pudo registrar: ${mensaje}`);
       }
     } catch (error) {
       console.error("Error en la conexión:", error);
@@ -99,7 +119,7 @@ export default function RegistroScreen() {
   };
 
   const avanzarPaso = () => setPaso(paso + 1);
-  const finalizarRegistro = () => router.replace("/(auth)/iniciar-sesion");
+  const finalizarRegistro = () => router.replace("/(privado)/inicio");
 
   const IndicadorPasos = () => (
     <View style={styles.contenedorIndicador}>

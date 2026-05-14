@@ -12,6 +12,7 @@ import { JwtPayload } from '../auth/jwt-payload.interface';
 export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
+  /** @deprecated Prefer `POST /auth/registro` (devuelve JWT). Se mantiene para integraciones que solo crean cuenta. */
   @Post('registro')
   async crearCuenta(@Body() datosRegistro: RegistroDto) {
     return await this.usuariosService.registrarPaciente(datosRegistro);

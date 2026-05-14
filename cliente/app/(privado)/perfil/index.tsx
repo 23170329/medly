@@ -136,31 +136,16 @@ export default function PerfilPantalla(): React.JSX.Element {
 
   const SECCIONES: readonly SeccionMenu[] = [
     {
-      titulo: "MI CUENTA",
+      titulo: "AJUSTES",
       items: [
         {
-          id: "editar",
-          icono: "create-outline",
-          etiqueta: "Editar perfil",
-          subtitulo: "Nombre, teléfono y foto",
+          id: "info",
+          icono: "person-outline",
+          etiqueta: "Información Personal",
+          subtitulo: "Nombre, apellidos, teléfono y correo",
           tipo: "nav",
           onPress: () => router.push("/(privado)/perfil/editar"),
         },
-        {
-          id: "seguridad",
-          icono: "lock-closed-outline",
-          etiqueta: "Seguridad",
-          subtitulo: "Cambiar contraseña",
-          tipo: "nav",
-          onPress: () => {
-            /* TODO: navegar a cambio de contraseña */
-          },
-        },
-      ],
-    },
-    {
-      titulo: "PREFERENCIAS",
-      items: [
         {
           id: "notif",
           icono: "notifications-outline",
@@ -170,72 +155,32 @@ export default function PerfilPantalla(): React.JSX.Element {
           onPress: () => setNotificaciones((v) => !v),
         },
         {
-          id: "idioma",
-          icono: "language-outline",
-          etiqueta: "Idioma",
-          subtitulo: "Español",
+          id: "seg",
+          icono: "lock-closed-outline",
+          etiqueta: "Seguridad",
+          subtitulo: "Contraseña de acceso",
           tipo: "nav",
-          onPress: () => {
-            /* TODO */
-          },
-        },
-      ],
-    },
-    {
-      titulo: "INFORMACIÓN",
-      items: [
-        {
-          id: "historial",
-          icono: "document-text-outline",
-          etiqueta: "Historial médico",
-          subtitulo: "Consultas anteriores",
-          tipo: "nav",
-          onPress: () => {
-            /* TODO */
-          },
-        },
-        {
-          id: "pagos",
-          icono: "card-outline",
-          etiqueta: "Métodos de pago",
-          subtitulo: "Gestionar tarjetas",
-          tipo: "nav",
-          onPress: () => {
-            /* TODO */
-          },
+          onPress: () =>
+            Alert.alert(
+              "Seguridad",
+              "Próximamente podrás cambiar tu contraseña desde la app.",
+            ),
         },
         {
           id: "ayuda",
           icono: "help-circle-outline",
-          etiqueta: "Ayuda y soporte",
-          subtitulo: "Chat, FAQ y contacto",
+          etiqueta: "Centro de Ayuda",
+          subtitulo: "Preguntas frecuentes",
           tipo: "nav",
-          onPress: () => {
-            /* TODO */
-          },
-        },
-      ],
-    },
-    {
-      titulo: "LEGAL",
-      items: [
-        {
-          id: "privacidad",
-          icono: "shield-outline",
-          etiqueta: "Aviso de privacidad",
-          tipo: "nav",
-          onPress: () => {
-            /* TODO */
-          },
+          onPress: () => router.push("/(privado)/perfil/ayuda"),
         },
         {
-          id: "terminos",
-          icono: "document-outline",
-          etiqueta: "Términos y condiciones",
+          id: "legal",
+          icono: "document-text-outline",
+          etiqueta: "Legal",
+          subtitulo: "Términos, privacidad y cookies",
           tipo: "nav",
-          onPress: () => {
-            /* TODO */
-          },
+          onPress: () => router.push("/(privado)/perfil/legal"),
         },
       ],
     },
@@ -248,7 +193,7 @@ export default function PerfilPantalla(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
       >
         {/* */}
-        <Text style={estilos.titulo}>MI PERFIL</Text>
+        <Text style={estilos.titulo}>PERFIL</Text>
 
         {/* */}
         <View style={estilos.tarjetaUsuario}>
@@ -270,7 +215,7 @@ export default function PerfilPantalla(): React.JSX.Element {
           <TouchableOpacity
             onPress={() => router.push("/(privado)/perfil/editar")}
             style={estilos.editarBtn}
-            accessibilityLabel="Editar perfil"
+            accessibilityLabel="Editar información personal"
             accessibilityRole="button"
           >
             <Ionicons name="create-outline" size={20} color={paleta.teal} />
@@ -448,11 +393,12 @@ const estilos = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: paleta.red,
-    borderRadius: BORDES.radio,
-    paddingVertical: 14,
+    borderRadius: BORDES.radioPill,
+    paddingVertical: 16,
     marginBottom: 20,
+    backgroundColor: paleta.white,
   },
   btnCerrarSesionTexto: {
     fontSize: 14,

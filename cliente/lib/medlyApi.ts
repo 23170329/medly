@@ -155,3 +155,31 @@ export async function fetchEstadisticasPerfil(): Promise<{
   const { data } = await api.get(`/citas/estadisticas`);
   return data;
 }
+
+export interface PerfilPacienteDto {
+  pacienteID: number;
+  nombre: string;
+  apellido_pat: string;
+  apellido_mat: string | null;
+  apellido: string;
+  correoElectronico: string;
+  telefono: string;
+  fechaNacimiento: string;
+  genero: string;
+}
+
+export async function fetchPerfilPaciente(): Promise<PerfilPacienteDto> {
+  const { data } = await api.get<PerfilPacienteDto>("/usuarios/perfil");
+  return data;
+}
+
+export async function actualizarPerfilPaciente(body: {
+  nombre?: string;
+  apellido_pat?: string;
+  apellido_mat?: string;
+  correoElectronico?: string;
+  telefono?: string;
+}): Promise<PerfilPacienteDto> {
+  const { data } = await api.patch<PerfilPacienteDto>("/usuarios/perfil", body);
+  return data;
+}

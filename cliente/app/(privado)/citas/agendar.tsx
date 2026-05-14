@@ -230,13 +230,15 @@ export default function AgendarCitaPantalla() {
   return (
     <SafeAreaView style={estilos.areaSegura}>
       {paso < 5 && (
-        <View style={estilos.header}>
-          <TouchableOpacity onPress={retroceder} style={estilos.btnAtras}>
-            <Ionicons name="chevron-back" size={24} color={paleta.white} />
-          </TouchableOpacity>
-          <View style={{ marginTop: 20 }}>
-            <Text style={estilos.tituloPrincipal}>AGENDAR CITA</Text>
-            <Indicador />
+        <View style={estilos.headerBar}>
+          <View style={estilos.headerFila}>
+            <TouchableOpacity onPress={retroceder} style={estilos.btnAtras}>
+              <Ionicons name="chevron-back" size={24} color={paleta.white} />
+            </TouchableOpacity>
+            <View style={estilos.headerTextos}>
+              <Text style={estilos.tituloPrincipal}>AGENDAR CITA</Text>
+              <Indicador />
+            </View>
           </View>
         </View>
       )}
@@ -589,30 +591,46 @@ const estilos = StyleSheet.create({
   scroll: { flexGrow: 1, padding: 24 },
   errorTxt: { color: "red", paddingHorizontal: 24 },
 
-  header: {
-    paddingHorizontal: 24,
+  headerBar: {
+    backgroundColor: paleta.headerBar,
+    paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
+    borderBottomLeftRadius: BORDES.radio + 8,
+    borderBottomRightRadius: BORDES.radio + 8,
+    marginBottom: 8,
+    shadowColor: paleta.navy,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
+  headerFila: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  headerTextos: { flex: 1, minWidth: 0 },
   btnAtras: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: paleta.teal,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 2,
   },
   tituloPrincipal: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: paleta.navy,
-    letterSpacing: 1,
-    marginBottom: 10,
+    fontSize: 15,
+    fontWeight: "800",
+    color: paleta.white,
+    letterSpacing: 1.2,
+    marginBottom: 12,
   },
-  indicadorContenedor: { flexDirection: "row", gap: 6 },
-  lineaPaso: { height: 4, width: 24, borderRadius: 2 },
-  lineaPasoActiva: { backgroundColor: paleta.navy },
-  lineaPasoInactiva: { backgroundColor: paleta.skyblue },
+  indicadorContenedor: { flexDirection: "row", gap: 8 },
+  lineaPaso: { height: 4, flex: 1, maxWidth: 56, borderRadius: 2 },
+  lineaPasoActiva: { backgroundColor: paleta.white },
+  lineaPasoInactiva: { backgroundColor: "rgba(255,255,255,0.28)" },
 
   subtitulo: {
     fontSize: 11,

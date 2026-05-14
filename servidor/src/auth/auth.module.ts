@@ -7,9 +7,11 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { UsuariosModule } from '../usuarios/usuarios.module';
 
 @Module({
   imports: [
+    UsuariosModule,
     TypeOrmModule.forFeature([CuentaUsuario]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

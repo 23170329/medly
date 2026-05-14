@@ -28,13 +28,14 @@ export class MedicosController {
     });
   }
 
-  @Get(':id')
-  obtener(@Param('id', ParseIntPipe) id: number) {
-    return this.svc.obtener(id);
-  }
-
+  /** Ruta más específica antes de `:id` para evitar colisiones con algunos routers. */
   @Get(':id/sucursales')
   sucursales(@Param('id', ParseIntPipe) id: number) {
     return this.svc.sucursalesDeMedico(id);
+  }
+
+  @Get(':id')
+  obtener(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.obtener(id);
   }
 }

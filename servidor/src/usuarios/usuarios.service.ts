@@ -21,10 +21,12 @@ export class UsuariosService {
   ) {}
 
   async registrarPaciente(datos: RegistroDto) {
-    const existe = await this.pacienteRepo.exist({
-      where: { correoElectronico: datos.correoElectronico },
-    });
-    if (existe) {
+    const correoNorm = datos.correoElectronico.trim().toLowerCase();
+    const duplicado = await this.pacienteRepo
+      .createQueryBuilder('p')
+      .where('LOWER(TRIM(p.correoElectronico)) = :correo', { correo: correoNorm })
+      .getCount();
+    if (duplicado > 0) {
       throw new ConflictException('El correo ya está registrado');
     }
 
@@ -34,7 +36,7 @@ export class UsuariosService {
       nombre: datos.nombre,
       apellido_pat: datos.apellido_pat,
       apellido_mat: datos.apellido_mat ?? undefined,
-      correoElectronico: datos.correoElectronico,
+      correoElectronico: correoNorm,
       telefono: datos.telefono,
       fechaNacimiento: datos.fechaNacimiento,
       genero: datos.genero,
