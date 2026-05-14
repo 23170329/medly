@@ -11,7 +11,7 @@ export class HorariosService {
     private readonly slotRepo: Repository<SlotAgenda>,
   ) {}
 
-  /** Slots libres desde mañana hasta +30 días (filtrado por optional range) */
+  /** Slots libres desde mañana hasta +30 días (filtrado por optional range). Excluye traslapes con bloqueo_agenda. */
   async disponiblesRangoQuery(params: {
     medicoId: number;
     sucursalId: number;
@@ -29,6 +29,13 @@ export class HorariosService {
       .andWhere('s.estado = :estado', { estado: EstadoSlot.LIBRE })
       .andWhere('s.inicio >= :desde', { desde })
       .andWhere('s.inicio <= :hasta', { hasta })
+      .andWhere(
+        `NOT EXISTS (
+          SELECT 1 FROM bloqueo_agenda b
+          WHERE b."medicoID" = s."medicoID"
+          AND b.inicio < s.fin AND b.fin > s.inicio
+        )`,
+      )
       .orderBy('s.inicio', 'ASC');
 
     return qb.getMany();

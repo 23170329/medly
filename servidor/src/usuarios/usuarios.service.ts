@@ -30,6 +30,14 @@ export class UsuariosService {
       throw new ConflictException('El correo ya está registrado');
     }
 
+    const curpNorm = datos.curp.trim().toUpperCase();
+    const curpDup = await this.pacienteRepo.exist({
+      where: { curp: curpNorm },
+    });
+    if (curpDup) {
+      throw new ConflictException('La CURP ya está registrada');
+    }
+
     const hash = await bcrypt.hash(datos.password, 10);
 
     const nuevoPaciente = this.pacienteRepo.create({
@@ -40,6 +48,7 @@ export class UsuariosService {
       telefono: datos.telefono,
       fechaNacimiento: datos.fechaNacimiento,
       genero: datos.genero,
+      curp: curpNorm,
     });
     const pacienteGuardado = await this.pacienteRepo.save(nuevoPaciente);
 
@@ -70,6 +79,7 @@ export class UsuariosService {
       telefono: p.telefono,
       fechaNacimiento: p.fechaNacimiento,
       genero: p.genero,
+      curp: p.curp,
     };
   }
 
@@ -91,5 +101,23 @@ export class UsuariosService {
     Object.assign(p, dto);
     await this.pacienteRepo.save(p);
     return this.obtenerPerfil(pacienteId);
+  }
+
+  async buscarPacientes(q: string) {
+    const t = q.trim();
+    if (t.length < 2) {
+      return [];
+    }
+    const like = `%${t}%`;
+    return this.pacienteRepo
+      .createQueryBuilder('p')
+      .where('LOWER(p.nombre) LIKE LOWER(:like)', { like })
+      .orWhere('LOWER(p.apellido_pat) LIKE LOWER(:like)', { like })
+      .orWhere('LOWER(p.apellido_mat) LIKE LOWER(:like)', { like })
+      .orWhere('LOWER(p.correoElectronico) LIKE LOWER(:like)', { like })
+      .orWhere('UPPER(p.curp) LIKE UPPER(:pref)', { pref: `${t.toUpperCase()}%` })
+      .orderBy('p.pacienteID', 'DESC')
+      .take(25)
+      .getMany();
   }
 }

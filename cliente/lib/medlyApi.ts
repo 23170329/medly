@@ -166,6 +166,7 @@ export interface PerfilPacienteDto {
   telefono: string;
   fechaNacimiento: string;
   genero: string;
+  curp: string;
 }
 
 export async function fetchPerfilPaciente(): Promise<PerfilPacienteDto> {

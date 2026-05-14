@@ -20,7 +20,16 @@ export default function SplashPantalla(): React.JSX.Element {
       await new Promise((r) => setTimeout(r, 1800));
       if (cancel) return;
       const tok = useAuthStore.getState().accessToken;
-      if (tok) {
+      const usuario = useAuthStore.getState().usuario;
+      if (tok && usuario) {
+        if (usuario.rol === "RECEPCIONISTA") {
+          router.replace("/(recepcion)");
+        } else if (usuario.rol === "MEDICO") {
+          router.replace("/(medico)");
+        } else {
+          router.replace("/(privado)/inicio");
+        }
+      } else if (tok) {
         router.replace("/(privado)/inicio");
       } else {
         router.replace("/(auth)/iniciar-sesion");
@@ -36,7 +45,7 @@ export default function SplashPantalla(): React.JSX.Element {
     <View style={estilos.contenedor}>
       <View style={estilos.circulo}>
         <Image
-          source={require("../../assets/medlylogo.jpg")}
+          source={require("../../assets/logo-medly-oficial.png")}
           style={estilos.logo}
           resizeMode="contain"
         />
@@ -63,7 +72,7 @@ const estilos = StyleSheet.create({
     width: 132,
     height: 132,
     borderRadius: 66,
-    backgroundColor: paleta.teal,
+    backgroundColor: "#000000",
     justifyContent: "center",
     alignItems: "center",
     padding: 18,

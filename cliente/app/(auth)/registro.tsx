@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
@@ -17,6 +18,11 @@ import { COLORES } from "../../constants/theme";
 import { useAuthStore, type Usuario } from "../../stores/auth.store";
 
 import { API_URL } from "../../constants/api";
+import {
+  normalizarCurp,
+  validarPasoAcceso,
+  validarPasoDatosPersonales,
+} from "../../lib/validacionRegistro";
 
 export default function RegistroScreen() {
   const [paso, setPaso] = useState(1);
@@ -31,6 +37,7 @@ export default function RegistroScreen() {
   const [genero, setGenero] = useState("");
   const [telefono, setTelefono] = useState("");
   const [correo, setCorreo] = useState("");
+  const [curp, setCurp] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [confirmarContrasena, setConfirmarContrasena] = useState("");
   const [avisoPrivacidad, setAvisoPrivacidad] = useState(false);
@@ -53,14 +60,31 @@ export default function RegistroScreen() {
   };
 
   const handleRegistro = async () => {
-    // Validación básica para asegurar que las contraseñas coincidan
-    if (contrasena !== confirmarContrasena) {
-      alert("Las contraseñas no coinciden");
+    const errP1 = validarPasoDatosPersonales({
+      nombres,
+      apellidoPaterno,
+      apellidoMaterno,
+      fechaNacimiento,
+      genero,
+      curp,
+    });
+    if (errP1) {
+      Alert.alert("Revisa tus datos", errP1);
+      return;
+    }
+    const errP2 = validarPasoAcceso({
+      telefono,
+      correo,
+      contrasena,
+      confirmarContrasena,
+    });
+    if (errP2) {
+      Alert.alert("Revisa tus datos", errP2);
       return;
     }
 
     if (!avisoPrivacidad || !consentimiento) {
-      alert("Debes aceptar los términos para continuar");
+      Alert.alert("Atención", "Debes aceptar los términos para continuar.");
       return;
     }
 
@@ -68,22 +92,20 @@ export default function RegistroScreen() {
     const fechaNac = `${partesFecha[2]}-${partesFecha[1]}-${partesFecha[0]}`;
 
     try {
-      // @ts-ignore
-      //const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-
       const response = await fetch(`${API_URL}/auth/registro`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          nombre: nombres,
-          apellido_pat: apellidoPaterno,
-          apellido_mat: apellidoMaterno,
-          correoElectronico: correo,
-          telefono: telefono,
+          nombre: nombres.trim(),
+          apellido_pat: apellidoPaterno.trim(),
+          apellido_mat: apellidoMaterno.trim() || undefined,
+          correoElectronico: correo.trim().toLowerCase(),
+          telefono: telefono.replace(/\D/g, ""),
           fechaNacimiento: fechaNac,
-          genero: genero,
+          genero,
+          curp: normalizarCurp(curp),
           password: contrasena,
         }),
       });
@@ -110,15 +132,47 @@ export default function RegistroScreen() {
       } else {
         const raw = datos.message ?? datos.error ?? "No se pudo registrar";
         const mensaje = Array.isArray(raw) ? raw.join("\n") : String(raw);
-        alert(`No se pudo registrar: ${mensaje}`);
+        Alert.alert("No se pudo registrar", mensaje);
       }
     } catch (error) {
       console.error("Error en la conexión:", error);
-      alert("No se pudo conectar con el servidor. Verifica tu IP.");
+      Alert.alert(
+        "Error de conexión",
+        "No se pudo conectar con el servidor. Verifica tu red.",
+      );
     }
   };
 
-  const avanzarPaso = () => setPaso(paso + 1);
+  const avanzarPaso = (): void => {
+    if (paso === 1) {
+      const err = validarPasoDatosPersonales({
+        nombres,
+        apellidoPaterno,
+        apellidoMaterno,
+        fechaNacimiento,
+        genero,
+        curp,
+      });
+      if (err) {
+        Alert.alert("Revisa tus datos", err);
+        return;
+      }
+    }
+    if (paso === 2) {
+      const err = validarPasoAcceso({
+        telefono,
+        correo,
+        contrasena,
+        confirmarContrasena,
+      });
+      if (err) {
+        Alert.alert("Revisa tus datos", err);
+        return;
+      }
+    }
+    setPaso((p) => p + 1);
+  };
+
   const finalizarRegistro = () => router.replace("/(privado)/inicio");
 
   const IndicadorPasos = () => (
@@ -139,7 +193,7 @@ export default function RegistroScreen() {
         {paso < 4 && (
           <View style={styles.encabezado}>
             <Image
-              source={require("../../assets/medlylogo.jpg")}
+              source={require("../../assets/logo-medly-oficial.png")}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -174,6 +228,16 @@ export default function RegistroScreen() {
               placeholder="Apellido Materno"
               value={apellidoMaterno}
               onChangeText={setApellidoMaterno}
+            />
+            <Entrada
+              etiqueta="CURP"
+              placeholder="18 caracteres alfanuméricos"
+              value={curp}
+              onChangeText={(t) =>
+                setCurp(t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18))
+              }
+              maxLength={18}
+              autoCapitalize="characters"
             />
 
             <View style={styles.fila}>
@@ -228,6 +292,40 @@ export default function RegistroScreen() {
                       size={24}
                       color={genero === "F" ? COLORES.blanco : COLORES.texto}
                     />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.botonGenero,
+                      genero === "X" && styles.botonGeneroActivo,
+                    ]}
+                    onPress={() => setGenero("X")}
+                  >
+                    <Text
+                      style={{
+                        fontWeight: "700",
+                        color: genero === "X" ? COLORES.blanco : COLORES.texto,
+                      }}
+                    >
+                      X
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.botonGenero,
+                      genero === "OTRO" && styles.botonGeneroActivo,
+                    ]}
+                    onPress={() => setGenero("OTRO")}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "700",
+                        color:
+                          genero === "OTRO" ? COLORES.blanco : COLORES.texto,
+                      }}
+                    >
+                      Otro
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>

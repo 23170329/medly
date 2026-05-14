@@ -12,45 +12,42 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CitasService } from './citas.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PatientOnlyGuard } from '../auth/guards/patient-only.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/jwt-payload.interface';
 import { CrearCitaDto } from './dto/crear-cita.dto';
 
 @ApiTags('citas')
 @Controller('citas')
+@UseGuards(JwtAuthGuard, PatientOnlyGuard)
 export class CitasController {
   constructor(private readonly citasService: CitasService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   crear(@CurrentUser() user: JwtPayload, @Body() dto: CrearCitaDto) {
     return this.citasService.crearReserva(user.sub, dto.slotID);
   }
 
   @Get('mis-citas')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   misCitas(@CurrentUser() user: JwtPayload) {
     return this.citasService.misCitas(user.sub);
   }
 
   @Get('proxima')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   proxima(@CurrentUser() user: JwtPayload) {
     return this.citasService.proximaCitaPaciente(user.sub);
   }
 
   @Get('estadisticas')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   estadisticas(@CurrentUser() user: JwtPayload) {
     return this.citasService.estadisticasPerfil(user.sub);
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   obtener(
     @CurrentUser() user: JwtPayload,
@@ -60,7 +57,6 @@ export class CitasController {
   }
 
   @Patch(':id/cancelar')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   cancelar(
     @CurrentUser() user: JwtPayload,
@@ -70,7 +66,6 @@ export class CitasController {
   }
 
   @Delete(':id/reserva')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   abandonar(
     @CurrentUser() user: JwtPayload,

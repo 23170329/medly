@@ -12,6 +12,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { PagosService } from './pagos.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PatientOnlyGuard } from '../auth/guards/patient-only.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/jwt-payload.interface';
 import { CheckoutSessionDto } from './dto/checkout-session.dto';
@@ -22,7 +23,7 @@ export class PagosController {
   constructor(private readonly pagosService: PagosService) {}
 
   @Post('checkout-session')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PatientOnlyGuard)
   @ApiBearerAuth()
   async checkoutSession(
     @CurrentUser() user: JwtPayload,

@@ -21,17 +21,25 @@ import { MedicoSucursal } from './medicos/entities/medico-sucursal.entity';
 import { SlotAgenda } from './horarios/entities/slot-agenda.entity';
 import { Cita } from './citas/entities/cita.entity';
 import { Pago } from './pagos/entities/pago.entity';
+import { CuentaStaff } from './staff/entities/cuenta-staff.entity';
+import { BloqueoAgenda } from './horarios/entities/bloqueo-agenda.entity';
+import { ConsultaClinica } from './consultas/entities/consulta-clinica.entity';
+import { RecepcionModule } from './recepcion/recepcion.module';
+import { MedicoPanelModule } from './medico-panel/medico-panel.module';
 
 const entities = [
   Paciente,
   CuentaUsuario,
+  CuentaStaff,
   Especialidad,
   Sucursal,
   Medico,
   MedicoSucursal,
   SlotAgenda,
+  BloqueoAgenda,
   Cita,
   Pago,
+  ConsultaClinica,
 ];
 
 @Module({
@@ -80,6 +88,8 @@ const entities = [
     HorariosModule,
     CitasModule,
     PagosModule,
+    RecepcionModule,
+    MedicoPanelModule,
   ],
   controllers: [AppController],
   providers: [AppService],

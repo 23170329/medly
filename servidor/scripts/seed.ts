@@ -8,6 +8,8 @@ import { Medico } from '../src/medicos/entities/medico.entity';
 import { MedicoSucursal } from '../src/medicos/entities/medico-sucursal.entity';
 import { SlotAgenda } from '../src/horarios/entities/slot-agenda.entity';
 import { EstadoSlot } from '../src/common/enums';
+import { CuentaStaff } from '../src/staff/entities/cuenta-staff.entity';
+import * as bcrypt from 'bcryptjs';
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
@@ -50,6 +52,7 @@ async function seed(): Promise<void> {
   const medRepo = dataSource.getRepository(Medico);
   const msRepo = dataSource.getRepository(MedicoSucursal);
   const slotRepo = dataSource.getRepository(SlotAgenda);
+  const staffRepo = dataSource.getRepository(CuentaStaff);
 
   let especialidades = await espRepo.find();
   if (especialidades.length === 0) {
@@ -179,6 +182,36 @@ async function seed(): Promise<void> {
       await slotRepo.save(slots.slice(i, i + chunk));
     }
     console.log(`Insertados ${slots.length} slots de agenda.`);
+  }
+
+  const staffCount = await staffRepo.count();
+  if (staffCount === 0) {
+    const med = await medRepo.findOne({ where: { cedula: 'CED001' } });
+    if (med) {
+      const passRep = await bcrypt.hash('RecepMedly1!', 10);
+      const passDoc = await bcrypt.hash('DoctorMedly1!', 10);
+      await staffRepo.save(
+        staffRepo.create({
+          nombre: 'Recepción Demo',
+          correo: 'recepcion@medly.local',
+          password: passRep,
+          rol: 'RECEPCIONISTA',
+          medico: null,
+        }),
+      );
+      await staffRepo.save(
+        staffRepo.create({
+          nombre: 'Dra. Alejandra López',
+          correo: 'doctor@medly.local',
+          password: passDoc,
+          rol: 'MEDICO',
+          medico: med,
+        }),
+      );
+      console.log(
+        'Cuentas staff: recepcion@medly.local / RecepMedly1! · doctor@medly.local / DoctorMedly1!',
+      );
+    }
   }
 
   await dataSource.destroy();

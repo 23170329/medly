@@ -4,6 +4,7 @@ import { UsuariosService } from './usuarios.service';
 import { RegistroDto } from './dto/registro.dto';
 import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PatientOnlyGuard } from '../auth/guards/patient-only.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/jwt-payload.interface';
 
@@ -19,14 +20,14 @@ export class UsuariosController {
   }
 
   @Get('perfil')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PatientOnlyGuard)
   @ApiBearerAuth()
   perfil(@CurrentUser() user: JwtPayload) {
     return this.usuariosService.obtenerPerfil(user.sub);
   }
 
   @Patch('perfil')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PatientOnlyGuard)
   @ApiBearerAuth()
   actualizarPerfil(
     @CurrentUser() user: JwtPayload,

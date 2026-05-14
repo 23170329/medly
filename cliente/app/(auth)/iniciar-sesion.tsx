@@ -49,13 +49,20 @@ export default function IniciarSesionScreen() {
       }
 
       if (response.ok && datos.access_token && datos.refresh_token) {
+        const usuario = datos.usuario as Usuario;
         await setAuth(
-          datos.usuario as Usuario,
+          usuario,
           String(datos.access_token),
           String(datos.refresh_token),
         );
 
-        router.replace("/(privado)/inicio");
+        if (usuario.rol === "RECEPCIONISTA") {
+          router.replace("/(recepcion)");
+        } else if (usuario.rol === "MEDICO") {
+          router.replace("/(medico)");
+        } else {
+          router.replace("/(privado)/inicio");
+        }
       } else {
         const raw = datos.message ?? datos.error ?? "No se pudo iniciar sesión";
         const mensaje = Array.isArray(raw) ? raw.join("\n") : String(raw);
@@ -76,7 +83,7 @@ export default function IniciarSesionScreen() {
         {/* Logo y Encabezado */}
         <View style={styles.encabezado}>
           <Image
-            source={require("../../assets/medlylogo.jpg")}
+            source={require("../../assets/logo-medly-oficial.png")}
             style={styles.logo}
             resizeMode="contain"
           />

@@ -27,6 +27,9 @@ export class Paciente {
   @Column({ type: 'varchar', length: 10 })
   genero!: string;
 
+  @Column({ type: 'varchar', length: 18, unique: true })
+  curp!: string;
+
   @OneToOne(() => CuentaUsuario, (cuenta) => cuenta.paciente)
   cuenta!: CuentaUsuario;
 }

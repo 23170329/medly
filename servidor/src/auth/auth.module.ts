@@ -6,13 +6,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity';
+import { CuentaStaff } from '../staff/entities/cuenta-staff.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsuariosModule } from '../usuarios/usuarios.module';
+import { PatientOnlyGuard } from './guards/patient-only.guard';
+import { RolesGuard } from './guards/roles.guard';
 
 @Module({
   imports: [
     UsuariosModule,
-    TypeOrmModule.forFeature([CuentaUsuario]),
+    TypeOrmModule.forFeature([CuentaUsuario, CuentaStaff]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -26,7 +29,13 @@ import { UsuariosModule } from '../usuarios/usuarios.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, JwtModule],
+  providers: [AuthService, JwtStrategy, PatientOnlyGuard, RolesGuard],
+  exports: [
+    AuthService,
+    JwtModule,
+    PatientOnlyGuard,
+    RolesGuard,
+    PassportModule,
+  ],
 })
 export class AuthModule {}
