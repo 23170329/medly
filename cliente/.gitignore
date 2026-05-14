@@ -33,9 +33,6 @@ yarn-error.*
 # local env files
 .env*.local
 
-# production env files (documentation only, actual values configured in EAS)
-.env.production
-
 # typescript
 *.tsbuildinfo
 

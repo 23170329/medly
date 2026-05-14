@@ -14,7 +14,7 @@
 | DB | PostgreSQL 16 |
 | Pagos | Stripe (Checkout Sessions) |
 | Auth | JWT (access + refresh) |
-| Deploy | Azure App Service (Linux) |
+| Deploy | Railway |
 
 ## 2. Arquitectura
 
@@ -275,113 +275,50 @@ skyblue= "#C8D9E6"  // Surface variant / gris claro
 beige  = "#F5EFEB"  // Background
 ```
 
-## 7. Despliegue en Azure App Service (Linux)
-
-Despliegue manual del backend (NestJS) en Azure App Service con runtime Node.js 20 nativo, sin Docker.
+## 7. Despliegue en Railway
 
 ### 7.1 Prerrequisitos
+- Cuenta en [Railway](https://railway.app) con GitHub
+- Stripe account (producción o test)
+- PostgreSQL database en Railway (crear desde dashboard)
 
-- Cuenta de Azure con suscripción activa
-- [Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli) instalada (`az login`)
-- Node.js 20+ local
-- Git
+### 7.2 Pasos para desplegar
 
-### 7.2 Paso 1 — Crear Base de Datos
+1. **Crear proyecto** en Railway → Deploy from GitHub → `medly`
+2. **Agregar PostgreSQL** desde el dashboard de Railway
+3. **Configurar variables de entorno** en Railway:
+   ```
+   JWT_SECRET=<string_seguro>
+   JWT_REFRESH_SECRET=<otro_string>
+   STRIPE_SECRET_KEY=sk_test_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   FRONTEND_URL=<url_deploy_frontend>
+   APP_PUBLIC_URL=<url_railway_del_api>
+   ```
+   Railway asigna automáticamente `DATABASE_URL` y `PORT`.
+4. **Ejecutar migrations**:
+   ```bash
+   npx railway run npm run migration:run
+   ```
+5. El `railway.json` y `Procfile` ya están configurados para iniciar con `node dist/src/main.js`.
 
-1. En [Azure Portal](https://portal.azure.com) → **Azure Database for PostgreSQL**
-2. Elegir **Flexible Server**
-3. Configurar:
-   - **Suscripción y Grupo de Recursos** — crear uno nuevo (ej. `rg-medly`)
-   - **Nombre del servidor** — ej. `medly-postgres`
-   - **Región** — la misma donde estará el App Service
-   - **Versión PostgreSQL** — 16
-   - **Usuario administrador** — `medlyadmin`
-   - **SKU** — `Standard_B1ms` (burstable, suficiente para empezar)
-4. En **Redes** → Permitir acceso desde servicios de Azure
-5. Crear el servidor
-6. Ir a **Bases de datos** → Crear base de datos `medly`
-7. Obtener el **connection string** en formato `postgresql://usuario:password@host:5432/medly`
+### 7.3 Variables de Entorno
 
-### 7.3 Paso 2 — Crear App Service (Linux)
-
-1. En Azure Portal → **App Services** → **Crear**
-2. Configurar:
-   - **Suscripción y Grupo de Recursos** — el mismo de la BD (`rg-medly`)
-   - **Nombre** — ej. `medly-api`
-   - **Publicar** — `Código`
-   - **Runtime stack** — `Node.js 20`
-   - **Sistema operativo** — `Linux`
-   - **Región** — misma que la BD
-   - **Plan App Service** — `B1` (Básico) o `F1` (Gratis)
-3. Revisar y crear
-
-### 7.4 Paso 3 — Configurar Variables de Entorno
-
-En Azure Portal → App Service `medly-api` → **Settings** → **Environment variables**:
-
-| Variable | Valor |
-|----------|-------|
-| `NODE_ENV` | `production` |
-| `DATABASE_URL` | Connection string de Azure PostgreSQL Flexible Server |
-| `JWT_SECRET` | Secreto seguro para firmar JWT |
-| `JWT_EXPIRES_IN` | `15m` |
-| `JWT_REFRESH_SECRET` | Otro secreto seguro para refresh token |
-| `JWT_REFRESH_EXPIRES_IN` | `7d` |
+| Variable | Descripción |
+|----------|-------------|
+| `NODE_ENV` | `production` (Railway asigna automáticamente) |
+| `PORT` | Railway asigna automáticamente |
+| `DATABASE_URL` | Railway asigna automáticamente (PostgreSQL) |
+| `JWT_SECRET` | Secreto para firmar JWT |
+| `JWT_EXPIRES_IN` | `15m` por defecto |
+| `JWT_REFRESH_SECRET` | Secreto para refresh token |
+| `JWT_REFRESH_EXPIRES_IN` | `7d` por defecto |
+| `STRIPE_SECRET_KEY` | API key secreta de Stripe |
+| `STRIPE_WEBHOOK_SECRET` | Webhook signing secret |
 | `FRONTEND_URL` | URL del frontend (para CORS) |
-| `APP_PUBLIC_URL` | URL pública del API (`https://medly-api.azurewebsites.net`) |
+| `APP_PUBLIC_URL` | URL pública del API (redirects Stripe) |
 
-> **Nota**: Azure App Service asigna el `PORT` internamente; la app lo lee con `process.env.PORT ?? 3000`.
-
-### 7.5 Paso 4 — Compilar el proyecto
-
-```bash
-cd servidor
-npm install
-npm run build
-```
-
-### 7.6 Paso 5 — Desplegar el código
-
-**Opción A — Zip deploy desde Azure Portal:**
-
-1. Comprimir la carpeta `servidor/` (incluyendo `dist/`, `node_modules/`, `package.json`)
-2. En Azure Portal → App Service `medly-api` → **Deployment Center** → **Zip Deploy**
-3. Subir el archivo `.zip`
-
-**Opción B — Azure CLI:**
-
-```bash
-cd servidor
-az webapp up \
-  --name medly-api \
-  --resource-group rg-medly \
-  --runtime "NODE:20-lts" \
-  --os-type linux
-```
-
-### 7.7 Paso 6 — Ejecutar Migrations
-
-Ejecutar migrations contra la BD de Azure desde tu máquina local:
-
-```bash
-# Exporta la DATABASE_URL de Azure PostgreSQL en tu terminal:
-export DATABASE_URL="postgresql://usuario:password@medly-postgres.postgres.database.azure.com:5432/medly"
-
-# O en Windows PowerShell:
-# $env:DATABASE_URL = "postgresql://..."
-
-cd servidor
-npm run migration:run
-```
-
-> Alternativa: Conectar la BD desde **Azure Cloud Shell** o abrir el puerto en Firewall de Azure PostgreSQL y conectarte con `psql`.
-
-### 7.8 Paso 7 — Verificar
-
-- Ir a `https://medly-api.azurewebsites.net/api` → Debería mostrar Swagger
-- Si algo falla, revisar **App Service** → **Monitor** → **Log stream** para ver errores en tiempo real
-
-### 7.9 Comandos Útiles
+### 7.4 Comandos Útiles
 
 | Comando | Descripción |
 |---------|-------------|
@@ -389,17 +326,6 @@ npm run migration:run
 | `npm run start:prod` | Iniciar en producción |
 | `npm run migration:run` | Ejecutar migrations TypeORM |
 | `npm run seed` | Poblar DB con datos iniciales |
-| `az webapp log tail --name medly-api --resource-group rg-medly` | Ver logs en tiempo real |
-
-### 7.10 Notas importantes
-
-- Los archivos `railway.json` y `Procfile` fueron eliminados al migrar de Railway a Azure.
-- El archivo `Dockerfile` en `servidor/` existe pero **no se usa** con App Service (Linux) nativo. Se conserva por si en el futuro se desea migrar a Azure Container Apps.
-- `servidor/.env` está actualmente trackeado en git. Para evitar exponer credenciales, ejecuta:
-  ```bash
-  git rm --cached servidor/.env
-  echo ".env" >> servidor/.gitignore
-  ```
 
 ## 8. Dependencias Principales
 

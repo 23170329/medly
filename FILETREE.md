@@ -66,6 +66,8 @@ medly/
     ├── tsconfig.build.json
     ├── nest-cli.json          # deleteOutDir: true
     ├── data-source.ts         # TypeORM DataSource CLI
+    ├── Procfile               # Railway: web → node dist/src/main.js
+    ├── railway.json           # Config Railway (build + deploy)
     ├── Dockerfile
     ├── .dockerignore
     ├── .env.example
