@@ -20,13 +20,36 @@ import { PacienteApellidoMatNotNull1747130000000 } from './src/migrations/174713
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
+function getDbConfig() {
+  const dbUrl = process.env.DATABASE_URL;
+  if (dbUrl) {
+    const parsed = new URL(dbUrl);
+    return {
+      host: parsed.hostname,
+      port: Number(parsed.port || 5432),
+      username: parsed.username,
+      password: parsed.password,
+      database: parsed.pathname.slice(1),
+    };
+  }
+  return {
+    host: process.env.DB_HOST ?? 'localhost',
+    port: parseInt(process.env.DB_PORT ?? '5432', 10),
+    username: process.env.DB_USER ?? 'postgres',
+    password: process.env.DB_PASS ?? 'secret',
+    database: process.env.DB_NAME ?? 'medly',
+  };
+}
+
+const dbConfig = getDbConfig();
+
 export default new DataSource({
   type: 'postgres',
-  host: process.env.DB_HOST ?? 'localhost',
-  port: parseInt(process.env.DB_PORT ?? '5432', 10),
-  username: process.env.DB_USER ?? 'postgres',
-  password: process.env.DB_PASS ?? 'secret',
-  database: process.env.DB_NAME ?? 'medly',
+  host: dbConfig.host,
+  port: dbConfig.port,
+  username: dbConfig.username,
+  password: dbConfig.password,
+  database: dbConfig.database,
   entities: [
     Paciente,
     CuentaUsuario,
