@@ -63,6 +63,7 @@ export default function RegistroScreen() {
   const handleRegistro = async () => {
     // Validación básica para asegurar que las contraseñas coincidan
     if (contrasena !== confirmarContrasena) {
+
       alert("Las contraseñas no coinciden");
       return;
     }
@@ -111,6 +112,17 @@ export default function RegistroScreen() {
   const avanzarPaso = () => setPaso(paso + 1);
   const finalizarRegistro = () => router.replace("/(auth)/iniciar-sesion");
 
+const validarContra =  () => {
+       if (contrasena !== confirmarContrasena) 
+        {
+        alert("Las contraseñas no coinciden");
+        }
+        else {
+          setPaso(3);
+        }
+      return;
+    }
+  
   const IndicadorPasos = () => (
     <View style={styles.contenedorIndicador}>
       {[1, 2, 3].map((num) => (
@@ -263,7 +275,7 @@ export default function RegistroScreen() {
               onChangeText={setConfirmarContrasena}
             />
 
-            <Boton titulo="CONTINUAR →" alPresionar={avanzarPaso} />
+            <Boton titulo="CONTINUAR →" alPresionar={validarContra} />
           </View>
         )}
 
