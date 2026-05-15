@@ -26,8 +26,8 @@ export function validarPasoDatosPersonales(params: {
     return "El apellido paterno es obligatorio (máx. 15 caracteres).";
   }
   const am = params.apellidoMaterno.trim();
-  if (am.length > 15) {
-    return "El apellido materno no puede superar 15 caracteres.";
+  if (am.length < 1 || am.length > 15) {
+    return "El apellido materno es obligatorio (máx. 15 caracteres).";
   }
   if (!params.fechaNacimiento.trim()) {
     return "Selecciona tu fecha de nacimiento.";

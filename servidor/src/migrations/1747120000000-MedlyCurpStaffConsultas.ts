@@ -8,7 +8,7 @@ export class MedlyCurpStaffConsultas1747120000000 implements MigrationInterface 
       `ALTER TABLE "paciente" ADD COLUMN IF NOT EXISTS "curp" character varying(18)`,
     );
     await queryRunner.query(
-      `UPDATE "paciente" SET "curp" = 'XAXX01010100000000' WHERE "curp" IS NULL`,
+      `UPDATE "paciente" SET "curp" = ('XAXX' || LPAD("pacienteID"::text, 14, '0')) WHERE "curp" IS NULL`,
     );
     await queryRunner.query(
       `ALTER TABLE "paciente" ALTER COLUMN "curp" SET NOT NULL`,

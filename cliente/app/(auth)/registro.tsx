@@ -100,7 +100,7 @@ export default function RegistroScreen() {
         body: JSON.stringify({
           nombre: nombres.trim(),
           apellido_pat: apellidoPaterno.trim(),
-          apellido_mat: apellidoMaterno.trim() || undefined,
+          apellido_mat: apellidoMaterno.trim(),
           correoElectronico: correo.trim().toLowerCase(),
           telefono: telefono.replace(/\D/g, ""),
           fechaNacimiento: fechaNac,
@@ -224,8 +224,8 @@ export default function RegistroScreen() {
               onChangeText={setApellidoPaterno}
             />
             <Entrada
-              etiqueta="APELLIDO MATERNO"
-              placeholder="Apellido Materno"
+              etiqueta="APELLIDO MATERNO (obligatorio)"
+              placeholder="Apellido materno"
               value={apellidoMaterno}
               onChangeText={setApellidoMaterno}
             />

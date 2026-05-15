@@ -1,12 +1,4 @@
-import {
-  IsEmail,
-  IsIn,
-  IsOptional,
-  IsString,
-  Matches,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsIn, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class RegistroDto {
@@ -26,16 +18,13 @@ export class RegistroDto {
   @MaxLength(15)
   apellido_pat!: string;
 
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === '' || value === undefined || value === null) {
-      return undefined;
-    }
-    return String(value).trim().slice(0, 15);
-  })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().slice(0, 15) : value,
+  )
   @IsString()
+  @MinLength(1, { message: 'El apellido materno es obligatorio' })
   @MaxLength(15)
-  apellido_mat?: string;
+  apellido_mat!: string;
 
   @Transform(({ value }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,

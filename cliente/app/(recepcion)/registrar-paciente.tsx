@@ -72,7 +72,7 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
         body: JSON.stringify({
           nombre: nombres.trim(),
           apellido_pat: apellidoPaterno.trim(),
-          apellido_mat: apellidoMaterno.trim() || undefined,
+          apellido_mat: apellidoMaterno.trim(),
           correoElectronico: correo.trim().toLowerCase(),
           telefono: telefono.replace(/\D/g, ""),
           fechaNacimiento,
@@ -106,7 +106,7 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           onChangeText={setApellidoPaterno}
         />
         <Entrada
-          etiqueta="APELLIDO MATERNO"
+          etiqueta="APELLIDO MATERNO (obligatorio)"
           value={apellidoMaterno}
           onChangeText={setApellidoMaterno}
         />

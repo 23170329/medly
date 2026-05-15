@@ -43,7 +43,7 @@ export class UsuariosService {
     const nuevoPaciente = this.pacienteRepo.create({
       nombre: datos.nombre,
       apellido_pat: datos.apellido_pat,
-      apellido_mat: datos.apellido_mat ?? undefined,
+      apellido_mat: datos.apellido_mat,
       correoElectronico: correoNorm,
       telefono: datos.telefono,
       fechaNacimiento: datos.fechaNacimiento,
