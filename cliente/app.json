@@ -1,16 +1,17 @@
 {
   "expo": {
+    "scheme": "medly",
     "name": "medly - App",
     "slug": "cliente",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/medlylogo.jpg",
+    "icon": "./assets/logo-medly-oficial.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo-medly-oficial.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true

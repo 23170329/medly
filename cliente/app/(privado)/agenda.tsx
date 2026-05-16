@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -6,23 +6,50 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
+import {
+  fetchMisCitas,
+  cancelarCita,
+  abandonarReserva,
+  type CitaDto,
+  type EstadoCitaApi,
+} from "../../lib/medlyApi";
 
-type EstadoCita = "CONFIRMADA" | "PENDIENTE" | "CANCELADA" | "COMPLETADA";
+type EstadoCita =
+  | "CONFIRMADA"
+  | "PENDIENTE"
+  | "CANCELADA"
+  | "COMPLETADA";
+
 type FiltroValor = EstadoCita | "TODAS";
 
-interface Cita {
+function mapEstadoApi(a: EstadoCitaApi): EstadoCita {
+  if (a === "PENDIENTE_PAGO") return "PENDIENTE";
+  if (a === "CONFIRMADA") return "CONFIRMADA";
+  if (a === "CANCELADA") return "CANCELADA";
+  return "COMPLETADA";
+}
+
+interface CitaUi {
   readonly id: string;
   readonly medico: string;
   readonly especialidad: string;
   readonly fecha: string;
   readonly hora: string;
+  readonly diaSemanaCorta: string;
+  readonly diaNumero: string;
+  readonly mesCorto: string;
   readonly sucursal: string;
   readonly estado: EstadoCita;
   readonly monto: number;
+  readonly raw: CitaDto;
 }
 
 interface ConfigEstado {
@@ -72,117 +99,141 @@ const FILTROS: readonly Filtro[] = [
   { label: "Canceladas", valor: "CANCELADA" },
 ] as const;
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-const CITAS_MOCK: readonly Cita[] = [
-  {
-    id: "1",
-    medico: "Dr. Carlos Mendoza",
-    especialidad: "Medicina General",
-    fecha: "Lun 14 jul 2025",
-    hora: "10:30 AM",
-    sucursal: "Sucursal Centro",
-    estado: "CONFIRMADA",
-    monto: 450,
-  },
-  {
-    id: "2",
-    medico: "Dra. María Rodríguez",
-    especialidad: "Cardiología",
-    fecha: "Mié 23 jul 2025",
-    hora: "03:00 PM",
-    sucursal: "Sucursal Norte",
-    estado: "PENDIENTE",
-    monto: 800,
-  },
-  {
-    id: "3",
-    medico: "Dr. Luis Torres",
-    especialidad: "Dermatología",
-    fecha: "Mar 8 jun 2025",
-    hora: "09:00 AM",
-    sucursal: "Sucursal Centro",
-    estado: "COMPLETADA",
-    monto: 600,
-  },
-  {
-    id: "4",
-    medico: "Dra. Ana Gutiérrez",
-    especialidad: "Pediatría",
-    fecha: "Jue 3 jun 2025",
-    hora: "11:00 AM",
-    sucursal: "Sucursal Sur",
-    estado: "CANCELADA",
-    monto: 500,
-  },
-] as const;
-
-// ─── Subcomponentes ───────────────────────────────────────────────────────────
-interface TarjetaCitaProps {
-  readonly cita: Cita;
+function toUi(d: CitaDto): CitaUi {
+  const ini = new Date(d.inicio);
+  const med = d.medico
+    ? `${d.medico.nombre} ${d.medico.apellidoPat}`
+    : "Médico";
+  const esp = d.medico?.especialidad?.nombre ?? "—";
+  const diaSemanaCorta = ini
+    .toLocaleDateString("es-MX", { weekday: "short" })
+    .replace(".", "");
+  const diaNumero = ini.toLocaleDateString("es-MX", { day: "numeric" });
+  const mesCorto = ini
+    .toLocaleDateString("es-MX", { month: "short" })
+    .replace(".", "");
+  return {
+    id: String(d.citaID),
+    medico: med,
+    especialidad: esp,
+    fecha: ini.toLocaleDateString("es-MX", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }),
+    hora: ini.toLocaleTimeString("es-MX", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    diaSemanaCorta,
+    diaNumero,
+    mesCorto,
+    sucursal: d.sucursal?.nombre ?? "—",
+    estado: mapEstadoApi(d.estado),
+    monto: Math.round(parseFloat(d.montoTotal)),
+    raw: d,
+  };
 }
 
-function TarjetaCita({ cita }: TarjetaCitaProps): React.JSX.Element {
+interface TarjetaCitaProps {
+  readonly cita: CitaUi;
+  readonly onActualizar: () => void;
+}
+
+function TarjetaCita({ cita, onActualizar }: TarjetaCitaProps): React.JSX.Element {
   const cfg = CONFIG_ESTADO[cita.estado];
 
   const handleVerDetalle = (): void => {
-    router.push(
-      `/(privado)/citas/${cita.id}` as Parameters<typeof router.push>[0],
+    router.push(`/(privado)/citas/${cita.id}`);
+  };
+
+  const cancelar = (): void => {
+    Alert.alert(
+      "Cancelar cita",
+      "¿Seguro que deseas cancelar esta cita?",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Sí, cancelar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              if (cita.raw.estado === "PENDIENTE_PAGO") {
+                await abandonarReserva(cita.raw.citaID);
+              } else {
+                await cancelarCita(cita.raw.citaID);
+              }
+              onActualizar();
+              Alert.alert("Listo", "La cita se actualizó.");
+            } catch {
+              Alert.alert("Error", "No se pudo cancelar.");
+            }
+          },
+        },
+      ],
     );
   };
 
   return (
-    <TouchableOpacity
-      style={estilos.tarjeta}
-      onPress={handleVerDetalle}
-      accessibilityLabel={`Cita con ${cita.medico}, ${cita.fecha}`}
-      accessibilityRole="button"
-    >
-      {/* */}
-      <View style={[estilos.franja, { backgroundColor: cfg.color }]} />
+    <View style={estilos.tarjeta} accessibilityLabel={`Cita con ${cita.medico}`}>
+      <View style={estilos.cajaFecha}>
+        <Text style={estilos.cajaFechaSem}>{cita.diaSemanaCorta}</Text>
+        <Text style={estilos.cajaFechaNum}>{cita.diaNumero}</Text>
+        <Text style={estilos.cajaFechaMes}>{cita.mesCorto}</Text>
+      </View>
 
       <View style={estilos.tarjetaBody}>
-        {/* */}
-        <View style={estilos.tarjetaHeader}>
-          <View style={estilos.medicoIcono}>
-            <Ionicons name="person-outline" size={20} color={paleta.navy} />
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={handleVerDetalle}
+          accessibilityLabel={`Cita con ${cita.medico}, ${cita.fecha}`}
+          accessibilityRole="button"
+        >
+          <View style={estilos.tarjetaHeader}>
+            <View style={estilos.medicoIcono}>
+              <Ionicons name="person-outline" size={20} color={paleta.navy} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={estilos.medicoNombre} numberOfLines={1}>
+                {cita.medico}
+              </Text>
+              <Text style={estilos.medicoEsp} numberOfLines={1}>
+                {cita.especialidad}
+              </Text>
+            </View>
+            <View style={[estilos.badge, { backgroundColor: cfg.fondo }]}>
+              <Ionicons name={cfg.icono} size={11} color={cfg.color} />
+              <Text style={[estilos.badgeTexto, { color: cfg.color }]}>
+                {cfg.etiqueta}
+              </Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={estilos.medicoNombre}>{cita.medico}</Text>
-            <Text style={estilos.medicoEsp}>{cita.especialidad}</Text>
-          </View>
-          <View style={[estilos.badge, { backgroundColor: cfg.fondo }]}>
-            <Ionicons name={cfg.icono} size={11} color={cfg.color} />
-            <Text style={[estilos.badgeTexto, { color: cfg.color }]}>
-              {cfg.etiqueta}
-            </Text>
-          </View>
-        </View>
 
-        <View style={estilos.divider} />
+          <View style={estilos.divider} />
 
-        {/* */}
-        <View style={estilos.detalles}>
-          <View style={estilos.detalleItem}>
-            <Ionicons name="calendar-outline" size={14} color={paleta.teal} />
-            <Text style={estilos.detalleTexto}>{cita.fecha}</Text>
+          <View style={estilos.detallesFila}>
+            <View style={estilos.detalleItem}>
+              <Ionicons name="time-outline" size={15} color={paleta.teal} />
+              <Text style={estilos.detalleTexto}>{cita.hora}</Text>
+            </View>
+            <View style={[estilos.detalleItem, { flex: 1, minWidth: 0 }]}>
+              <Ionicons name="location-outline" size={15} color={paleta.teal} />
+              <Text style={estilos.detalleTexto} numberOfLines={1}>
+                {cita.sucursal}
+              </Text>
+            </View>
           </View>
-          <View style={estilos.detalleItem}>
-            <Ionicons name="time-outline" size={14} color={paleta.teal} />
-            <Text style={estilos.detalleTexto}>{cita.hora}</Text>
-          </View>
-          <View style={estilos.detalleItem}>
-            <Ionicons name="location-outline" size={14} color={paleta.teal} />
-            <Text style={estilos.detalleTexto}>{cita.sucursal}</Text>
-          </View>
-        </View>
+        </TouchableOpacity>
 
-        {/* */}
         <View style={estilos.tarjetaPie}>
           <Text style={estilos.monto}>${cita.monto} MXN</Text>
           <View style={estilos.acciones}>
-            {cita.estado === "CONFIRMADA" && (
+            {(cita.estado === "CONFIRMADA" ||
+              cita.estado === "PENDIENTE") && (
               <TouchableOpacity
                 style={estilos.btnCancelar}
+                onPress={cancelar}
                 accessibilityLabel="Cancelar esta cita"
                 accessibilityRole="button"
               >
@@ -201,33 +252,50 @@ function TarjetaCita({ cita }: TarjetaCitaProps): React.JSX.Element {
           </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
-// ─── Pantalla ─────────────────────────────────────────────────────────────────
 export default function AgendaPantalla(): React.JSX.Element {
   const [filtroActivo, setFiltroActivo] = useState<FiltroValor>("TODAS");
+  const [citas, setCitas] = useState<CitaUi[]>([]);
+  const [cargando, setCargando] = useState(true);
 
-  const citasFiltradas = useCallback((): readonly Cita[] => {
-    if (filtroActivo === "TODAS") return CITAS_MOCK;
-    return CITAS_MOCK.filter((c) => c.estado === filtroActivo);
-  }, [filtroActivo])();
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    try {
+      const data = await fetchMisCitas();
+      setCitas(data.map(toUi));
+    } catch {
+      setCitas([]);
+    } finally {
+      setCargando(false);
+    }
+  }, []);
 
-  const conteo: Readonly<Record<string, number>> = {
-    proximas: CITAS_MOCK.filter((c) => c.estado === "CONFIRMADA").length,
-    pendientes: CITAS_MOCK.filter((c) => c.estado === "PENDIENTE").length,
-    total: CITAS_MOCK.length,
+  useFocusEffect(
+    useCallback(() => {
+      void cargar();
+    }, [cargar]),
+  );
+
+  const citasFiltradas = citas.filter((c) =>
+    filtroActivo === "TODAS" ? true : c.estado === filtroActivo,
+  );
+
+  const conteo = {
+    proximas: citas.filter((c) => c.estado === "CONFIRMADA").length,
+    pendientes: citas.filter((c) => c.estado === "PENDIENTE").length,
+    total: citas.length,
   };
 
   return (
     <SafeAreaView style={estilos.areaSegura}>
-      {/* ── Header ─────────────────────────────────────────── */}
       <View style={estilos.header}>
         <Text style={estilos.headerTitulo}>MI AGENDA</Text>
         <TouchableOpacity
           style={estilos.btnNueva}
-          onPress={() => router.push("/(privado)/citas/agendar")} // <-- Quitar el /paso-1 aquí
+          onPress={() => router.push("/(privado)/citas/agendar")}
           accessibilityLabel="Agendar nueva cita"
           accessibilityRole="button"
         >
@@ -235,7 +303,6 @@ export default function AgendaPantalla(): React.JSX.Element {
         </TouchableOpacity>
       </View>
 
-      {/* ── Resumen ─────────────────────────────────────────── */}
       <View style={estilos.resumenFila}>
         {[
           {
@@ -269,7 +336,6 @@ export default function AgendaPantalla(): React.JSX.Element {
         ))}
       </View>
 
-      {/* ── Filtros ─────────────────────────────────────────── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -300,12 +366,16 @@ export default function AgendaPantalla(): React.JSX.Element {
         })}
       </ScrollView>
 
-      {/* ── Lista ───────────────────────────────────────────── */}
       <ScrollView
         contentContainerStyle={estilos.lista}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={cargando} onRefresh={() => void cargar()} />
+        }
       >
-        {citasFiltradas.length === 0 ? (
+        {cargando && citas.length === 0 ? (
+          <ActivityIndicator style={{ marginTop: 40 }} color={paleta.navy} />
+        ) : citasFiltradas.length === 0 ? (
           <View style={estilos.vacio}>
             <Ionicons
               name="calendar-outline"
@@ -318,14 +388,14 @@ export default function AgendaPantalla(): React.JSX.Element {
             </Text>
             <TouchableOpacity
               style={estilos.vacioBtn}
-              onPress={() => router.push("/(privado)/citas/agendar/paso-1")}
+              onPress={() => router.push("/(privado)/citas/agendar")}
             >
               <Text style={estilos.vacioBtnTexto}>Agendar ahora</Text>
             </TouchableOpacity>
           </View>
         ) : (
           citasFiltradas.map((cita) => (
-            <TarjetaCita key={cita.id} cita={cita} />
+            <TarjetaCita key={cita.id} cita={cita} onActualizar={cargar} />
           ))
         )}
       </ScrollView>
@@ -333,7 +403,6 @@ export default function AgendaPantalla(): React.JSX.Element {
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
 const estilos = StyleSheet.create({
   areaSegura: { flex: 1, backgroundColor: COLORES.fondo },
 
@@ -409,7 +478,33 @@ const estilos = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
   },
-  franja: { width: 5 },
+  cajaFecha: {
+    width: 76,
+    backgroundColor: paleta.headerBar,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cajaFechaSem: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.85)",
+    textTransform: "capitalize",
+  },
+  cajaFechaNum: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: paleta.white,
+    lineHeight: 30,
+    marginVertical: 2,
+  },
+  cajaFechaMes: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.9)",
+    textTransform: "capitalize",
+  },
   tarjetaBody: { flex: 1, padding: 14 },
   tarjetaHeader: {
     flexDirection: "row",
@@ -443,9 +538,15 @@ const estilos = StyleSheet.create({
     marginBottom: 10,
   },
 
-  detalles: { gap: 5, marginBottom: 12 },
-  detalleItem: { flexDirection: "row", alignItems: "center", gap: 7 },
-  detalleTexto: { fontSize: 13, color: paleta.navy, opacity: 0.75 },
+  detallesFila: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  detalleItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  detalleTexto: { fontSize: 13, color: paleta.navy, opacity: 0.8 },
 
   tarjetaPie: {
     flexDirection: "row",
@@ -474,7 +575,6 @@ const estilos = StyleSheet.create({
   },
   btnDetalleTexto: { fontSize: 12, fontWeight: "600", color: paleta.navy },
 
-  // Vacío
   vacio: { alignItems: "center", paddingTop: 60 },
   vacioTitulo: {
     fontSize: 18,

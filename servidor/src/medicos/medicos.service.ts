@@ -1,59 +1,64 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Medico } from './entities/medico.entity';
-import { Calificacion } from './entities/calificacion.entity';
+import { MedicoSucursal } from './entities/medico-sucursal.entity';
 
 @Injectable()
 export class MedicosService {
   constructor(
     @InjectRepository(Medico)
-    private readonly medicoRepository: Repository<Medico>,
-
-    // Inyectamos el repositorio de calificaciones
-    @InjectRepository(Calificacion)
-    private readonly calificacionRepository: Repository<Calificacion>,
+    private readonly medicoRepo: Repository<Medico>,
+    @InjectRepository(MedicoSucursal)
+    private readonly msRepo: Repository<MedicoSucursal>,
   ) {}
 
-  // --- MÉTODOS DE MÉDICOS ---
+  async listar(params: {
+    especialidadId?: number;
+    sucursalId?: number;
+    q?: string;
+  }): Promise<Medico[]> {
+    const qb = this.medicoRepo
+      .createQueryBuilder('m')
+      .leftJoinAndSelect('m.especialidad', 'e');
 
-  async crearMedico(datosMedico: Partial<Medico>): Promise<Medico> {
-    const nuevoMedico = this.medicoRepository.create(datosMedico);
-    return await this.medicoRepository.save(nuevoMedico);
-  }
-
-  async obtenerTodos(): Promise<Medico[]> {
-    return await this.medicoRepository.find({ where: { estado: 'Activo' } });
-  }
-
-  async obtenerPorId(id: number): Promise<Medico | null> {
-    return await this.medicoRepository.findOne({ where: { medicoID: id } });
-  }
-
-  // --- MÉTODOS DE CALIFICACIONES ---
-
-  // Para registrar una nueva calificación en la BD Medly
-  async calificarMedico(medicoId: number, estrellas: number, comentario: string): Promise<Calificacion> {
-    const medico = await this.obtenerPorId(medicoId);
-    
-    if (!medico) {
-      throw new NotFoundException('No se puede calificar a un médico que no existe.');
+    if (params.especialidadId) {
+      qb.andWhere('m.especialidadID = :eid', {
+        eid: params.especialidadId,
+      });
     }
 
-    const nuevaCalificacion = this.calificacionRepository.create({
-      medico,
-      estrellas,
-      comentario
-    });
+    if (params.sucursalId) {
+      qb
+        .innerJoin('m.sucursales', 'ms')
+        .andWhere('ms.sucursalID = :sid', { sid: params.sucursalId })
+        .distinct(true);
+    }
 
-    return await this.calificacionRepository.save(nuevaCalificacion);
+    if (params.q?.trim()) {
+      const term = `%${params.q.trim().toLowerCase()}%`;
+      qb.andWhere(
+        `(LOWER(m.nombre) LIKE :term OR LOWER(m.apellidoPat) LIKE :term OR LOWER(CONCAT(m.nombre, ' ', m.apellidoPat)) LIKE :term)`,
+        { term },
+      );
+    }
+
+    qb.orderBy('m.apellidoPat', 'ASC').addOrderBy('m.nombre', 'ASC');
+
+    return qb.getMany();
   }
 
-  // Para mostrar las reseñas de un doctor en la app
-  async obtenerResenasDeMedico(medicoId: number): Promise<Calificacion[]> {
-    return await this.calificacionRepository.find({
-      where: { medico: { medicoID: medicoId } },
-      order: { fechaCalificacion: 'DESC' } // Mostramos las más recientes primero
+  async obtener(id: number): Promise<Medico | null> {
+    return this.medicoRepo.findOne({
+      where: { medicoID: id },
+      relations: ['especialidad', 'sucursales', 'sucursales.sucursal'],
+    });
+  }
+
+  async sucursalesDeMedico(medicoId: number): Promise<MedicoSucursal[]> {
+    return this.msRepo.find({
+      where: { medicoID: medicoId },
+      relations: ['sucursal'],
     });
   }
 }

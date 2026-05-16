@@ -3,12 +3,17 @@ import { MD3LightTheme, type MD3Theme } from "react-native-paper";
 export const paleta = {
   navy: "#2F4156",
   teal: "#567C8D",
+  /** Barra superior tipo mockup (slate) */
+  headerBar: "#3D5266",
   skyblue: "#C8D9E6",
   beige: "#F5EFEB",
   white: "#FFFFFF",
-  red: "#E53E3E",
-  green: "#38A169",
-  yellow: "#ECC94B",
+  red: "#E63946",
+  green: "#4CAF50",
+  yellow: "#F1C40F",
+  yellowSoft: "#FEF9E7",
+  /** Texto sobre aviso */
+  yellowText: "#92400E",
 } as const;
 
 export const AppTheme: MD3Theme = {
@@ -46,8 +51,11 @@ export const COLORES = {
   texto: AppTheme.colors.onSurface,
   blanco: paleta.white,
   skyblue: paleta.skyblue,
+  grisClaro: paleta.skyblue,
 } as const;
 
 export const BORDES = {
   radio: 12,
+  /** Botones tipo píldora del mockup */
+  radioPill: 28,
 };

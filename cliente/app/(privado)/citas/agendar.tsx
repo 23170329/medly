@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,80 +7,212 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
-// --- MOCK DATA ---
-const ESPECIALIDADES = [
-  { id: "1", nombre: "Cardiología", icono: "heart-outline" },
-  { id: "2", nombre: "Pediatría", icono: "happy-outline" },
-  { id: "3", nombre: "Psicología", icono: "git-network-outline" },
-  { id: "4", nombre: "Ginecología", icono: "female-outline" },
-];
+import {
+  crearCheckoutSession,
+  crearCita,
+  fetchEspecialidades,
+  fetchMedicoSucursales,
+  fetchMedicos,
+  fetchSlots,
+  fetchCita,
+  type EspecialidadDto,
+  type MedicoDto,
+  type MedicoSucursalDto,
+  type SlotDto,
+} from "../../../lib/medlyApi";
 
-const MEDICOS = [
-  {
-    id: "1",
-    nombre: "Dra. Alejandra",
-    calificacion: 4.9,
-    precio: 500,
-    especialidad: "Cardiología",
-  },
-  {
-    id: "2",
-    nombre: "Dra. Sarah",
-    calificacion: 4.9,
-    precio: 500,
-    especialidad: "Cardiología",
-  },
-  {
-    id: "3",
-    nombre: "Dr. John",
-    calificacion: 4.9,
-    precio: 500,
-    especialidad: "Cardiología",
-  },
-];
-
-const HORAS = [
-  "10:00",
-  "11:00",
-  "12:00",
-  "13:00",
-  "14:00",
-  "15:00",
-  "16:00",
-  "17:00",
-];
-const DIAS_SEMANA = ["DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
-const DIAS_NUMEROS = [
-  [1, 2, 3, 4, 5, 6, 7],
-  [8, 9, 10, 11, 12, 13, 14],
-  [15, 16, 17, 18, 19, 20, 21],
-  [22, 23, 24, 25, 26, 27, 28],
-  [29, 30, 31, "", "", "", ""],
-];
+WebBrowser.maybeCompleteAuthSession();
 
 export default function AgendarCitaPantalla() {
   const [paso, setPaso] = useState(1);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Estados de la cita
-  const [busqueda, setBusqueda] = useState("");
-  const [especialidadSelec, setEspecialidadSelec] = useState("");
-  const [medicoSelec, setMedicoSelec] = useState<any>(null);
-  const [diaSelec, setDiaSelec] = useState<number>(1);
-  const [horaSelec, setHoraSelec] = useState<string>("");
-  const [metodoPago, setMetodoPago] = useState<string>("visa");
+  const [busquedaEsp, setBusquedaEsp] = useState("");
+  const [especialidades, setEspecialidades] = useState<EspecialidadDto[]>([]);
+  const [espSel, setEspSel] = useState<EspecialidadDto | null>(null);
 
-  const avanzar = () => setPaso(paso + 1);
+  const [busquedaMed, setBusquedaMed] = useState("");
+  const [medicos, setMedicos] = useState<MedicoDto[]>([]);
+  const [medSel, setMedSel] = useState<MedicoDto | null>(null);
+  const [sucursalesMed, setSucursalesMed] = useState<MedicoSucursalDto[]>([]);
+  const [sucSel, setSucSel] = useState<MedicoSucursalDto | null>(null);
+
+  const [slots, setSlots] = useState<SlotDto[]>([]);
+  const [slotSel, setSlotSel] = useState<SlotDto | null>(null);
+
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const data = await fetchEspecialidades();
+        if (!cancel) setEspecialidades(data);
+      } catch {
+        if (!cancel) setError("No se pudieron cargar especialidades.");
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (paso !== 2 || !espSel) return;
+    let cancel = false;
+    (async () => {
+      setCargando(true);
+      try {
+        const data = await fetchMedicos({
+          especialidadId: espSel.especialidadID,
+          q: busquedaMed.trim() || undefined,
+        });
+        if (!cancel) setMedicos(data);
+      } catch {
+        if (!cancel) setError("No se pudieron cargar médicos.");
+      } finally {
+        if (!cancel) setCargando(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [paso, espSel, busquedaMed]);
+
+  const alElegirMedico = async (m: MedicoDto) => {
+    setMedSel(m);
+    setSucSel(null);
+    setCargando(true);
+    try {
+      const ms = await fetchMedicoSucursales(m.medicoID);
+      setSucursalesMed(ms);
+      if (ms.length === 1) setSucSel(ms[0]);
+    } catch {
+      Alert.alert("Error", "No se pudieron cargar sucursales del médico.");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const cargarSlots = useCallback(async () => {
+    if (!medSel || !sucSel) return;
+    setCargando(true);
+    try {
+      const data = await fetchSlots({
+        medicoId: medSel.medicoID,
+        sucursalId: sucSel.sucursalID,
+      });
+      setSlots(data);
+      if (data.length === 0) {
+        Alert.alert(
+          "Sin horarios",
+          "No hay cupos libres para este médico en esta sucursal.",
+        );
+      }
+    } catch {
+      Alert.alert("Error", "No se pudieron cargar horarios disponibles.");
+    } finally {
+      setCargando(false);
+    }
+  }, [medSel, sucSel]);
+
+  useEffect(() => {
+    if (paso === 3 && medSel && sucSel) void cargarSlots();
+  }, [paso, medSel, sucSel, cargarSlots]);
+
+  const iniciarPollingPago = useCallback(
+    (id: number) => {
+      const t = setInterval(async () => {
+        try {
+          const c = await fetchCita(id);
+          if (c.estado === "CONFIRMADA") {
+            clearInterval(t);
+            setPaso(5);
+          }
+        } catch {
+          /* ignore */
+        }
+      }, 2500);
+      setTimeout(() => clearInterval(t), 10 * 60 * 1000);
+    },
+    [],
+  );
+
+  const confirmarYAbrirPago = async () => {
+    if (!slotSel || !medSel) return;
+    setCargando(true);
+    try {
+      const cita = await crearCita(slotSel.slotID);
+      const { url } = await crearCheckoutSession(cita.citaID);
+      if (!url) {
+        Alert.alert("Pagos", "No se pudo iniciar el checkout de Stripe.");
+        return;
+      }
+      iniciarPollingPago(cita.citaID);
+      await WebBrowser.openBrowserAsync(url);
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "response" in e
+          ? JSON.stringify((e as { response?: { data?: unknown } }).response?.data)
+          : "Intenta de nuevo.";
+      Alert.alert("Error", String(msg));
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const avanzar = () => setPaso((p) => p + 1);
   const retroceder = () => {
     if (paso > 1) setPaso(paso - 1);
     else router.back();
   };
   const finalizar = () => router.replace("/(privado)/inicio");
 
-  // Componente indicador de pasos (las barritas)
+  const espFiltradas = especialidades.filter((e) =>
+    e.nombre.toLowerCase().includes(busquedaEsp.toLowerCase()),
+  );
+
+  const nombreMedico = (m: MedicoDto) =>
+    `${m.nombre} ${m.apellidoPat}`.trim();
+
+  const formatoSlot = (s: SlotDto) => {
+    const d = new Date(s.inicio);
+    return {
+      fecha: d.toLocaleDateString("es-MX", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      }),
+      hora: d.toLocaleTimeString("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+  };
+
+  const fechaExito =
+    slotSel != null
+      ? new Date(slotSel.inicio).toLocaleDateString("es-MX", {
+          day: "numeric",
+          month: "long",
+        })
+      : "";
+
+  const horaExito =
+    slotSel != null
+      ? new Date(slotSel.inicio).toLocaleTimeString("es-MX", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "";
+
   const Indicador = () => (
     <View style={estilos.indicadorContenedor}>
       {[1, 2, 3, 4].map((num) => (
@@ -97,24 +229,28 @@ export default function AgendarCitaPantalla() {
 
   return (
     <SafeAreaView style={estilos.areaSegura}>
-      {/* HEADER (No se muestra en el paso 5 de Éxito) */}
       {paso < 5 && (
-        <View style={estilos.header}>
-          <TouchableOpacity onPress={retroceder} style={estilos.btnAtras}>
-            <Ionicons name="chevron-back" size={24} color={paleta.white} />
-          </TouchableOpacity>
-          <View style={{ marginTop: 20 }}>
-            <Text style={estilos.tituloPrincipal}>AGENDAR CITA</Text>
-            <Indicador />
+        <View style={estilos.headerBar}>
+          <View style={estilos.headerFila}>
+            <TouchableOpacity onPress={retroceder} style={estilos.btnAtras}>
+              <Ionicons name="chevron-back" size={24} color={paleta.white} />
+            </TouchableOpacity>
+            <View style={estilos.headerTextos}>
+              <Text style={estilos.tituloPrincipal}>AGENDAR CITA</Text>
+              <Indicador />
+            </View>
           </View>
         </View>
+      )}
+
+      {error != null && paso === 1 && (
+        <Text style={estilos.errorTxt}>{error}</Text>
       )}
 
       <ScrollView
         contentContainerStyle={estilos.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* === PASO 1: ESPECIALIDAD === */}
         {paso === 1 && (
           <View>
             <Text style={estilos.subtitulo}>SELECCIONA ESPECIALIDAD</Text>
@@ -124,29 +260,33 @@ export default function AgendarCitaPantalla() {
                 style={estilos.inputBuscador}
                 placeholder="BUSCAR ESPECIALIDAD"
                 placeholderTextColor={paleta.teal}
-                value={busqueda}
-                onChangeText={setBusqueda}
+                value={busquedaEsp}
+                onChangeText={setBusquedaEsp}
               />
             </View>
 
             <View style={estilos.gridEspecialidades}>
-              {ESPECIALIDADES.map((esp) => (
+              {espFiltradas.map((esp) => (
                 <TouchableOpacity
-                  key={esp.id}
+                  key={esp.especialidadID}
                   style={[
                     estilos.tarjetaEspecialidad,
-                    especialidadSelec === esp.nombre && estilos.tarjetaSelec,
+                    espSel?.especialidadID === esp.especialidadID &&
+                      estilos.tarjetaSelec,
                   ]}
                   onPress={() => {
-                    setEspecialidadSelec(esp.nombre);
+                    setEspSel(esp);
+                    setMedSel(null);
+                    setSucSel(null);
                     avanzar();
                   }}
                 >
                   <Ionicons
-                    name={esp.icono as any}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    name={(esp.icono as any) ?? "medkit-outline"}
                     size={32}
                     color={
-                      especialidadSelec === esp.nombre
+                      espSel?.especialidadID === esp.especialidadID
                         ? paleta.white
                         : paleta.navy
                     }
@@ -154,7 +294,7 @@ export default function AgendarCitaPantalla() {
                   <Text
                     style={[
                       estilos.textoEspecialidad,
-                      especialidadSelec === esp.nombre && {
+                      espSel?.especialidadID === esp.especialidadID && {
                         color: paleta.white,
                       },
                     ]}
@@ -167,7 +307,6 @@ export default function AgendarCitaPantalla() {
           </View>
         )}
 
-        {/* === PASO 2: MEDICO === */}
         {paso === 2 && (
           <View>
             <Text style={estilos.subtitulo}>MÉDICOS DISPONIBLES</Text>
@@ -177,115 +316,130 @@ export default function AgendarCitaPantalla() {
                 style={estilos.inputBuscador}
                 placeholder="BUSCAR MEDICO"
                 placeholderTextColor={paleta.teal}
+                value={busquedaMed}
+                onChangeText={setBusquedaMed}
               />
             </View>
 
-            {MEDICOS.map((med) => (
-              <TouchableOpacity
-                key={med.id}
-                style={estilos.tarjetaMedico}
-                onPress={() => {
-                  setMedicoSelec(med);
-                  avanzar();
-                }}
-              >
-                <View style={estilos.avatarMedico}>
-                  <Ionicons
-                    name="person-outline"
-                    size={24}
-                    color={paleta.navy}
-                  />
-                </View>
-                <View style={estilos.infoMedico}>
-                  <Text style={estilos.nombreMedico}>{med.nombre}</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={estilos.califMedico}> {med.calificacion}</Text>
+            {cargando && paso === 2 && medicos.length === 0 ? (
+              <ActivityIndicator color={paleta.navy} />
+            ) : (
+              medicos.map((med) => (
+                <TouchableOpacity
+                  key={med.medicoID}
+                  style={[
+                    estilos.tarjetaMedico,
+                    medSel?.medicoID === med.medicoID && {
+                      borderWidth: 2,
+                      borderColor: paleta.navy,
+                    },
+                  ]}
+                  onPress={() => void alElegirMedico(med)}
+                >
+                  <View style={estilos.avatarMedico}>
+                    <Ionicons
+                      name="person-outline"
+                      size={24}
+                      color={paleta.navy}
+                    />
                   </View>
-                  <Text style={estilos.precioMedico}>${med.precio} MXN</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={20} color={paleta.navy} />
+                  <View style={estilos.infoMedico}>
+                    <Text style={estilos.nombreMedico}>{nombreMedico(med)}</Text>
+                    <Text style={estilos.califMedico}>
+                      ★ {med.promedioCalificacion} ({med.totalResenas})
+                    </Text>
+                    <Text style={estilos.precioMedico}>
+                      ${med.precioConsulta} MXN
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+
+            {medSel != null && sucursalesMed.length > 0 && (
+              <View style={{ marginTop: 20 }}>
+                <Text style={estilos.subtitulo}>SUCURSAL</Text>
+                {sucursalesMed.map((ms) => (
+                  <TouchableOpacity
+                    key={ms.sucursalID}
+                    style={[
+                      estilos.tarjetaPago,
+                      sucSel?.sucursalID === ms.sucursalID && estilos.pagoSelec,
+                    ]}
+                    onPress={() => setSucSel(ms)}
+                  >
+                    <Ionicons
+                      name="business-outline"
+                      size={22}
+                      color={paleta.navy}
+                    />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={estilos.textoPago}>{ms.sucursal.nombre}</Text>
+                      <Text style={estilos.subtextoPago} numberOfLines={2}>
+                        {ms.sucursal.direccion}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {medSel != null && sucSel != null && (
+              <TouchableOpacity
+                style={[estilos.botonPrimario, { marginTop: 24 }]}
+                onPress={() => avanzar()}
+              >
+                <Text style={estilos.textoBotonPrimario}>SIGUIENTE →</Text>
               </TouchableOpacity>
-            ))}
+            )}
           </View>
         )}
 
-        {/* === PASO 3: FECHA Y HORA === */}
         {paso === 3 && (
           <View>
             <Text style={estilos.subtitulo}>SELECCIONA FECHA Y HORA</Text>
-
-            {/* Calendario Mock */}
-            <View style={estilos.calendarioGrid}>
-              <View style={estilos.calendarioFila}>
-                {DIAS_SEMANA.map((dia) => (
-                  <Text key={dia} style={estilos.diaSemana}>
-                    {dia}
-                  </Text>
-                ))}
-              </View>
-              {DIAS_NUMEROS.map((semana, index) => (
-                <View key={index} style={estilos.calendarioFila}>
-                  {semana.map((diaNum, i) => (
+            {cargando ? (
+              <ActivityIndicator color={paleta.navy} />
+            ) : (
+              <View style={{ gap: 10 }}>
+                {slots.map((s) => {
+                  const { fecha, hora } = formatoSlot(s);
+                  const sel = slotSel?.slotID === s.slotID;
+                  return (
                     <TouchableOpacity
-                      key={i}
+                      key={s.slotID}
                       style={[
-                        estilos.diaBoton,
-                        diaSelec === diaNum && estilos.diaSelecBtn,
+                        estilos.tarjetaMedico,
+                        sel && { borderWidth: 2, borderColor: paleta.navy },
                       ]}
-                      onPress={() =>
-                        diaNum !== "" && setDiaSelec(diaNum as number)
-                      }
-                      disabled={diaNum === ""}
+                      onPress={() => setSlotSel(s)}
                     >
-                      <Text
-                        style={[
-                          estilos.diaTexto,
-                          diaSelec === diaNum && { color: paleta.white },
-                        ]}
-                      >
-                        {diaNum < 10 && diaNum !== "" ? `0${diaNum}` : diaNum}
-                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={estilos.nombreMedico}>{fecha}</Text>
+                        <Text style={estilos.califMedico}>{hora}</Text>
+                      </View>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={20}
+                        color={paleta.navy}
+                      />
                     </TouchableOpacity>
-                  ))}
-                </View>
-              ))}
-            </View>
-
-            <View style={estilos.gridHoras}>
-              {HORAS.map((h) => (
-                <TouchableOpacity
-                  key={h}
-                  style={[
-                    estilos.horaBoton,
-                    horaSelec === h && estilos.horaSelecBtn,
-                  ]}
-                  onPress={() => setHoraSelec(h)}
-                >
-                  <Text
-                    style={[
-                      estilos.horaTexto,
-                      horaSelec === h && { color: paleta.white },
-                    ]}
-                  >
-                    {h}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  );
+                })}
+              </View>
+            )}
 
             <TouchableOpacity
               style={[estilos.botonPrimario, { marginTop: 30 }]}
-              onPress={avanzar}
-              disabled={!horaSelec}
+              onPress={() => avanzar()}
+              disabled={!slotSel}
             >
               <Text style={estilos.textoBotonPrimario}>REALIZAR PAGO →</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* === PASO 4: RESUMEN Y PAGO === */}
-        {paso === 4 && (
+        {paso === 4 && medSel != null && slotSel != null && sucSel != null && (
           <View>
             <Text style={estilos.subtitulo}>RESUMEN Y PAGO</Text>
 
@@ -297,67 +451,48 @@ export default function AgendarCitaPantalla() {
                   justifyContent: "space-between",
                 }}
               >
-                <Text style={estilos.resumenMedico}>{medicoSelec?.nombre}</Text>
+                <Text style={estilos.resumenMedico}>{nombreMedico(medSel)}</Text>
                 <Text style={estilos.resumenPrecio}>
-                  ${medicoSelec?.precio}
+                  ${medSel.precioConsulta}
                 </Text>
               </View>
               <Text style={estilos.resumenEspecialidad}>
-                {medicoSelec?.especialidad}
+                {espSel?.nombre ?? ""}
+              </Text>
+
+              <Text style={[estilos.resumenLabel, { marginTop: 15 }]}>
+                ANTICIPO (50%)
+              </Text>
+              <Text style={estilos.resumenFecha}>
+                {(parseFloat(medSel.precioConsulta) * 0.5).toFixed(2)} MXN
               </Text>
 
               <Text style={[estilos.resumenLabel, { marginTop: 15 }]}>
                 FECHA Y HORA
               </Text>
-              <Text style={estilos.resumenFecha}>26 Marzo - {horaSelec}</Text>
+              <Text style={estilos.resumenFecha}>
+                {formatoSlot(slotSel).fecha} — {formatoSlot(slotSel).hora}
+              </Text>
+
+              <Text style={[estilos.resumenLabel, { marginTop: 15 }]}>
+                SUCURSAL
+              </Text>
+              <Text style={estilos.resumenFecha}>{sucSel.sucursal.nombre}</Text>
             </View>
-
-            <Text style={[estilos.subtitulo, { marginTop: 30 }]}>
-              MÉTODO DE PAGO
-            </Text>
-
-            <TouchableOpacity
-              style={[
-                estilos.tarjetaPago,
-                metodoPago === "visa" && estilos.pagoSelec,
-              ]}
-              onPress={() => setMetodoPago("visa")}
-            >
-              <Ionicons name="card-outline" size={24} color={paleta.navy} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={estilos.textoPago}>Visa ****4242</Text>
-                <Text style={estilos.subtextoPago}>Vence 12/28</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={20} color={paleta.navy} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                estilos.tarjetaPago,
-                metodoPago === "paypal" && estilos.pagoSelec,
-              ]}
-              onPress={() => setMetodoPago("paypal")}
-            >
-              <Ionicons name="logo-paypal" size={24} color={paleta.navy} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={estilos.textoPago}>PayPal</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={20} color={paleta.navy} />
-            </TouchableOpacity>
 
             <TouchableOpacity
               style={[estilos.botonPrimario, { marginTop: 30 }]}
-              onPress={avanzar}
+              onPress={() => void confirmarYAbrirPago()}
+              disabled={cargando}
             >
               <Text style={estilos.textoBotonPrimario}>
-                CONFIRMAR Y PAGAR →
+                {cargando ? "PROCESANDO…" : "CONFIRMAR Y PAGAR →"}
               </Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* === PASO 5: ÉXITO === */}
-        {paso === 5 && (
+        {paso === 5 && medSel != null && slotSel != null && sucSel != null && (
           <View style={estilos.contenedorExito}>
             <View style={estilos.tarjetaExito}>
               <View style={estilos.headerExito}>
@@ -376,17 +511,13 @@ export default function AgendarCitaPantalla() {
                 >
                   <View>
                     <Text style={estilos.exitoLabel}>ESPECIALISTA</Text>
-                    <Text style={estilos.exitoValor}>
-                      {medicoSelec?.nombre}
-                    </Text>
-                    <Text style={estilos.exitoSub}>
-                      {medicoSelec?.especialidad}
-                    </Text>
+                    <Text style={estilos.exitoValor}>{nombreMedico(medSel)}</Text>
+                    <Text style={estilos.exitoSub}>{espSel?.nombre}</Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text style={estilos.exitoLabel}>MONTO</Text>
+                    <Text style={estilos.exitoLabel}>MONTO TOTAL</Text>
                     <Text style={estilos.exitoValor}>
-                      ${medicoSelec?.precio} MXN
+                      ${medSel.precioConsulta} MXN
                     </Text>
                   </View>
                 </View>
@@ -408,7 +539,7 @@ export default function AgendarCitaPantalla() {
                         size={14}
                         color={paleta.navy}
                       />
-                      <Text style={estilos.exitoSubVal}> 26 de Marzo</Text>
+                      <Text style={estilos.exitoSubVal}> {fechaExito}</Text>
                     </View>
                   </View>
                   <View>
@@ -421,7 +552,7 @@ export default function AgendarCitaPantalla() {
                         size={14}
                         color={paleta.navy}
                       />
-                      <Text style={estilos.exitoSubVal}> {horaSelec}</Text>
+                      <Text style={estilos.exitoSubVal}> {horaExito}</Text>
                     </View>
                   </View>
                 </View>
@@ -435,38 +566,9 @@ export default function AgendarCitaPantalla() {
                   <View style={{ marginLeft: 10 }}>
                     <Text style={estilos.exitoLabel}>LUGAR</Text>
                     <Text style={estilos.exitoSubVal}>
-                      Consultorio 402, Medly Corp Central
+                      {sucSel.sucursal.nombre} — {sucSel.sucursal.direccion}
                     </Text>
                   </View>
-                </View>
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    marginTop: 20,
-                  }}
-                >
-                  <TouchableOpacity
-                    style={{ flexDirection: "row", alignItems: "center" }}
-                  >
-                    <Ionicons
-                      name="download-outline"
-                      size={16}
-                      color={paleta.teal}
-                    />
-                    <Text style={estilos.linkText}> GUARDAR</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ flexDirection: "row", alignItems: "center" }}
-                  >
-                    <Ionicons
-                      name="share-social-outline"
-                      size={16}
-                      color={paleta.teal}
-                    />
-                    <Text style={estilos.linkText}> ENVIAR</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -487,31 +589,48 @@ export default function AgendarCitaPantalla() {
 const estilos = StyleSheet.create({
   areaSegura: { flex: 1, backgroundColor: COLORES.fondo },
   scroll: { flexGrow: 1, padding: 24 },
+  errorTxt: { color: "red", paddingHorizontal: 24 },
 
-  header: {
-    paddingHorizontal: 24,
+  headerBar: {
+    backgroundColor: paleta.headerBar,
+    paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
+    borderBottomLeftRadius: BORDES.radio + 8,
+    borderBottomRightRadius: BORDES.radio + 8,
+    marginBottom: 8,
+    shadowColor: paleta.navy,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
+  headerFila: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  headerTextos: { flex: 1, minWidth: 0 },
   btnAtras: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: paleta.teal,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 2,
   },
   tituloPrincipal: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: paleta.navy,
-    letterSpacing: 1,
-    marginBottom: 10,
+    fontSize: 15,
+    fontWeight: "800",
+    color: paleta.white,
+    letterSpacing: 1.2,
+    marginBottom: 12,
   },
-  indicadorContenedor: { flexDirection: "row", gap: 6 },
-  lineaPaso: { height: 4, width: 24, borderRadius: 2 },
-  lineaPasoActiva: { backgroundColor: paleta.navy },
-  lineaPasoInactiva: { backgroundColor: paleta.skyblue },
+  indicadorContenedor: { flexDirection: "row", gap: 8 },
+  lineaPaso: { height: 4, flex: 1, maxWidth: 56, borderRadius: 2 },
+  lineaPasoActiva: { backgroundColor: paleta.white },
+  lineaPasoInactiva: { backgroundColor: "rgba(255,255,255,0.28)" },
 
   subtitulo: {
     fontSize: 11,
@@ -595,50 +714,6 @@ const estilos = StyleSheet.create({
   nombreMedico: { fontSize: 15, fontWeight: "bold", color: paleta.navy },
   califMedico: { fontSize: 12, color: paleta.teal },
   precioMedico: { fontSize: 12, color: paleta.teal, marginTop: 4 },
-
-  calendarioGrid: { marginBottom: 24 },
-  calendarioFila: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  diaSemana: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: paleta.navy,
-    width: 35,
-    textAlign: "center",
-  },
-  diaBoton: {
-    width: 35,
-    height: 35,
-    borderRadius: 17.5,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  diaSelecBtn: { backgroundColor: paleta.navy },
-  diaTexto: { fontSize: 13, color: paleta.navy, fontWeight: "500" },
-
-  gridHoras: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "space-between",
-  },
-  horaBoton: {
-    width: "22%",
-    backgroundColor: paleta.white,
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: "center",
-    shadowColor: paleta.navy,
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  horaSelecBtn: { backgroundColor: paleta.navy },
-  horaTexto: { fontSize: 13, fontWeight: "600", color: paleta.navy },
 
   tarjetaResumen: {
     backgroundColor: paleta.navy,
@@ -733,5 +808,4 @@ const estilos = StyleSheet.create({
     borderRadius: BORDES.radio,
     marginTop: 10,
   },
-  linkText: { fontSize: 12, fontWeight: "bold", color: paleta.teal },
 });

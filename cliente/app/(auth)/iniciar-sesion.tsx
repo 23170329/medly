@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Entrada } from "../../componentes/comunes/Entrada";
 import { Boton } from "../../componentes/comunes/Boton";
 import { COLORES } from "../../constants/theme";
-import { useAuthStore } from "../../stores/auth.store";
+import { useAuthStore, type Usuario } from "../../stores/auth.store";
 
 export default function IniciarSesionScreen() {
   const [correo, setCorreo] = useState("");
@@ -36,21 +36,37 @@ export default function IniciarSesionScreen() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          correo: correo,
-          contrasena: contrasena,
+          correo: correo.trim(),
+          contrasena,
         }),
       });
 
-      const datos = await response.json();
+      let datos: Record<string, unknown> = {};
+      try {
+        datos = (await response.json()) as Record<string, unknown>;
+      } catch {
+        /* cuerpo no JSON */
+      }
 
-      // 3. Verificamos si el backend dijo que todo está bien (código 200-299)
-      if (response.ok) {
-        // Usamos setAuth y le pasamos un token temporal
-        await setAuth(datos.usuario, "token_temporal_hasta_que_hagan_jwt");
+      if (response.ok && datos.access_token && datos.refresh_token) {
+        const usuario = datos.usuario as Usuario;
+        await setAuth(
+          usuario,
+          String(datos.access_token),
+          String(datos.refresh_token),
+        );
 
-        router.replace("/(privado)/inicio");
+        if (usuario.rol === "RECEPCIONISTA") {
+          router.replace("/(recepcion)");
+        } else if (usuario.rol === "MEDICO") {
+          router.replace("/(medico)");
+        } else {
+          router.replace("/(privado)/inicio");
+        }
       } else {
-        Alert.alert("Error", datos.message);
+        const raw = datos.message ?? datos.error ?? "No se pudo iniciar sesión";
+        const mensaje = Array.isArray(raw) ? raw.join("\n") : String(raw);
+        Alert.alert("Error", mensaje);
       }
     } catch (error) {
       console.error(error);
@@ -67,7 +83,7 @@ export default function IniciarSesionScreen() {
         {/* Logo y Encabezado */}
         <View style={styles.encabezado}>
           <Image
-            source={require("../../assets/medlylogo.jpg")}
+            source={require("../../assets/logo-medly-oficial.png")}
             style={styles.logo}
             resizeMode="contain"
           />

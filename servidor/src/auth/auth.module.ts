@@ -1,15 +1,41 @@
 import { Module } from '@nestjs/common';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-
-// IMPORTANTE: Ajusta esta ruta y nombre de la clase según cómo lo tengas en tu proyecto
-import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity'; 
+import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity';
+import { CuentaStaff } from '../staff/entities/cuenta-staff.entity';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { UsuariosModule } from '../usuarios/usuarios.module';
+import { PatientOnlyGuard } from './guards/patient-only.guard';
+import { RolesGuard } from './guards/roles.guard';
 
 @Module({
-  // Importamos TypeORM para que el servicio pueda inyectar el repositorio
-  imports: [TypeOrmModule.forFeature([CuentaUsuario])],
+  imports: [
+    UsuariosModule,
+    TypeOrmModule.forFeature([CuentaUsuario, CuentaStaff]),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService): JwtModuleOptions => ({
+        secret: config.getOrThrow<string>('JWT_SECRET'),
+        signOptions: {
+          expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '7d') as never,
+        },
+      }),
+    }),
+  ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, JwtStrategy, PatientOnlyGuard, RolesGuard],
+  exports: [
+    AuthService,
+    JwtModule,
+    PatientOnlyGuard,
+    RolesGuard,
+    PassportModule,
+  ],
 })
 export class AuthModule {}

@@ -1,0 +1,23 @@
+export enum EstadoCita {
+  PENDIENTE_PAGO = 'PENDIENTE_PAGO',
+  CONFIRMADA = 'CONFIRMADA',
+  CANCELADA = 'CANCELADA',
+  COMPLETADA = 'COMPLETADA',
+}
+
+export enum EstadoSlot {
+  LIBRE = 'LIBRE',
+  RESERVADO = 'RESERVADO',
+  OCUPADO = 'OCUPADO',
+}
+
+export enum TipoPago {
+  ANTICIPO_50 = 'ANTICIPO_50',
+  REEMBOLSO = 'REEMBOLSO',
+}
+
+export enum EstadoPago {
+  PENDIENTE = 'PENDIENTE',
+  COMPLETADO = 'COMPLETADO',
+  FALLIDO = 'FALLIDO',
+}

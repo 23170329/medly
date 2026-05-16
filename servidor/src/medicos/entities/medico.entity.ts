@@ -1,37 +1,47 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
+import { Especialidad } from '../../especialidades/entities/especialidad.entity';
+import { MedicoSucursal } from './medico-sucursal.entity';
 
 @Entity('medico')
 export class Medico {
   @PrimaryGeneratedColumn()
   medicoID!: number;
 
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ type: 'varchar', length: 80 })
   nombre!: string;
 
-  @Column({ type: 'varchar', length: 15 })
-  apellido_pat!: string;
+  @Column({ type: 'varchar', length: 40 })
+  apellidoPat!: string;
 
-  @Column({ type: 'varchar', length: 15 })
-  apellido_mat!: string;
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  apellidoMat!: string | null;
 
-  @Column({ type: 'varchar', length: 100 })
-  especialidad!: string;
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  cedula!: string | null;
 
-  @Column({ type: 'varchar', length: 50, unique: true })
-  cedulaProfesional!: string;
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  precioConsulta!: string;
 
-  @Column({ type: 'varchar', length: 150, unique: true })
-  correoElectronico!: string;
+  @Column({ type: 'decimal', precision: 3, scale: 2, default: '0' })
+  promedioCalificacion!: string;
 
-  @Column({ type: 'varchar', length: 10 })
-  telefono!: string;
+  @Column({ type: 'int', default: 0 })
+  totalResenas!: number;
 
-  @Column({ type: 'varchar', length: 50 })
-  contrasena!: string; 
+  @Column({ type: 'int' })
+  especialidadID!: number;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  rutaFirmaDigital!: string;
+  @ManyToOne(() => Especialidad, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'especialidadID' })
+  especialidad!: Especialidad;
 
-  @Column({ type: 'varchar', length: 10, default: 'Activo' })
-  estado!: string;
+  @OneToMany(() => MedicoSucursal, (ms) => ms.medico)
+  sucursales!: MedicoSucursal[];
 }
