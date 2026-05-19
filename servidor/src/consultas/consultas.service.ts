@@ -36,7 +36,10 @@ export class ConsultasService {
     return qb.getMany();
   }
 
-  async obtener(medicoId: number, consultaId: number): Promise<ConsultaClinica> {
+  async obtener(
+    medicoId: number,
+    consultaId: number,
+  ): Promise<ConsultaClinica> {
     const row = await this.repo.findOne({
       where: {
         consultaID: consultaId,
@@ -50,10 +53,17 @@ export class ConsultasService {
     return row;
   }
 
-  async crear(medicoId: number, dto: CrearConsultaDto): Promise<ConsultaClinica> {
+  async crear(
+    medicoId: number,
+    dto: CrearConsultaDto,
+  ): Promise<ConsultaClinica> {
     if (dto.citaID != null) {
       const cita = await this.citaRepo.findOne({
-        where: { citaID: dto.citaID, medicoID: medicoId, pacienteID: dto.pacienteID },
+        where: {
+          citaID: dto.citaID,
+          medicoID: medicoId,
+          pacienteID: dto.pacienteID,
+        },
       });
       if (!cita) {
         throw new ForbiddenException(
@@ -65,8 +75,7 @@ export class ConsultasService {
     const row = this.repo.create({
       paciente: { pacienteID: dto.pacienteID } as Paciente,
       medico: { medicoID: medicoId } as Medico,
-      cita:
-        dto.citaID != null ? ({ citaID: dto.citaID } as Cita) : null,
+      cita: dto.citaID != null ? { citaID: dto.citaID } : null,
       identificacion: dto.identificacion ?? null,
       antecedentes: dto.antecedentes ?? null,
       interrogatorio: dto.interrogatorio ?? null,

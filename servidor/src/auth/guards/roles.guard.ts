@@ -18,10 +18,10 @@ export class RolesGuard implements CanActivate {
     if (!u || u.kind !== 'staff' || !u.rol) {
       throw new ForbiddenException('Se requiere cuenta de personal autorizado');
     }
-    const required = this.reflector.getAllAndOverride<RolStaffJwt[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const required = this.reflector.getAllAndOverride<RolStaffJwt[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     if (!required?.length) {
       return true;
     }

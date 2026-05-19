@@ -45,10 +45,7 @@ export class PagosController {
   }
 
   @Get('redirect/cancelado')
-  redirectCancelado(
-    @Query('cita_id') citaId: string,
-    @Res() res: Response,
-  ) {
+  redirectCancelado(@Query('cita_id') citaId: string, @Res() res: Response) {
     const html = this.pagosService.redirectCanceladoHtml(citaId ?? '');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);

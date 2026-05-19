@@ -6,7 +6,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BloqueoAgenda } from './entities/bloqueo-agenda.entity';
+import { SlotAgenda } from './entities/slot-agenda.entity';
 import { Medico } from '../medicos/entities/medico.entity';
+import { EstadoSlot } from '../common/enums';
+import { HorariosService } from './horarios.service';
 
 export interface CrearBloqueoDto {
   inicio: string;
@@ -19,6 +22,9 @@ export class BloqueosService {
   constructor(
     @InjectRepository(BloqueoAgenda)
     private readonly repo: Repository<BloqueoAgenda>,
+    @InjectRepository(SlotAgenda)
+    private readonly slotRepo: Repository<SlotAgenda>,
+    private readonly horariosService: HorariosService,
   ) {}
 
   async listar(medicoId: number): Promise<BloqueoAgenda[]> {
@@ -33,7 +39,9 @@ export class BloqueosService {
     const inicio = new Date(dto.inicio);
     const fin = new Date(dto.fin);
     if (!(fin.getTime() > inicio.getTime())) {
-      throw new BadRequestException('La fecha/hora fin debe ser posterior al inicio');
+      throw new BadRequestException(
+        'La fecha/hora fin debe ser posterior al inicio',
+      );
     }
     const solapa = await this.repo
       .createQueryBuilder('b')
@@ -41,7 +49,9 @@ export class BloqueosService {
       .andWhere('b.inicio < :fin AND b.fin > :ini', { ini: inicio, fin })
       .getCount();
     if (solapa > 0) {
-      throw new BadRequestException('El bloqueo se traslapa con otro existente');
+      throw new BadRequestException(
+        'El bloqueo se traslapa con otro existente',
+      );
     }
     const row = this.repo.create({
       medico: { medicoID: medicoId } as Medico,
@@ -49,7 +59,21 @@ export class BloqueosService {
       fin,
       motivo: dto.motivo?.trim() || null,
     });
-    return this.repo.save(row);
+    const saved = await this.repo.save(row);
+
+    await this.slotRepo
+      .createQueryBuilder()
+      .delete()
+      .from(SlotAgenda)
+      .where('"medicoID" = :mid', { mid: medicoId })
+      .andWhere('estado = :est', { est: EstadoSlot.LIBRE })
+      .andWhere('inicio < :finVal AND fin > :iniVal', {
+        iniVal: inicio,
+        finVal: fin,
+      })
+      .execute();
+
+    return saved;
   }
 
   async eliminar(medicoId: number, bloqueoId: number): Promise<void> {
@@ -63,5 +87,6 @@ export class BloqueosService {
     if (!r.affected) {
       throw new NotFoundException('Bloqueo no encontrado');
     }
+    await this.horariosService.regenerarSlotsMedico(medicoId);
   }
 }

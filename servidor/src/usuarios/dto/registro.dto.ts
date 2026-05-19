@@ -1,4 +1,11 @@
-import { IsEmail, IsIn, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class RegistroDto {
@@ -61,7 +68,8 @@ export class RegistroDto {
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @Matches(/^[A-Z0-9]{18}$/, {
-    message: 'CURP inválida: debe tener 18 caracteres alfanuméricos en mayúsculas',
+    message:
+      'CURP inválida: debe tener 18 caracteres alfanuméricos en mayúsculas',
   })
   curp!: string;
 

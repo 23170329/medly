@@ -9,12 +9,7 @@ import { Cita } from './entities/cita.entity';
 import { SlotAgenda } from '../horarios/entities/slot-agenda.entity';
 import { Medico } from '../medicos/entities/medico.entity';
 import { Pago } from '../pagos/entities/pago.entity';
-import {
-  EstadoCita,
-  EstadoPago,
-  EstadoSlot,
-  TipoPago,
-} from '../common/enums';
+import { EstadoCita, EstadoPago, EstadoSlot, TipoPago } from '../common/enums';
 import { PagosService } from '../pagos/pagos.service';
 
 @Injectable()
@@ -157,7 +152,10 @@ export class CitasService {
     });
   }
 
-  async cancelar(pacienteId: number, citaId: number): Promise<{
+  async cancelar(
+    pacienteId: number,
+    citaId: number,
+  ): Promise<{
     mensaje: string;
     reembolsoProcesado: boolean;
   }> {
@@ -199,7 +197,8 @@ export class CitasService {
     cita.estado = EstadoCita.CANCELADA;
     await this.citaRepo.save(cita);
 
-    const slot = cita.slot ??
+    const slot =
+      cita.slot ??
       (await this.slotRepo.findOne({ where: { slotID: cita.slotID } }));
     if (slot) {
       slot.estado = EstadoSlot.LIBRE;
@@ -286,7 +285,13 @@ export class CitasService {
   async listarCitasMedico(medicoId: number): Promise<Cita[]> {
     return this.citaRepo.find({
       where: { medicoID: medicoId },
-      relations: ['paciente', 'sucursal', 'slot', 'medico', 'medico.especialidad'],
+      relations: [
+        'paciente',
+        'sucursal',
+        'slot',
+        'medico',
+        'medico.especialidad',
+      ],
       order: { inicio: 'DESC' },
     });
   }
@@ -345,7 +350,8 @@ export class CitasService {
     cita.estado = EstadoCita.CANCELADA;
     await this.citaRepo.save(cita);
 
-    const slot = cita.slot ??
+    const slot =
+      cita.slot ??
       (await this.slotRepo.findOne({ where: { slotID: cita.slotID } }));
     if (slot) {
       slot.estado = EstadoSlot.LIBRE;

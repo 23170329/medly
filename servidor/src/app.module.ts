@@ -18,9 +18,10 @@ import { Especialidad } from './especialidades/entities/especialidad.entity';
 import { Sucursal } from './sucursales/entities/sucursal.entity';
 import { Consultorio } from './sucursales/entities/consultorio.entity';
 import { Medico } from './medicos/entities/medico.entity';
-import { Calificacion } from './medicos/entities/calificacion.entity'; 
+import { Calificacion } from './medicos/entities/calificacion.entity';
 import { MedicoSucursal } from './medicos/entities/medico-sucursal.entity';
 import { SlotAgenda } from './horarios/entities/slot-agenda.entity';
+import { Horario } from './horarios/entities/horario.entity';
 import { Cita } from './citas/entities/cita.entity';
 import { Pago } from './pagos/entities/pago.entity';
 import { CuentaStaff } from './staff/entities/cuenta-staff.entity';
@@ -35,11 +36,12 @@ const entities = [
   CuentaStaff,
   Especialidad,
   Sucursal,
-  Consultorio,   
+  Consultorio,
   Medico,
-  Calificacion,   
+  Calificacion,
   MedicoSucursal,
   SlotAgenda,
+  Horario,
   BloqueoAgenda,
   Cita,
   Pago,

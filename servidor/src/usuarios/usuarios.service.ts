@@ -24,7 +24,9 @@ export class UsuariosService {
     const correoNorm = datos.correoElectronico.trim().toLowerCase();
     const duplicado = await this.pacienteRepo
       .createQueryBuilder('p')
-      .where('LOWER(TRIM(p.correoElectronico)) = :correo', { correo: correoNorm })
+      .where('LOWER(TRIM(p.correoElectronico)) = :correo', {
+        correo: correoNorm,
+      })
       .getCount();
     if (duplicado > 0) {
       throw new ConflictException('El correo ya está registrado');
@@ -90,7 +92,10 @@ export class UsuariosService {
     if (!p) {
       throw new NotFoundException('Paciente no encontrado');
     }
-    if (dto.correoElectronico && dto.correoElectronico !== p.correoElectronico) {
+    if (
+      dto.correoElectronico &&
+      dto.correoElectronico !== p.correoElectronico
+    ) {
       const existe = await this.pacienteRepo.exist({
         where: { correoElectronico: dto.correoElectronico },
       });
@@ -115,7 +120,9 @@ export class UsuariosService {
       .orWhere('LOWER(p.apellido_pat) LIKE LOWER(:like)', { like })
       .orWhere('LOWER(p.apellido_mat) LIKE LOWER(:like)', { like })
       .orWhere('LOWER(p.correoElectronico) LIKE LOWER(:like)', { like })
-      .orWhere('UPPER(p.curp) LIKE UPPER(:pref)', { pref: `${t.toUpperCase()}%` })
+      .orWhere('UPPER(p.curp) LIKE UPPER(:pref)', {
+        pref: `${t.toUpperCase()}%`,
+      })
       .orderBy('p.pacienteID', 'DESC')
       .take(25)
       .getMany();

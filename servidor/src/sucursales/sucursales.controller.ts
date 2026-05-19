@@ -1,7 +1,14 @@
-import { Controller, Get, Post, Body, Param, ParseIntPipe, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  ParseIntPipe,
+  Delete,
+} from '@nestjs/common';
 import { SucursalesService } from './sucursales.service';
 import { Sucursal } from './entities/sucursal.entity';
-
 
 @Controller('sucursal')
 export class SucursalesController {
@@ -27,15 +34,16 @@ export class SucursalesController {
     return await this.sucursalesService.desactivarSucursal(id);
   }
 
-
-
   //Creacion de los consultorios
-@Post('consultorio')
+  @Post('consultorio')
   async agregarConsultorio(
     @Body('sucursalID') sucursalID: number,
-    @Body('numeroConsultorio') numeroConsultorio: string
+    @Body('numeroConsultorio') numeroConsultorio: string,
   ) {
-    return await this.sucursalesService.crearConsultorio(sucursalID, numeroConsultorio);
+    return await this.sucursalesService.crearConsultorio(
+      sucursalID,
+      numeroConsultorio,
+    );
   }
 
   // Endpoint para obtener los consultorios de una sucursal: /sucursal/1/consultorios

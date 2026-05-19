@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -34,7 +27,11 @@ export class RecepcionController {
   @Post('pacientes/registro')
   async registrarPaciente(@Body() dto: RegistroDto) {
     await this.usuariosService.registrarPaciente(dto);
-    return { ok: true, mensaje: 'Paciente registrado. Podrá iniciar sesión con su correo y contraseña.' };
+    return {
+      ok: true,
+      mensaje:
+        'Paciente registrado. Podrá iniciar sesión con su correo y contraseña.',
+    };
   }
 
   @Post('citas/mostrador')

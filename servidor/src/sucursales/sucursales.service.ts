@@ -24,19 +24,20 @@ export class SucursalesService {
   async obtenerActivas(): Promise<Sucursal[]> {
     return await this.sucursalRepository.find({
       where: { estado: 'Activa' },
-      order: { nombre: 'ASC' }
+      order: { nombre: 'ASC' },
     });
   }
 
   // 3. Buscar sucursal por ID
   async obtenerPorId(id: number): Promise<Sucursal> {
-    const sucursal = await this.sucursalRepository.findOne({ where: { sucursalID: id } });
+    const sucursal = await this.sucursalRepository.findOne({
+      where: { sucursalID: id },
+    });
     if (!sucursal) {
       throw new NotFoundException(`La sucursal con ID ${id} no existe.`);
     }
     return sucursal;
   }
-
 
   async desactivarSucursal(id: number): Promise<Sucursal> {
     const sucursal = await this.obtenerPorId(id);
@@ -44,28 +45,35 @@ export class SucursalesService {
     return await this.sucursalRepository.save(sucursal);
   }
 
-  async crearConsultorio(sucursalId: number, numero: string): Promise<Consultorio> {
-    const sucursal = await this.sucursalRepository.findOne({ where: { sucursalID: sucursalId } });
-    
+  async crearConsultorio(
+    sucursalId: number,
+    numero: string,
+  ): Promise<Consultorio> {
+    const sucursal = await this.sucursalRepository.findOne({
+      where: { sucursalID: sucursalId },
+    });
+
     if (!sucursal) {
-      throw new NotFoundException(`No se puede crear el consultorio porque la sucursal con ID ${sucursalId} no existe.`);
+      throw new NotFoundException(
+        `No se puede crear el consultorio porque la sucursal con ID ${sucursalId} no existe.`,
+      );
     }
 
     const nuevoConsultorio = this.consultorioRepository.create({
       numeroConsultorio: numero,
-      sucursal: sucursal
+      sucursal: sucursal,
     });
 
     return await this.consultorioRepository.save(nuevoConsultorio);
   }
 
   // 2. Obtener todos los consultorios de una sucursal específica (Muy útil para la app)
-  async obtenerConsultoriosPorSucursal(sucursalId: number): Promise<Consultorio[]> {
+  async obtenerConsultoriosPorSucursal(
+    sucursalId: number,
+  ): Promise<Consultorio[]> {
     return await this.consultorioRepository.find({
       where: { sucursal: { sucursalID: sucursalId } },
-      order: { numeroConsultorio: 'ASC' }
+      order: { numeroConsultorio: 'ASC' },
     });
   }
 }
-
-

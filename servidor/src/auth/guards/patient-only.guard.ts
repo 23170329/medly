@@ -12,7 +12,9 @@ export class PatientOnlyGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<{ user?: JwtPayload }>();
     const u = req.user;
     if (!u || u.kind !== 'paciente') {
-      throw new ForbiddenException('Esta operación solo está disponible para pacientes');
+      throw new ForbiddenException(
+        'Esta operación solo está disponible para pacientes',
+      );
     }
     return true;
   }

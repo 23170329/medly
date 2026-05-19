@@ -75,7 +75,9 @@ export class MedicoPanelController {
     @CurrentUser() u: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.bloqueosService.eliminar(this.medicoId(u), id).then(() => ({ ok: true }));
+    return this.bloqueosService
+      .eliminar(this.medicoId(u), id)
+      .then(() => ({ ok: true }));
   }
 
   @Get('consultas')
@@ -84,7 +86,7 @@ export class MedicoPanelController {
     @Query('pacienteId') pacienteId?: string,
   ) {
     const pid =
-      pacienteId != null && pacienteId !== ""
+      pacienteId != null && pacienteId !== ''
         ? parseInt(pacienteId, 10)
         : undefined;
     return this.consultasService.listarPorMedico(

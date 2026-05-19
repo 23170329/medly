@@ -91,6 +91,8 @@ export class MedlyCurpStaffConsultas1747120000000 implements MigrationInterface 
     await queryRunner.query(`DROP TABLE IF EXISTS "cuenta_staff"`);
     await queryRunner.query(`DROP TYPE IF EXISTS "cuenta_staff_rol_enum"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "UQ_paciente_curp"`);
-    await queryRunner.query(`ALTER TABLE "paciente" DROP COLUMN IF EXISTS "curp"`);
+    await queryRunner.query(
+      `ALTER TABLE "paciente" DROP COLUMN IF EXISTS "curp"`,
+    );
   }
 }

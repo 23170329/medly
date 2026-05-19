@@ -69,7 +69,10 @@ export class AuthService {
     );
   }
 
-  private buildUsuarioPaciente(p: Paciente, cuenta: CuentaUsuario): AuthUsuarioResponse {
+  private buildUsuarioPaciente(
+    p: Paciente,
+    cuenta: CuentaUsuario,
+  ): AuthUsuarioResponse {
     const apellido = [p.apellido_pat, p.apellido_mat].filter(Boolean).join(' ');
     return {
       id: cuenta.cuentaID.toString(),
@@ -85,7 +88,9 @@ export class AuthService {
     if (s.rol === 'MEDICO') {
       const mid = s.medico?.medicoID;
       if (mid == null) {
-        throw new BadRequestException('Cuenta de médico sin vínculo a ficha de médico');
+        throw new BadRequestException(
+          'Cuenta de médico sin vínculo a ficha de médico',
+        );
       }
       return {
         id: s.cuentaStaffID.toString(),
@@ -120,7 +125,8 @@ export class AuthService {
   }
 
   private async signRefreshTokenPaciente(pacienteId: number, cuentaId: number) {
-    const refreshExp = this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
+    const refreshExp =
+      this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
     return this.jwtService.signAsync(
       {
         sub: pacienteId,
@@ -168,7 +174,8 @@ export class AuthService {
   }
 
   private async signRefreshTokenStaff(s: CuentaStaff) {
-    const refreshExp = this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
+    const refreshExp =
+      this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
     return this.jwtService.signAsync(
       {
         sub: s.cuentaStaffID,
@@ -206,12 +213,18 @@ export class AuthService {
     const paciente = await this.cuentaUsuarioRepository.manager
       .createQueryBuilder(Paciente, 'p')
       .innerJoinAndSelect('p.cuenta', 'c')
-      .where('LOWER(TRIM("p"."correoElectronico")) = :email', { email: correoNorm })
+      .where('LOWER(TRIM("p"."correoElectronico")) = :email', {
+        email: correoNorm,
+      })
       .getOne();
     if (!paciente?.cuenta) {
       throw new BadRequestException('No se pudo completar el registro');
     }
-    return this.emitAuthTokensPaciente(paciente, paciente.cuenta, 'Registro exitoso');
+    return this.emitAuthTokensPaciente(
+      paciente,
+      paciente.cuenta,
+      'Registro exitoso',
+    );
   }
 
   async refreshSession(refreshToken: string): Promise<AuthTokensResponse> {
@@ -249,29 +262,45 @@ export class AuthService {
     if (decoded.cuentaId == null) {
       throw new UnauthorizedException('Sesión no válida');
     }
-    const paciente = await this.cuentaUsuarioRepository.manager.findOne(Paciente, {
-      where: { pacienteID: decoded.sub },
-      relations: ['cuenta'],
-    });
+    const paciente = await this.cuentaUsuarioRepository.manager.findOne(
+      Paciente,
+      {
+        where: { pacienteID: decoded.sub },
+        relations: ['cuenta'],
+      },
+    );
     if (!paciente?.cuenta || paciente.cuenta.cuentaID !== decoded.cuentaId) {
       throw new UnauthorizedException('Sesión no válida');
     }
-    return this.emitAuthTokensPaciente(paciente, paciente.cuenta, 'Sesión renovada');
+    return this.emitAuthTokensPaciente(
+      paciente,
+      paciente.cuenta,
+      'Sesión renovada',
+    );
   }
 
-  async validarUsuario(correo: string, contrasena: string): Promise<AuthTokensResponse> {
+  async validarUsuario(
+    correo: string,
+    contrasena: string,
+  ): Promise<AuthTokensResponse> {
     const correoNorm = correo.trim().toLowerCase();
 
     const paciente = await this.cuentaUsuarioRepository.manager
       .createQueryBuilder(Paciente, 'p')
       .innerJoinAndSelect('p.cuenta', 'c')
-      .where('LOWER(TRIM("p"."correoElectronico")) = :email', { email: correoNorm })
+      .where('LOWER(TRIM("p"."correoElectronico")) = :email', {
+        email: correoNorm,
+      })
       .getOne();
 
     if (paciente?.cuenta) {
       const ok = await bcrypt.compare(contrasena, paciente.cuenta.password);
       if (ok) {
-        return this.emitAuthTokensPaciente(paciente, paciente.cuenta, 'Login exitoso');
+        return this.emitAuthTokensPaciente(
+          paciente,
+          paciente.cuenta,
+          'Login exitoso',
+        );
       }
     }
 

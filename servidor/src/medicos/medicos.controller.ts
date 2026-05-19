@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseIntPipe,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { MedicosService } from './medicos.service';
 
@@ -20,9 +14,7 @@ export class MedicosController {
     @Query('q') q?: string,
   ) {
     return this.svc.listar({
-      especialidadId: especialidadId
-        ? parseInt(especialidadId, 10)
-        : undefined,
+      especialidadId: especialidadId ? parseInt(especialidadId, 10) : undefined,
       sucursalId: sucursalId ? parseInt(sucursalId, 10) : undefined,
       q,
     });

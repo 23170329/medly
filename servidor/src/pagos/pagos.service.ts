@@ -8,19 +8,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 // Stripe SDK: en CommonJS (Nest build) preferimos require para evitar problemas con default export
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+
 const Stripe = require('stripe');
 type StripeInstance = any;
 import { Request, Response } from 'express';
 import { Pago } from './entities/pago.entity';
 import { Cita } from '../citas/entities/cita.entity';
 import { SlotAgenda } from '../horarios/entities/slot-agenda.entity';
-import {
-  EstadoCita,
-  EstadoPago,
-  EstadoSlot,
-  TipoPago,
-} from '../common/enums';
+import { EstadoCita, EstadoPago, EstadoSlot, TipoPago } from '../common/enums';
 
 @Injectable()
 export class PagosService {
@@ -127,11 +122,7 @@ export class PagosService {
 
     try {
       if (whSecret && sig && rawBody) {
-        event = this.stripe.webhooks.constructEvent(
-          rawBody,
-          sig as string,
-          whSecret,
-        ) as unknown as typeof event;
+        event = this.stripe.webhooks.constructEvent(rawBody, sig, whSecret);
       } else if (req.body && typeof req.body === 'object') {
         event = req.body as typeof event;
       } else {
@@ -170,9 +161,11 @@ export class PagosService {
 
         const pi = session.payment_intent;
         const intentId =
-          typeof pi === 'string' ? pi : pi && typeof pi === 'object'
-            ? (pi as { id?: string }).id
-            : undefined;
+          typeof pi === 'string'
+            ? pi
+            : pi && typeof pi === 'object'
+              ? pi.id
+              : undefined;
 
         for (const p of cita.pagos ?? []) {
           if (

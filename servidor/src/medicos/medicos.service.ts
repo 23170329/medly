@@ -29,8 +29,7 @@ export class MedicosService {
     }
 
     if (params.sucursalId) {
-      qb
-        .innerJoin('m.sucursales', 'ms')
+      qb.innerJoin('m.sucursales', 'ms')
         .andWhere('ms.sucursalID = :sid', { sid: params.sucursalId })
         .distinct(true);
     }
