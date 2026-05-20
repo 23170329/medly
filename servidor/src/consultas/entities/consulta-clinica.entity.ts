@@ -9,11 +9,12 @@ import {
 import { Paciente } from '../../usuarios/entities/paciente.entity';
 import { Medico } from '../../medicos/entities/medico.entity';
 import { Cita } from '../../citas/entities/cita.entity';
+import { CifrarColumna } from '../../common/transformers/cifrado-columna.transformer';
 
 /**
  * Registro de consulta alineado a secciones típicas NOM-004-SSA3-2012
- * (identificación, antecedentes, exploración, diagnóstico, tratamiento, etc.).
- * Solo el médico autor puede ver/editar sus propias consultas (aislamiento por medicoID).
+ * con cifrado AES-256-GCM en reposo para cumplimiento LFPDPPP/NOM-024.
+ * Solo el médico autor puede ver/editar sus propias consultas.
  */
 @Entity('consulta_clinica')
 export class ConsultaClinica {
@@ -35,30 +36,30 @@ export class ConsultaClinica {
   @CreateDateColumn({ type: 'timestamptz' })
   fechaRegistro!: Date;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   identificacion!: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   antecedentes!: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   interrogatorio!: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   exploracionFisica!: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   diagnosticos!: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   tratamiento!: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   evolucion!: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   pronostico!: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   notasConfidenciales!: string | null;
 }

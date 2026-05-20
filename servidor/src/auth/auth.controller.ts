@@ -1,5 +1,7 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -10,14 +12,16 @@ import { RegistroDto } from '../usuarios/dto/registro.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post('registro')
-  async registro(@Body() body: RegistroDto) {
-    return this.authService.registrar(body);
+  async registro(@Body() body: RegistroDto, @Req() req: Request) {
+    return this.authService.registrar(body, req);
   }
 
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('login')
-  async login(@Body() body: LoginDto) {
-    return this.authService.validarUsuario(body.correo, body.contrasena);
+  async login(@Body() body: LoginDto, @Req() req: Request) {
+    return this.authService.validarUsuario(body.correo, body.contrasena, req);
   }
 
   @Post('refresh')

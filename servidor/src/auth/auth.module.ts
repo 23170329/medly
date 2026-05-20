@@ -9,12 +9,14 @@ import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity';
 import { CuentaStaff } from '../staff/entities/cuenta-staff.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsuariosModule } from '../usuarios/usuarios.module';
+import { AuditoriaModule } from '../auditoria/auditoria.module';
 import { PatientOnlyGuard } from './guards/patient-only.guard';
 import { RolesGuard } from './guards/roles.guard';
 
 @Module({
   imports: [
     UsuariosModule,
+    AuditoriaModule,
     TypeOrmModule.forFeature([CuentaUsuario, CuentaStaff]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

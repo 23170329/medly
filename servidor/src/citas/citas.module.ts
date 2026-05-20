@@ -5,6 +5,7 @@ import { SlotAgenda } from '../horarios/entities/slot-agenda.entity';
 import { Pago } from '../pagos/entities/pago.entity';
 import { PagosModule } from '../pagos/pagos.module';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
+import { AuditoriaModule } from '../auditoria/auditoria.module';
 import { CitasService } from './citas.service';
 import { CitasController } from './citas.controller';
 
@@ -13,6 +14,7 @@ import { CitasController } from './citas.controller';
     TypeOrmModule.forFeature([Cita, SlotAgenda, Pago]),
     PagosModule,
     NotificacionesModule,
+    AuditoriaModule,
   ],
   controllers: [CitasController],
   providers: [CitasService],

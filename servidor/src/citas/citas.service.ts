@@ -13,6 +13,7 @@ import { Pago } from '../pagos/entities/pago.entity';
 import { EstadoCita, EstadoPago, EstadoSlot, TipoPago } from '../common/enums';
 import { PagosService } from '../pagos/pagos.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @Injectable()
 export class CitasService {
@@ -28,6 +29,7 @@ export class CitasService {
     private readonly ds: DataSource,
     private readonly pagosService: PagosService,
     private readonly notificacionesService: NotificacionesService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   async crearReserva(pacienteId: number, slotID: number): Promise<Cita> {

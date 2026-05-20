@@ -18,6 +18,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/jwt-payload.interface';
 import { CitasService } from '../citas/citas.service';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 import { BloqueosService, CrearBloqueoDto } from '../horarios/bloqueos.service';
 import { ConsultasService } from '../consultas/consultas.service';
 import { CrearConsultaDto } from '../consultas/dto/crear-consulta.dto';
@@ -33,6 +34,7 @@ export class MedicoPanelController {
     private readonly citasService: CitasService,
     private readonly bloqueosService: BloqueosService,
     private readonly consultasService: ConsultasService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   private medicoId(u: JwtPayload): number {
@@ -53,11 +55,20 @@ export class MedicoPanelController {
   }
 
   @Patch('citas/:id/cancelar')
-  cancelarCita(
+  async cancelarCita(
     @CurrentUser() u: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.citasService.cancelarPorMedico(this.medicoId(u), id);
+    const result = await this.citasService.cancelarPorMedico(
+      this.medicoId(u),
+      id,
+    );
+    await this.auditoriaService.registrar({
+      tipo: 'CITA_CANCELADA_MEDICO',
+      descripcion: `Cita #${id} cancelada por médico #${this.medicoId(u)}`,
+      usuarioID: u.sub,
+    });
+    return result;
   }
 
   @Get('bloqueos')

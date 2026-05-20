@@ -16,17 +16,30 @@ import { PatientOnlyGuard } from '../auth/guards/patient-only.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/jwt-payload.interface';
 import { CrearCitaDto } from './dto/crear-cita.dto';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @ApiTags('citas')
 @Controller('citas')
 @UseGuards(JwtAuthGuard, PatientOnlyGuard)
 export class CitasController {
-  constructor(private readonly citasService: CitasService) {}
+  constructor(
+    private readonly citasService: CitasService,
+    private readonly auditoriaService: AuditoriaService,
+  ) {}
 
   @Post()
   @ApiBearerAuth()
-  crear(@CurrentUser() user: JwtPayload, @Body() dto: CrearCitaDto) {
-    return this.citasService.crearReserva(user.sub, dto.slotID);
+  async crear(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CrearCitaDto,
+  ) {
+    const cita = await this.citasService.crearReserva(user.sub, dto.slotID);
+    await this.auditoriaService.registrar({
+      tipo: 'CITA_CREADA',
+      descripcion: `Cita #${cita.citaID} creada para paciente #${user.sub}`,
+      usuarioID: user.sub,
+    });
+    return cita;
   }
 
   @Get('mis-citas')
@@ -58,21 +71,31 @@ export class CitasController {
 
   @Patch(':id/cancelar')
   @ApiBearerAuth()
-  cancelar(
+  async cancelar(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.citasService.cancelar(user.sub, id);
+    const result = await this.citasService.cancelar(user.sub, id);
+    await this.auditoriaService.registrar({
+      tipo: 'CITA_CANCELADA_PACIENTE',
+      descripcion: `Cita #${id} cancelada por paciente #${user.sub}`,
+      usuarioID: user.sub,
+    });
+    return result;
   }
 
   @Delete(':id/reserva')
   @ApiBearerAuth()
-  abandonar(
+  async abandonar(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.citasService.abandonarPago(user.sub, id).then(() => ({
-      ok: true,
-    }));
+    await this.citasService.abandonarPago(user.sub, id);
+    await this.auditoriaService.registrar({
+      tipo: 'RESERVA_ABANDONADA',
+      descripcion: `Reserva #${id} abandonada por paciente #${user.sub}`,
+      usuarioID: user.sub,
+    });
+    return { ok: true };
   }
 }

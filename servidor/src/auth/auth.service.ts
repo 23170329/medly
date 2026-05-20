@@ -15,6 +15,8 @@ import { CuentaStaff } from '../staff/entities/cuenta-staff.entity';
 import { JwtPayload } from './jwt-payload.interface';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { RegistroDto } from '../usuarios/dto/registro.dto';
+import { AuditoriaService } from '../auditoria/auditoria.service';
+import { Request } from 'express';
 
 export type AuthUsuarioResponse =
   | {
@@ -60,6 +62,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly usuariosService: UsuariosService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   private refreshSecret(): string {
@@ -207,7 +210,10 @@ export class AuthService {
     };
   }
 
-  async registrar(dto: RegistroDto): Promise<AuthTokensResponse> {
+  async registrar(
+    dto: RegistroDto,
+    req?: Request,
+  ): Promise<AuthTokensResponse> {
     await this.usuariosService.registrarPaciente(dto);
     const correoNorm = dto.correoElectronico.trim().toLowerCase();
     const paciente = await this.cuentaUsuarioRepository.manager
@@ -220,6 +226,14 @@ export class AuthService {
     if (!paciente?.cuenta) {
       throw new BadRequestException('No se pudo completar el registro');
     }
+
+    await this.auditoriaService.registrar({
+      tipo: 'REGISTRO_USUARIO',
+      descripcion: `Registro de ${correoNorm}`,
+      usuarioID: paciente.pacienteID,
+      req,
+    });
+
     return this.emitAuthTokensPaciente(
       paciente,
       paciente.cuenta,
@@ -313,12 +327,19 @@ export class AuthService {
   async validarUsuario(
     identificador: string,
     contrasena: string,
+    req?: Request,
   ): Promise<AuthTokensResponse> {
     const paciente = await this.buscarPacientePorIdentificador(identificador);
 
     if (paciente?.cuenta) {
       const ok = await bcrypt.compare(contrasena, paciente.cuenta.password);
       if (ok) {
+        await this.auditoriaService.registrar({
+          tipo: 'LOGIN_EXITOSO',
+          descripcion: `Paciente ${paciente.correoElectronico}`,
+          usuarioID: paciente.pacienteID,
+          req,
+        });
         return this.emitAuthTokensPaciente(
           paciente,
           paciente.cuenta,
@@ -335,9 +356,21 @@ export class AuthService {
     if (staff) {
       const ok = await bcrypt.compare(contrasena, staff.password);
       if (ok) {
+        await this.auditoriaService.registrar({
+          tipo: 'LOGIN_EXITOSO',
+          descripcion: `Staff ${staff.correo} (${staff.rol})`,
+          usuarioID: staff.cuentaStaffID,
+          req,
+        });
         return this.emitAuthTokensStaff(staff, 'Login exitoso');
       }
     }
+
+    await this.auditoriaService.registrar({
+      tipo: 'LOGIN_FALLIDO',
+      descripcion: `Intento fallido para "${identificador}"`,
+      req,
+    });
 
     if (process.env.LOGIN_DEBUG === 'true') {
       this.logger.warn(`Login fallido para "${identificador}"`);
