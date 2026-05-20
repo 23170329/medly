@@ -76,7 +76,7 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           correoElectronico: correo.trim().toLowerCase(),
           telefono: telefono.replace(/\D/g, ""),
           fechaNacimiento,
-          genero,
+          genero: genero.trim().toUpperCase(),
           curp: normalizarCurp(curp),
           password: contrasena,
         }),
@@ -116,9 +116,17 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           onChangeText={setFechaNac}
         />
         <Entrada
-          etiqueta="GÉNERO (M, F, X u OTRO)"
+          etiqueta="GÉNERO (H o M)"
           value={genero}
-          onChangeText={(t) => setGenero(t.toUpperCase())}
+          onChangeText={(t) =>
+            setGenero(
+              t
+                .trim()
+                .toUpperCase()
+                .replace(/[^HM]/g, "")
+                .slice(0, 1),
+            )
+          }
         />
         <Entrada
           etiqueta="CURP"

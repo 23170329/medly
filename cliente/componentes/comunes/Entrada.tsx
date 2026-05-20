@@ -32,7 +32,7 @@ export const Entrada = ({ etiqueta, icono, error, mensajeError, ...props }: Entr
         )}
         <TextInput
           style={styles.input}
-          placeholderTextColor="#A0A0A0"
+          placeholderTextColor={COLORES.textoPlaceholder}
           {...props}
         />
       </View>

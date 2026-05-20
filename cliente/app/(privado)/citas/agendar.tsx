@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Pressable,
 } from "react-native";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
@@ -27,6 +28,15 @@ import {
   type MedicoSucursalDto,
   type SlotDto,
 } from "../../../lib/medlyApi";
+import {
+  construirRejillaDia,
+  esMismoDia,
+  fechasUnicasDesdeSlots,
+  HORA_FIN_LABORAL,
+  HORA_INICIO_LABORAL,
+  INTERVALO_MINUTOS,
+  normalizarFechaLocal,
+} from "../../../lib/agendaPickerUtils";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -47,6 +57,10 @@ export default function AgendarCitaPantalla() {
 
   const [slots, setSlots] = useState<SlotDto[]>([]);
   const [slotSel, setSlotSel] = useState<SlotDto | null>(null);
+  /** Día de la rejilla (medianoche local normalizada). */
+  const [fechaSeleccionada, setFechaSeleccionada] = useState<Date | null>(null);
+  /** Hora elegida "HH:mm" local; debe coincidir con un slot disponible. */
+  const [horaSeleccionada, setHoraSeleccionada] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -126,6 +140,37 @@ export default function AgendarCitaPantalla() {
   useEffect(() => {
     if (paso === 3 && medSel && sucSel) void cargarSlots();
   }, [paso, medSel, sucSel, cargarSlots]);
+
+  useEffect(() => {
+    if (paso !== 3 || slots.length === 0) return;
+    const fechas = fechasUnicasDesdeSlots(slots);
+    setFechaSeleccionada((prev) => {
+      if (prev != null && fechas.some((d) => esMismoDia(d, prev))) {
+        return prev;
+      }
+      return fechas[0] ?? null;
+    });
+  }, [paso, slots]);
+
+  useEffect(() => {
+    setSlotSel(null);
+    setHoraSeleccionada(null);
+  }, [fechaSeleccionada]);
+
+  const diasConCupo = useMemo(
+    () => (paso === 3 ? fechasUnicasDesdeSlots(slots) : []),
+    [paso, slots],
+  );
+
+  const rejillaHorarios = useMemo(() => {
+    if (fechaSeleccionada == null) return [];
+    return construirRejillaDia(fechaSeleccionada, slots);
+  }, [fechaSeleccionada, slots]);
+
+  const puedeContinuarPaso3 =
+    fechaSeleccionada != null &&
+    horaSeleccionada != null &&
+    slotSel != null;
 
   const iniciarPollingPago = useCallback(
     (id: number) => {
@@ -250,6 +295,7 @@ export default function AgendarCitaPantalla() {
       <ScrollView
         contentContainerStyle={estilos.scroll}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
       >
         {paso === 1 && (
           <View>
@@ -398,41 +444,163 @@ export default function AgendarCitaPantalla() {
         {paso === 3 && (
           <View>
             <Text style={estilos.subtitulo}>SELECCIONA FECHA Y HORA</Text>
+            <Text style={estilos.ayudaAgenda}>
+              Horario de {HORA_INICIO_LABORAL}:00 a {HORA_FIN_LABORAL}:00 · cada{" "}
+              {INTERVALO_MINUTOS} min
+            </Text>
+
             {cargando ? (
-              <ActivityIndicator color={paleta.navy} />
+              <ActivityIndicator
+                style={{ marginVertical: 24 }}
+                color={paleta.navy}
+              />
+            ) : slots.length === 0 || diasConCupo.length === 0 ? (
+              <Text style={estilos.sinHorariosTxt}>
+                No hay fechas disponibles. Prueba otro médico o sucursal.
+              </Text>
             ) : (
-              <View style={{ gap: 10 }}>
-                {slots.map((s) => {
-                  const { fecha, hora } = formatoSlot(s);
-                  const sel = slotSel?.slotID === s.slotID;
-                  return (
-                    <TouchableOpacity
-                      key={s.slotID}
+              <>
+                {fechaSeleccionada != null && (
+                  <Text style={estilos.mesTituloAgenda}>
+                    {fechaSeleccionada.toLocaleDateString("es-MX", {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </Text>
+                )}
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  nestedScrollEnabled
+                  contentContainerStyle={estilos.filaDiasScroll}
+                >
+                  {diasConCupo.map((d) => {
+                    const sel =
+                      fechaSeleccionada != null && esMismoDia(d, fechaSeleccionada);
+                    return (
+                      <Pressable
+                        key={normalizarFechaLocal(d)}
+                        onPress={() => setFechaSeleccionada(d)}
+                        style={({ pressed }) => [
+                          estilos.diaChip,
+                          sel && estilos.diaChipSel,
+                          pressed && !sel && estilos.diaChipPressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            estilos.diaChipSem,
+                            sel && estilos.diaChipSemSel,
+                          ]}
+                        >
+                          {d
+                            .toLocaleDateString("es-MX", { weekday: "short" })
+                            .replace(".", "")
+                            .toUpperCase()}
+                        </Text>
+                        <Text
+                          style={[
+                            estilos.diaChipNum,
+                            sel && estilos.diaChipNumSel,
+                          ]}
+                        >
+                          {d.getDate()}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+
+                <View style={estilos.leyendaFila}>
+                  <View style={estilos.leyendaItem}>
+                    <View
+                      style={[estilos.leyendaDot, { backgroundColor: paleta.teal }]}
+                    />
+                    <Text style={estilos.leyendaTxt}>Disponible</Text>
+                  </View>
+                  <View style={estilos.leyendaItem}>
+                    <View
                       style={[
-                        estilos.tarjetaMedico,
-                        sel && { borderWidth: 2, borderColor: paleta.navy },
+                        estilos.leyendaDot,
+                        { backgroundColor: COLORES.peligro },
                       ]}
-                      onPress={() => setSlotSel(s)}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={estilos.nombreMedico}>{fecha}</Text>
-                        <Text style={estilos.califMedico}>{hora}</Text>
-                      </View>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={20}
-                        color={paleta.navy}
-                      />
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                    />
+                    <Text style={estilos.leyendaTxt}>Ocupado</Text>
+                  </View>
+                </View>
+
+                <Text style={estilos.subtituloHoras}>HORARIOS</Text>
+                <View style={estilos.rejillaHoras}>
+                  {rejillaHorarios.map((celda) => {
+                    const sel =
+                      celda.disponible &&
+                      celda.slot != null &&
+                      slotSel?.slotID === celda.slot.slotID;
+                    if (!celda.disponible) {
+                      return (
+                        <View
+                          key={celda.hora}
+                          style={[estilos.celdaHora, estilos.celdaHoraOcupada]}
+                          accessibilityState={{ disabled: true }}
+                        >
+                          <Text style={estilos.celdaHoraTxtOcupada}>
+                            {celda.etiqueta}
+                          </Text>
+                          <Text style={estilos.celdaHoraSubOcupada}>
+                            No disponible
+                          </Text>
+                        </View>
+                      );
+                    }
+                    return (
+                      <Pressable
+                        key={celda.hora}
+                        onPress={() => {
+                          if (celda.slot != null) {
+                            setSlotSel(celda.slot);
+                            setHoraSeleccionada(celda.hora);
+                          }
+                        }}
+                        style={({ pressed }) => [
+                          estilos.celdaHora,
+                          estilos.celdaHoraLibre,
+                          sel && estilos.celdaHoraSel,
+                          pressed && !sel && estilos.celdaHoraPressed,
+                        ]}
+                      >
+                        <View style={estilos.celdaHoraInterior}>
+                          <Text
+                            style={[
+                              estilos.celdaHoraTxt,
+                              sel && estilos.celdaHoraTxtSel,
+                            ]}
+                          >
+                            {celda.etiqueta}
+                          </Text>
+                          {sel ? (
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={20}
+                              color={paleta.white}
+                            />
+                          ) : null}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
             )}
 
             <TouchableOpacity
-              style={[estilos.botonPrimario, { marginTop: 30 }]}
+              style={[
+                estilos.botonPrimario,
+                { marginTop: 28 },
+                !puedeContinuarPaso3 && estilos.botonPrimarioDeshab,
+              ]}
               onPress={() => avanzar()}
-              disabled={!slotSel}
+              disabled={!puedeContinuarPaso3}
             >
               <Text style={estilos.textoBotonPrimario}>REALIZAR PAGO →</Text>
             </TouchableOpacity>
@@ -638,6 +806,155 @@ const estilos = StyleSheet.create({
     color: paleta.teal,
     letterSpacing: 1,
     marginBottom: 16,
+  },
+  ayudaAgenda: {
+    fontSize: 12,
+    color: paleta.teal,
+    opacity: 0.9,
+    marginTop: -10,
+    marginBottom: 16,
+    letterSpacing: 0.2,
+  },
+  mesTituloAgenda: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: paleta.navy,
+    marginBottom: 12,
+    textTransform: "capitalize",
+  },
+  filaDiasScroll: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingBottom: 4,
+    marginBottom: 16,
+  },
+  diaChip: {
+    width: 64,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: BORDES.radio,
+    backgroundColor: paleta.white,
+    borderWidth: 1,
+    borderColor: COLORES.grisClaro,
+    alignItems: "center",
+    shadowColor: paleta.navy,
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  diaChipSel: {
+    backgroundColor: paleta.navy,
+    borderColor: paleta.navy,
+  },
+  diaChipPressed: {
+    opacity: 0.88,
+  },
+  diaChipSem: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: paleta.teal,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  diaChipSemSel: { color: "rgba(255,255,255,0.85)" },
+  diaChipNum: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: paleta.navy,
+  },
+  diaChipNumSel: { color: paleta.white },
+  leyendaFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+    marginBottom: 18,
+  },
+  leyendaItem: { flexDirection: "row", alignItems: "center", gap: 8 },
+  leyendaDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  leyendaTxt: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: paleta.navy,
+  },
+  subtituloHoras: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: paleta.teal,
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  rejillaHoras: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  celdaHora: {
+    width: "48%",
+    borderRadius: BORDES.radio,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    marginBottom: 4,
+    justifyContent: "center",
+  },
+  celdaHoraLibre: {
+    backgroundColor: paleta.white,
+    borderWidth: 1,
+    borderColor: paleta.skyblue,
+  },
+  celdaHoraSel: {
+    backgroundColor: paleta.navy,
+    borderColor: paleta.navy,
+  },
+  celdaHoraPressed: {
+    backgroundColor: paleta.skyblue,
+    borderColor: paleta.teal,
+  },
+  celdaHoraOcupada: {
+    backgroundColor: "rgba(230, 57, 70, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(230, 57, 70, 0.45)",
+    opacity: 1,
+  },
+  celdaHoraTxt: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: paleta.navy,
+  },
+  celdaHoraTxtSel: { color: paleta.white },
+  celdaHoraInterior: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  celdaHoraTxtOcupada: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORES.peligro,
+  },
+  celdaHoraSubOcupada: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORES.peligro,
+    opacity: 0.85,
+    marginTop: 2,
+  },
+  sinHorariosTxt: {
+    fontSize: 14,
+    color: paleta.teal,
+    textAlign: "center",
+    marginVertical: 24,
+    lineHeight: 20,
+  },
+  botonPrimarioDeshab: {
+    opacity: 0.42,
   },
 
   buscador: {

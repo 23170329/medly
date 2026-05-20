@@ -13,45 +13,69 @@ medly/
 ## Requisitos previos
 
 - Node.js 20+
-- Docker Desktop
-- Expo Go (en celular)
+- Expo Go (en celular) o emulador
 
-## Inicio rápido
+## Desarrollo con Railway (recomendado)
 
-### 1. Base de datos
+API y base de datos en [Railway](https://railway.app). En tu PC solo corres la app Expo.
+
+### 1. Variables en Railway
+
+En el dashboard de Railway, en el servicio **API**, configura las mismas variables que en `servidor/.env` (sobre todo `JWT_SECRET`, `JWT_REFRESH_SECRET`, `DATABASE_URL`, Stripe, `APP_PUBLIC_URL`).
+
+### 2. Variables locales
 
 ```bash
-docker compose up -d
+cp .env.example .env
+cp .env.example servidor/.env
+cp cliente/.env.example cliente/.env
 ```
 
-### 2. Backend
+Rellena `DATABASE_URL` y las URLs con los valores de Railway. En `cliente/.env` solo hace falta `EXPO_PUBLIC_API_URL` apuntando a tu API (`https://….up.railway.app`).
 
-```bash
-cd servidor
-cp .env.example .env   # rellena las variables
-npm install
-npm run start:dev
-```
-
-Servidor disponible en `http://localhost:3000`
-Swagger en `http://localhost:3000/api`
-
-### 3. Frontend
+### 3. App móvil
 
 ```bash
 cd cliente
-cp .env.example .env   # pon tu IP local en EXPO_PUBLIC_API_URL
 npm install
+npx expo start -c
+```
+
+Escanea el QR con Expo Go. La app habla con el API en Railway; no necesitas `npm run start:dev` ni Docker.
+
+### Comandos opcionales (migraciones / seed contra Railway)
+
+```bash
+cd servidor
+npm install
+npm run migration:run
+npm run seed
+```
+
+Usan `DATABASE_URL` de `servidor/.env`.
+
+### Comprobar el API
+
+Abre en el navegador: `https://tu-dominio.up.railway.app/api/v1/docs` (Swagger).
+
+---
+
+## Desarrollo local (Docker + API en tu PC)
+
+Si prefieres Postgres y API en la máquina:
+
+```bash
+docker compose up -d
+cd servidor && cp .env.example .env   # modo local en .env.example
+npm install && npm run start:dev
+cd ../cliente && cp .env.example .env   # EXPO_PUBLIC_API_URL=http://TU_IP:3000
 npx expo start
 ```
 
-Escanea el QR con Expo Go (misma red WiFi).
-
 ## Comandos útiles
 
-| Comando                | Descripción                  |
-| ---------------------- | ---------------------------- |
-| `docker compose up -d` | Levanta PostgreSQL + Adminer |
-| `docker compose down`  | Detiene los contenedores     |
-| `npm run start:dev`    | Backend en modo watch        |
-| `npx expo start`       | Frontend con hot reload      |
+| Comando | Descripción |
+| -------- | ------------- |
+| `npx expo start -c` | App móvil (modo Railway) |
+| `npm run migration:run` | Migraciones contra la BD configurada en `.env` |
+| `docker compose up -d` | Solo modo local (Postgres + Adminer) |

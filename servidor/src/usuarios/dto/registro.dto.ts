@@ -61,8 +61,8 @@ export class RegistroDto {
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @IsString()
-  @IsIn(['M', 'F'], {
-    message: 'genero debe ser M o F',
+  @IsIn(['H', 'M'], {
+    message: 'genero debe ser H (hombre) o M (mujer)',
   })
   @MaxLength(10)
   genero!: string;

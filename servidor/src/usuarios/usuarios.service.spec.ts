@@ -25,7 +25,7 @@ const mockPacienteData = {
   correoElectronico: 'juan@example.com',
   telefono: '5512345678',
   fechaNacimiento: '1990-01-01',
-  genero: 'M',
+  genero: 'H',
   curp: 'PELJ900101HDFRRN07',
 };
 
@@ -84,7 +84,7 @@ describe('UsuariosService', () => {
       correoElectronico: 'juan@example.com',
       telefono: '5512345678',
       fechaNacimiento: '1990-01-01',
-      genero: 'M',
+      genero: 'H',
       curp: 'PELJ900101HDFRRN07',
       password: 'Password123',
     };
@@ -245,7 +245,7 @@ describe('UsuariosService', () => {
         correoElectronico: 'juan@example.com',
         telefono: '5512345678',
         fechaNacimiento: '1990-01-01',
-        genero: 'M',
+        genero: 'H',
         curp: 'PELJ900101HDFRRN07',
       });
     });

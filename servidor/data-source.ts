@@ -19,6 +19,7 @@ import { Auditoria } from './src/auditoria/entities/auditoria.entity';
 import { InitialMedly1738700000000 } from './src/migrations/1738700000000-InitialMedly';
 import { MedlyCurpStaffConsultas1747120000000 } from './src/migrations/1747120000000-MedlyCurpStaffConsultas';
 import { PacienteApellidoMatNotNull1747130000000 } from './src/migrations/1747130000000-PacienteApellidoMatNotNull';
+import { RolStaffAdmin1747140000000 } from './src/migrations/1747140000000-RolStaffAdmin';
 import { SucursalLatLng1747150000000 } from './src/migrations/1747150000000-SucursalLatLng';
 
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -73,6 +74,7 @@ export default new DataSource({
     InitialMedly1738700000000,
     MedlyCurpStaffConsultas1747120000000,
     PacienteApellidoMatNotNull1747130000000,
+    RolStaffAdmin1747140000000,
     SucursalLatLng1747150000000,
   ],
   synchronize: false,

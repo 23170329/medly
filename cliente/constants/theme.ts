@@ -51,6 +51,8 @@ export const COLORES = {
   error: AppTheme.colors.error,
   texto: AppTheme.colors.onSurface,
   textoMuted: "#9CA3AF",
+  /** Mismo tono que placeholder en Entrada */
+  textoPlaceholder: "#A0A0A0",
   blanco: paleta.white,
   skyblue: paleta.skyblue,
   grisClaro: paleta.skyblue,

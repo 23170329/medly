@@ -53,7 +53,7 @@ describe('AuthService', () => {
     telefono: '5512345678',
     curp: 'CURP12345678901234',
     fechaNacimiento: '1990-01-01',
-    genero: 'M',
+    genero: 'H',
     cuenta: {
       cuentaID: 10,
       password: '$2a$10$hashedpassword',
@@ -155,7 +155,7 @@ describe('AuthService', () => {
       telefono: '5512345678',
       curp: 'CURP12345678901234',
       fechaNacimiento: '1990-01-01',
-      genero: 'M',
+      genero: 'H',
       password: 'Password123',
     } as RegistroDto;
 

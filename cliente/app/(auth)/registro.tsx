@@ -14,7 +14,7 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Entrada } from "../../componentes/comunes/Entrada";
 import { Boton } from "../../componentes/comunes/Boton";
-import { COLORES } from "../../constants/theme";
+import { COLORES, BORDES } from "../../constants/theme";
 import { useAuthStore, type Usuario } from "../../stores/auth.store";
 
 import { API_URL } from "../../constants/api";
@@ -157,7 +157,7 @@ export default function RegistroScreen() {
           correoElectronico: correo.trim().toLowerCase(),
           telefono: telefono.replace(/\D/g, ""),
           fechaNacimiento: fechaNac,
-          genero,
+          genero: genero.trim().toUpperCase(),
           curp: normalizarCurp(curp),
           password: contrasena,
         }),
@@ -360,36 +360,50 @@ export default function RegistroScreen() {
                 <Text style={styles.etiqueta}>GÉNERO</Text>
                 <View style={styles.contenedorGenero}>
                   <TouchableOpacity
+                    activeOpacity={0.85}
                     style={[
-                      styles.botonGenero,
-                      genero === "M" && styles.botonGeneroActivo,
+                      styles.tarjetaGenero,
+                      genero === "H" && styles.tarjetaGeneroActiva,
+                    ]}
+                    onPress={() => {
+                      setGenero("H");
+                      setErroresP1((p) => ({ ...p, genero: null }));
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Hombre"
+                    accessibilityState={{ selected: genero === "H" }}
+                  >
+                    <Text
+                      style={[
+                        styles.generoLetra,
+                        genero === "H" && styles.generoLetraActiva,
+                      ]}
+                    >
+                      H
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={[
+                      styles.tarjetaGenero,
+                      genero === "M" && styles.tarjetaGeneroActiva,
                     ]}
                     onPress={() => {
                       setGenero("M");
                       setErroresP1((p) => ({ ...p, genero: null }));
                     }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Mujer"
+                    accessibilityState={{ selected: genero === "M" }}
                   >
-                    <Ionicons
-                      name="male-outline"
-                      size={24}
-                      color={genero === "M" ? COLORES.blanco : COLORES.texto}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.botonGenero,
-                      genero === "F" && styles.botonGeneroActivo,
-                    ]}
-                    onPress={() => {
-                      setGenero("F");
-                      setErroresP1((p) => ({ ...p, genero: null }));
-                    }}
-                  >
-                    <Ionicons
-                      name="female-outline"
-                      size={24}
-                      color={genero === "F" ? COLORES.blanco : COLORES.texto}
-                    />
+                    <Text
+                      style={[
+                        styles.generoLetra,
+                        genero === "M" && styles.generoLetraActiva,
+                      ]}
+                    >
+                      M
+                    </Text>
                   </TouchableOpacity>
                 </View>
                 {erroresP1.genero && (
@@ -614,21 +628,32 @@ const styles = StyleSheet.create({
   },
   contenedorGenero: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: COLORES.blanco,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORES.skyblue,
-    height: 50,
-  },
-  botonGenero: {
-    flex: 1,
-    justifyContent: "center",
+    gap: 12,
     alignItems: "center",
-    borderRadius: 12,
   },
-  botonGeneroActivo: {
+  tarjetaGenero: {
+    flex: 1,
+    height: 50,
+    paddingHorizontal: 12,
+    borderRadius: BORDES.radio,
+    backgroundColor: COLORES.blanco,
+    borderWidth: 1,
+    borderColor: COLORES.grisClaro,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tarjetaGeneroActiva: {
     backgroundColor: COLORES.primario,
+    borderColor: COLORES.primario,
+  },
+  generoLetra: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    color: COLORES.textoPlaceholder,
+  },
+  generoLetraActiva: {
+    color: COLORES.blanco,
   },
   contenedorCheckbox: {
     flexDirection: "row",

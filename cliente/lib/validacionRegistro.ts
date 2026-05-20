@@ -36,8 +36,9 @@ export function validarPasoDatosPersonales(params: {
   if (!params.fechaNacimiento.trim()) {
     return "Selecciona tu fecha de nacimiento.";
   }
-  if (!params.genero || !['M', 'F'].includes(params.genero)) {
-    return "Selecciona género (M o F).";
+  const gen = params.genero.trim().toUpperCase();
+  if (!gen || !["H", "M"].includes(gen)) {
+    return "Selecciona género (H o M).";
   }
   const curp = normalizarCurp(params.curp);
   if (!REGEX_CURP.test(curp)) {
@@ -74,9 +75,11 @@ export function validarPasoDatosPersonalesDetallado(params: {
     fechaNacimiento: !params.fechaNacimiento.trim()
       ? "Selecciona tu fecha de nacimiento."
       : null,
-    genero: !params.genero || !["M", "F"].includes(params.genero)
-      ? "Selecciona género (M o F)."
-      : null,
+    genero:
+      !params.genero.trim() ||
+      !["H", "M"].includes(params.genero.trim().toUpperCase())
+        ? "Selecciona género (H o M)."
+        : null,
     curp: !REGEX_CURP.test(curp)
       ? "La CURP debe tener exactamente 18 caracteres alfanuméricos."
       : null,
