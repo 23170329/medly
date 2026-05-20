@@ -80,6 +80,7 @@ export default function RegistroScreen() {
     });
     if (errP2) {
       Alert.alert("Revisa tus datos", errP2);
+      setPaso(3);
       return;
     }
 
@@ -155,6 +156,7 @@ export default function RegistroScreen() {
       });
       if (err) {
         Alert.alert("Revisa tus datos", err);
+        setPaso(1);
         return;
       }
     }
@@ -167,6 +169,7 @@ export default function RegistroScreen() {
       });
       if (err) {
         Alert.alert("Revisa tus datos", err);
+         setPaso(2);
         return;
       }
     }
