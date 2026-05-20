@@ -38,6 +38,9 @@ export class RegistroDto {
   )
   @IsEmail({}, { message: 'Correo electrónico inválido' })
   @MaxLength(150)
+  @Matches(/^(?!.*@medly\.).*$/i, {
+    message: 'No se permiten correos con dominio @medly',
+  })
   correoElectronico!: string;
 
   @Transform(({ value }) =>
@@ -58,8 +61,8 @@ export class RegistroDto {
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @IsString()
-  @IsIn(['M', 'F', 'X', 'OTRO'], {
-    message: 'genero debe ser M, F, X u OTRO',
+  @IsIn(['M', 'F'], {
+    message: 'genero debe ser M o F',
   })
   @MaxLength(10)
   genero!: string;

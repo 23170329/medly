@@ -14,9 +14,11 @@ import { Pago } from './src/pagos/entities/pago.entity';
 import { CuentaStaff } from './src/staff/entities/cuenta-staff.entity';
 import { BloqueoAgenda } from './src/horarios/entities/bloqueo-agenda.entity';
 import { ConsultaClinica } from './src/consultas/entities/consulta-clinica.entity';
+import { Notificacion } from './src/notificaciones/entities/notificacion.entity';
 import { InitialMedly1738700000000 } from './src/migrations/1738700000000-InitialMedly';
 import { MedlyCurpStaffConsultas1747120000000 } from './src/migrations/1747120000000-MedlyCurpStaffConsultas';
 import { PacienteApellidoMatNotNull1747130000000 } from './src/migrations/1747130000000-PacienteApellidoMatNotNull';
+import { SucursalLatLng1747150000000 } from './src/migrations/1747150000000-SucursalLatLng';
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
@@ -63,11 +65,13 @@ export default new DataSource({
     Pago,
     ConsultaClinica,
     CuentaStaff,
+    Notificacion,
   ],
   migrations: [
     InitialMedly1738700000000,
     MedlyCurpStaffConsultas1747120000000,
     PacienteApellidoMatNotNull1747130000000,
+    SucursalLatLng1747150000000,
   ],
   synchronize: false,
   logging: process.env.TYPEORM_LOGGING === 'true',

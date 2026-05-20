@@ -49,6 +49,7 @@ interface CitaUi {
   readonly sucursal: string;
   readonly estado: EstadoCita;
   readonly monto: number;
+  readonly anticipoPagado: boolean;
   readonly raw: CitaDto;
 }
 
@@ -132,6 +133,11 @@ function toUi(d: CitaDto): CitaUi {
     sucursal: d.sucursal?.nombre ?? "—",
     estado: mapEstadoApi(d.estado),
     monto: Math.round(parseFloat(d.montoTotal)),
+    anticipoPagado:
+      d.estado === "CONFIRMADA" &&
+      (d.pagos ?? []).some(
+        (p) => p.tipo === "ANTICIPO_50" && p.estado === "COMPLETADO",
+      ),
     raw: d,
   };
 }
@@ -209,6 +215,28 @@ function TarjetaCita({ cita, onActualizar }: TarjetaCitaProps): React.JSX.Elemen
               </Text>
             </View>
           </View>
+
+          {cita.anticipoPagado && (
+            <View
+              style={[
+                estilos.badge,
+                {
+                  backgroundColor: "#DCF0E4",
+                  alignSelf: "flex-start",
+                  marginBottom: 8,
+                },
+              ]}
+            >
+              <Ionicons
+                name="cash-outline"
+                size={11}
+                color={paleta.green}
+              />
+              <Text style={[estilos.badgeTexto, { color: paleta.green }]}>
+                Anticipo realizado
+              </Text>
+            </View>
+          )}
 
           <View style={estilos.divider} />
 

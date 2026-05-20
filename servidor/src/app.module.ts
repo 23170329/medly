@@ -27,8 +27,10 @@ import { Pago } from './pagos/entities/pago.entity';
 import { CuentaStaff } from './staff/entities/cuenta-staff.entity';
 import { BloqueoAgenda } from './horarios/entities/bloqueo-agenda.entity';
 import { ConsultaClinica } from './consultas/entities/consulta-clinica.entity';
+import { Notificacion } from './notificaciones/entities/notificacion.entity';
 import { RecepcionModule } from './recepcion/recepcion.module';
 import { MedicoPanelModule } from './medico-panel/medico-panel.module';
+import { NotificacionesModule } from './notificaciones/notificaciones.module';
 
 const entities = [
   Paciente,
@@ -46,6 +48,7 @@ const entities = [
   Cita,
   Pago,
   ConsultaClinica,
+  Notificacion,
 ];
 
 @Module({
@@ -96,6 +99,7 @@ const entities = [
     PagosModule,
     RecepcionModule,
     MedicoPanelModule,
+    NotificacionesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

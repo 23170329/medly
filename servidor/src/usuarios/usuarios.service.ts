@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -22,6 +23,11 @@ export class UsuariosService {
 
   async registrarPaciente(datos: RegistroDto) {
     const correoNorm = datos.correoElectronico.trim().toLowerCase();
+    if (/@medly\./i.test(correoNorm)) {
+      throw new BadRequestException(
+        'No se permiten correos con dominio @medly',
+      );
+    }
     const duplicado = await this.pacienteRepo
       .createQueryBuilder('p')
       .where('LOWER(TRIM(p.correoElectronico)) = :correo', {

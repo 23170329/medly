@@ -279,19 +279,42 @@ export class AuthService {
     );
   }
 
-  async validarUsuario(
-    correo: string,
-    contrasena: string,
-  ): Promise<AuthTokensResponse> {
-    const correoNorm = correo.trim().toLowerCase();
-
-    const paciente = await this.cuentaUsuarioRepository.manager
+  private async buscarPacientePorIdentificador(
+    identificador: string,
+  ): Promise<Paciente | null> {
+    const idNorm = identificador.trim();
+    const pacientes = await this.cuentaUsuarioRepository.manager
       .createQueryBuilder(Paciente, 'p')
       .innerJoinAndSelect('p.cuenta', 'c')
-      .where('LOWER(TRIM("p"."correoElectronico")) = :email', {
-        email: correoNorm,
-      })
-      .getOne();
+      .where(
+        `LOWER(TRIM("p"."correoElectronico")) = :email
+         OR "p"."curp" = :curp
+         OR "p"."telefono" = :tel`,
+        {
+          email: idNorm.toLowerCase(),
+          curp: idNorm.toUpperCase(),
+          tel: idNorm.replace(/\D/g, ''),
+        },
+      )
+      .getMany();
+
+    for (const p of pacientes) {
+      if (
+        p.correoElectronico.toLowerCase() === idNorm.toLowerCase() ||
+        p.curp === idNorm.toUpperCase() ||
+        p.telefono === idNorm.replace(/\D/g, '')
+      ) {
+        return p;
+      }
+    }
+    return null;
+  }
+
+  async validarUsuario(
+    identificador: string,
+    contrasena: string,
+  ): Promise<AuthTokensResponse> {
+    const paciente = await this.buscarPacientePorIdentificador(identificador);
 
     if (paciente?.cuenta) {
       const ok = await bcrypt.compare(contrasena, paciente.cuenta.password);
@@ -304,8 +327,9 @@ export class AuthService {
       }
     }
 
+    const idNorm = identificador.trim().toLowerCase();
     const staff = await this.cuentaStaffRepository.findOne({
-      where: { correo: correoNorm },
+      where: { correo: idNorm },
       relations: ['medico'],
     });
     if (staff) {
@@ -316,8 +340,10 @@ export class AuthService {
     }
 
     if (process.env.LOGIN_DEBUG === 'true') {
-      this.logger.warn(`Login fallido para "${correoNorm}"`);
+      this.logger.warn(`Login fallido para "${identificador}"`);
     }
-    throw new UnauthorizedException('Correo o contraseña incorrectos');
+    throw new UnauthorizedException(
+      'Correo, CURP o teléfono incorrectos, o contraseña incorrecta',
+    );
   }
 }

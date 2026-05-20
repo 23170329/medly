@@ -24,6 +24,8 @@ export interface SucursalDto {
   direccion: string;
   telefono: string;
   capacidadConsultorios: number;
+  latitud?: number | null;
+  longitud?: number | null;
 }
 
 export interface MedicoSucursalDto {
@@ -47,6 +49,16 @@ export type EstadoCitaApi =
   | "CANCELADA"
   | "COMPLETADA";
 
+export interface PagoDto {
+  pagoID: number;
+  citaID: number;
+  monto: string;
+  tipo: "ANTICIPO_50" | "REEMBOLSO";
+  estado: "PENDIENTE" | "COMPLETADO" | "FALLIDO";
+  stripeCheckoutSessionId: string | null;
+  stripePaymentIntentId: string | null;
+}
+
 export interface CitaDto {
   citaID: number;
   pacienteID: number;
@@ -60,6 +72,7 @@ export interface CitaDto {
   montoAnticipo: string;
   medico?: MedicoDto & { especialidad?: { nombre: string } };
   sucursal?: SucursalDto;
+  pagos?: PagoDto[];
 }
 
 export async function fetchEspecialidades(): Promise<EspecialidadDto[]> {
@@ -139,6 +152,34 @@ export async function crearCheckoutSession(citaID: number): Promise<{
   sessionId: string;
 }> {
   const { data } = await api.post(`/pagos/checkout-session`, { citaID });
+  return data;
+}
+
+export interface NotificacionDto {
+  notificacionID: number;
+  pacienteID: number;
+  titulo: string;
+  mensaje: string;
+  leida: boolean;
+  fechaCreacion: string;
+}
+
+export async function fetchNotificaciones(): Promise<NotificacionDto[]> {
+  const { data } = await api.get<NotificacionDto[]>("/notificaciones");
+  return data;
+}
+
+export async function fetchNotificacionesNoLeidas(): Promise<number> {
+  const { data } = await api.get<number>("/notificaciones/no-leidas");
+  return data;
+}
+
+export async function marcarNotificacionLeida(
+  id: number,
+): Promise<NotificacionDto> {
+  const { data } = await api.patch<NotificacionDto>(
+    `/notificaciones/${id}/leida`,
+  );
   return data;
 }
 

@@ -8,6 +8,7 @@ interface EncabezadoPacienteProps {
   readonly inicial: string;
   readonly onPerfil: () => void;
   readonly onNotificaciones?: () => void;
+  readonly notificacionesNoLeidas?: number;
 }
 
 export function EncabezadoPaciente({
@@ -15,6 +16,7 @@ export function EncabezadoPaciente({
   inicial,
   onPerfil,
   onNotificaciones,
+  notificacionesNoLeidas = 0,
 }: EncabezadoPacienteProps): React.JSX.Element {
   return (
     <View style={estilos.fondo} accessibilityRole="header">
@@ -40,6 +42,13 @@ export function EncabezadoPaciente({
           accessibilityRole="button"
         >
           <Ionicons name="notifications-outline" size={22} color={paleta.white} />
+          {notificacionesNoLeidas > 0 && (
+            <View style={estilos.badge}>
+              <Text style={estilos.badgeTexto}>
+                {notificacionesNoLeidas > 9 ? "9+" : notificacionesNoLeidas}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -100,5 +109,22 @@ const estilos = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.12)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: paleta.red,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  badgeTexto: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: paleta.white,
   },
 });

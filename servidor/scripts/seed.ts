@@ -30,18 +30,24 @@ const SUCURSALES = [
     direccion: 'Av. Principal 123, Centro',
     telefono: '6671234567',
     capacidadConsultorios: 5,
+    latitud: 24.8091,
+    longitud: -107.3944,
   },
   {
     nombre: 'Medly Norte',
     direccion: 'Blvd. Industrial 456',
     telefono: '6677654321',
     capacidadConsultorios: 3,
+    latitud: 24.8300,
+    longitud: -107.3800,
   },
   {
     nombre: 'Medly Sur',
     direccion: 'Calle Reforma 789',
     telefono: '6671112233',
     capacidadConsultorios: 4,
+    latitud: 24.7900,
+    longitud: -107.4100,
   },
 ];
 
@@ -193,7 +199,7 @@ async function seed(): Promise<void> {
       await staffRepo.save(
         staffRepo.create({
           nombre: 'Recepción Demo',
-          correo: 'recepcion@medly.local',
+          correo: 'recepcion@medly.r',
           password: passRep,
           rol: 'RECEPCIONISTA',
           medico: null,
@@ -202,14 +208,14 @@ async function seed(): Promise<void> {
       await staffRepo.save(
         staffRepo.create({
           nombre: 'Dra. Alejandra López',
-          correo: 'doctor@medly.local',
+          correo: 'doctor@medly.d',
           password: passDoc,
           rol: 'MEDICO',
           medico: med,
         }),
       );
       console.log(
-        'Cuentas staff: recepcion@medly.local / RecepMedly1! · doctor@medly.local / DoctorMedly1!',
+        'Cuentas staff: recepcion@medly.r / RecepMedly1! · doctor@medly.d / DoctorMedly1!',
       );
     }
   }

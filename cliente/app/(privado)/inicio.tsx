@@ -17,6 +17,7 @@ import { useAuthStore } from "../../stores/auth.store";
 import { EncabezadoPaciente } from "../../componentes/layout/EncabezadoPaciente";
 import {
   fetchEspecialidades,
+  fetchNotificacionesNoLeidas,
   fetchProximaCita,
   type EspecialidadDto,
   type CitaDto,
@@ -38,10 +39,9 @@ const ACCESOS: readonly AccesoRapido[] = [
   },
   {
     id: "2",
-    icono: "document-text-outline",
-    label: "Recetas",
-    onPress: () =>
-      Alert.alert("Recetas", "Próximamente podrás ver tus recetas aquí."),
+    icono: "business-outline",
+    label: "Sucursales",
+    onPress: () => router.push("/(privado)/sucursales"),
   },
   {
     id: "3",
@@ -78,16 +78,19 @@ export default function InicioPantalla(): React.JSX.Element {
   const [especialidades, setEspecialidades] = useState<EspecialidadDto[]>([]);
   const [proxima, setProxima] = useState<CitaDto | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [notifNoLeidas, setNotifNoLeidas] = useState(0);
 
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      const [esp, px] = await Promise.all([
+      const [esp, px, notifCount] = await Promise.all([
         fetchEspecialidades().catch(() => []),
         fetchProximaCita().catch(() => null),
+        fetchNotificacionesNoLeidas().catch(() => 0),
       ]);
       setEspecialidades(esp.slice(0, 6));
       setProxima(px);
+      setNotifNoLeidas(notifCount);
     } catch {
       setEspecialidades([]);
       setProxima(null);
@@ -124,11 +127,9 @@ export default function InicioPantalla(): React.JSX.Element {
           inicial={inicialNombre}
           onPerfil={() => router.push("/(privado)/perfil/")}
           onNotificaciones={() =>
-            Alert.alert(
-              "Notificaciones",
-              "Próximamente podrás gestionar alertas desde aquí.",
-            )
+            router.push("/(privado)/notificaciones")
           }
+          notificacionesNoLeidas={notifNoLeidas}
         />
 
         <View style={estilos.tarjetaProxima}>

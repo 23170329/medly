@@ -18,14 +18,14 @@ import { COLORES } from "../../constants/theme";
 import { useAuthStore, type Usuario } from "../../stores/auth.store";
 
 export default function IniciarSesionScreen() {
-  const [correo, setCorreo] = useState("");
+  const [identificador, setIdentificador] = useState("");
   const [contrasena, setContrasena] = useState("");
 
   const { setAuth } = useAuthStore();
 
   const manejarLogin = async () => {
-    if (!correo || !contrasena) {
-      Alert.alert("Atención", "Por favor ingresa tu correo y contraseña.");
+    if (!identificador || !contrasena) {
+      Alert.alert("Atención", "Por favor ingresa tu correo, CURP o teléfono y contraseña.");
       return;
     }
 
@@ -36,7 +36,7 @@ export default function IniciarSesionScreen() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          correo: correo.trim(),
+          correo: identificador.trim(),
           contrasena,
         }),
       });
@@ -96,13 +96,12 @@ export default function IniciarSesionScreen() {
         {/* Formulario */}
         <View style={styles.formulario}>
           <Entrada
-            etiqueta="Correo Electrónico"
-            icono="mail-outline"
-            placeholder="ejemplo@email.com"
-            keyboardType="email-address"
+            etiqueta="Correo, CURP o Teléfono"
+            icono="person-outline"
+            placeholder="correo@email.com / CURP / teléfono"
             autoCapitalize="none"
-            value={correo}
-            onChangeText={setCorreo}
+            value={identificador}
+            onChangeText={setIdentificador}
           />
 
           <Entrada
