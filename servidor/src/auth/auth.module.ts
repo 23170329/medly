@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity';
 import { CuentaStaff } from '../staff/entities/cuenta-staff.entity';
+import { Medico } from '../medicos/entities/medico.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsuariosModule } from '../usuarios/usuarios.module';
 import { AuditoriaModule } from '../auditoria/auditoria.module';
@@ -17,7 +18,7 @@ import { RolesGuard } from './guards/roles.guard';
   imports: [
     UsuariosModule,
     AuditoriaModule,
-    TypeOrmModule.forFeature([CuentaUsuario, CuentaStaff]),
+    TypeOrmModule.forFeature([CuentaUsuario, CuentaStaff, Medico]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

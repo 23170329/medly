@@ -190,34 +190,105 @@ async function seed(): Promise<void> {
     console.log(`Insertados ${slots.length} slots de agenda.`);
   }
 
-  const staffCount = await staffRepo.count();
-  if (staffCount === 0) {
-    const med = await medRepo.findOne({ where: { cedula: 'CED001' } });
-    if (med) {
-      const passRep = await bcrypt.hash('RecepMedly1!', 10);
-      const passDoc = await bcrypt.hash('DoctorMedly1!', 10);
-      await staffRepo.save(
-        staffRepo.create({
-          nombre: 'Recepción Demo',
-          correo: 'recepcion@medly.r',
-          password: passRep,
-          rol: 'RECEPCIONISTA',
-          medico: null,
+  const med = await medRepo.findOne({ where: { cedula: 'CED001' } });
+  const passRep = await bcrypt.hash('RecepMedly1!', 10);
+  const passDoc = await bcrypt.hash('DoctorMedly1!', 10);
+
+  let recep = await staffRepo.findOne({ where: { correo: 'recepcion@medly.r' } });
+  if (!recep) {
+    recep = staffRepo.create({
+      nombre: 'Recepción Demo',
+      correo: 'recepcion@medly.r',
+      password: passRep,
+      rol: 'RECEPCIONISTA',
+      medico: null,
+    });
+  } else {
+    recep.nombre = 'Recepción Demo';
+    recep.password = passRep;
+    recep.rol = 'RECEPCIONISTA';
+    recep.medico = null;
+  }
+  await staffRepo.save(recep);
+
+  if (med) {
+    let doctor = await staffRepo.findOne({
+      where: { correo: 'doctor@medly.d' },
+      relations: ['medico'],
+    });
+    if (!doctor) {
+      doctor = staffRepo.create({
+        nombre: 'Dra. Alejandra López',
+        correo: 'doctor@medly.d',
+        password: passDoc,
+        rol: 'MEDICO',
+        medico: med,
+      });
+    } else {
+      doctor.nombre = 'Dra. Alejandra López';
+      doctor.password = passDoc;
+      doctor.rol = 'MEDICO';
+      doctor.medico = med;
+    }
+    await staffRepo.save(doctor);
+    console.log(
+      'Cuentas staff (login app): recepcion@medly.r / RecepMedly1! · doctor@medly.d / DoctorMedly1!',
+    );
+  } else {
+    console.warn(
+      'No hay médico CED001; no se creó doctor@medly.d. Ejecuta el seed completo primero.',
+    );
+  }
+
+  const passAdriana = await bcrypt.hash('12345678a', 10);
+  let medAdriana = await medRepo.findOne({ where: { cedula: 'CED005' } });
+  if (!medAdriana && especialidades.length > 0) {
+    const esp =
+      especialidades.find((e) => e.nombre === 'Medicina General') ??
+      especialidades[0];
+    medAdriana = await medRepo.save(
+      medRepo.create({
+        nombre: 'Adriana',
+        apellidoPat: 'Medly',
+        apellidoMat: null,
+        cedula: 'CED005',
+        precioConsulta: '800.00',
+        especialidadID: esp.especialidadID,
+      }),
+    );
+    const suc = sucursales[0];
+    if (suc) {
+      await msRepo.save(
+        msRepo.create({
+          medicoID: medAdriana.medicoID,
+          sucursalID: suc.sucursalID,
         }),
-      );
-      await staffRepo.save(
-        staffRepo.create({
-          nombre: 'Dra. Alejandra López',
-          correo: 'doctor@medly.d',
-          password: passDoc,
-          rol: 'MEDICO',
-          medico: med,
-        }),
-      );
-      console.log(
-        'Cuentas staff: recepcion@medly.r / RecepMedly1! · doctor@medly.d / DoctorMedly1!',
       );
     }
+  }
+
+  if (medAdriana) {
+    let adriana = await staffRepo.findOne({
+      where: { correo: 'adriana@medly.d' },
+      relations: ['medico'],
+    });
+    if (!adriana) {
+      adriana = staffRepo.create({
+        nombre: 'Dra. Adriana Medly',
+        correo: 'adriana@medly.d',
+        password: passAdriana,
+        rol: 'MEDICO',
+        medico: medAdriana,
+      });
+    } else {
+      adriana.rol = 'MEDICO';
+      adriana.medico = medAdriana;
+      if (!/^\$2[aby]\$/.test(adriana.password)) {
+        adriana.password = passAdriana;
+      }
+    }
+    await staffRepo.save(adriana);
+    console.log('Cuenta médico: adriana@medly.d / 12345678a');
   }
 
   await dataSource.destroy();

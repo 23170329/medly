@@ -25,7 +25,7 @@ type LoginResponse = {
   usuario: Usuario;
 };
 
-function mensajeDeError(error: unknown): string {
+function mensajeDeError(error: unknown, identificadorLogin?: string): string {
   const err = error as {
     response?: {
       status?: number;
@@ -47,7 +47,14 @@ function mensajeDeError(error: unknown): string {
     return "No se encontró el servicio de login. Revisa EXPO_PUBLIC_API_URL (debe terminar en /api/v1) y reinicia con npx expo start -c.";
   }
   if (err.response?.status === 401) {
+    const id = (identificadorLogin ?? "").toLowerCase();
+    if (id.includes("@medly.d") || id.includes("@medly.r")) {
+      return "Credenciales incorrectas o la cuenta de personal no existe en el servidor. Médico: doctor@medly.d · Recepción: recepcion@medly.r (contraseñas del seed). Si usas Railway, ejecuta npm run seed en servidor/.";
+    }
     return "Correo, CURP o teléfono incorrectos, o contraseña incorrecta.";
+  }
+  if (err.response?.status === 400 && /médico|medico|vínculo|vinculo|staff/i.test(mensaje)) {
+    return mensaje;
   }
   if (err.response?.status === 429) {
     return "Demasiados intentos. Espera un minuto e inténtalo de nuevo.";
@@ -113,7 +120,7 @@ export default function IniciarSesionScreen() {
         );
         return;
       }
-      Alert.alert("Error", mensajeDeError(error));
+      Alert.alert("Error", mensajeDeError(error, id));
     } finally {
       setEnviando(false);
     }

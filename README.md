@@ -58,6 +58,16 @@ npm run seed
 
 Usan `DATABASE_URL` de `servidor/.env`.
 
+**Login médico / recepción (no uses Registro de paciente):**
+
+| Rol | Correo | Contraseña |
+|-----|--------|------------|
+| Médico | `doctor@medly.d` | `DoctorMedly1!` |
+| Médico | `adriana@medly.d` | `12345678a` |
+| Recepción | `recepcion@medly.r` | `RecepMedly1!` |
+
+Si el login devuelve 401 en Railway, casi siempre falta ejecutar `npm run seed` contra la misma `DATABASE_URL` del despliegue.
+
 ### Comprobar el API
 
 Abre en el navegador: `https://tu-dominio.up.railway.app/api/v1/docs` (Swagger).

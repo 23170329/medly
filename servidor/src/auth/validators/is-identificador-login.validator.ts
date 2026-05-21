@@ -19,7 +19,8 @@ export class IsIdentificadorLoginConstraint
     const n = normalizarIdentificadorLogin(value);
     if (!n) return false;
     if (n.includes('@')) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(n);
+      if (/^[^\s@]+@medly\.(d|r)$/i.test(n)) return true;
+      return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(n);
     }
     if (esCurp(n)) return true;
     return esTelefono(n);
