@@ -230,7 +230,9 @@ export class CitasService {
       .leftJoinAndSelect('c.sucursal', 's')
       .leftJoinAndSelect('c.pagos', 'p')
       .where('c.pacienteID = :pid', { pid: pacienteId })
-      .andWhere('c.estado = :est', { est: EstadoCita.CONFIRMADA })
+      .andWhere('c.estado IN (:...estados)', {
+        estados: [EstadoCita.CONFIRMADA, EstadoCita.PENDIENTE_PAGO],
+      })
       .andWhere('c.inicio >= :now', { now: new Date() })
       .orderBy('c.inicio', 'ASC')
       .getOne();

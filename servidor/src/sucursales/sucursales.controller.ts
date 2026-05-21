@@ -10,7 +10,7 @@ import {
 import { SucursalesService } from './sucursales.service';
 import { Sucursal } from './entities/sucursal.entity';
 
-@Controller('sucursal')
+@Controller(['sucursal', 'sucursales'])
 export class SucursalesController {
   constructor(private readonly sucursalesService: SucursalesService) {}
 

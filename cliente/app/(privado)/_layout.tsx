@@ -67,6 +67,21 @@ export default function PrivadoLayout(): React.JSX.Element {
 
       {/* */}
       <Tabs.Screen
+        name="sucursales/index"
+        options={{
+          title: "Sucursales",
+          tabBarIcon: ({ focused, size }) => (
+            <TabIcon
+              name={focused ? "location" : "location-outline"}
+              focused={focused}
+              size={size}
+            />
+          ),
+        }}
+      />
+
+      {/* */}
+      <Tabs.Screen
         name="perfil"
         options={{
           title: "Perfil",
@@ -81,10 +96,9 @@ export default function PrivadoLayout(): React.JSX.Element {
       />
 
       {/* */}
-      <Tabs.Screen name="citas" options={{ href: null }} />
-      <Tabs.Screen name="sucursales" options={{ href: null }} />
+      <Tabs.Screen name="citas/[id]" options={{ href: null }} />
       <Tabs.Screen name="citas/agendar" options={{ href: null }} />
-      <Tabs.Screen name="notificaciones" options={{ href: null }} />
+      <Tabs.Screen name="notificaciones/index" options={{ href: null }} />
     </Tabs>
   );
 }

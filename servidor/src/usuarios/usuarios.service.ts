@@ -39,6 +39,7 @@ export class UsuariosService {
     }
 
     const curpNorm = datos.curp.trim().toUpperCase();
+    const telefonoNorm = datos.telefono.replace(/\D/g, '');
     const curpDup = await this.pacienteRepo.exist({
       where: { curp: curpNorm },
     });
@@ -53,7 +54,7 @@ export class UsuariosService {
       apellido_pat: datos.apellido_pat,
       apellido_mat: datos.apellido_mat,
       correoElectronico: correoNorm,
-      telefono: datos.telefono,
+      telefono: telefonoNorm,
       fechaNacimiento: datos.fechaNacimiento,
       genero: datos.genero,
       curp: curpNorm,

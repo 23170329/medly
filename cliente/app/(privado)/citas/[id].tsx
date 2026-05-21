@@ -20,6 +20,7 @@ import {
   abandonarReserva,
   type CitaDto,
 } from "../../../lib/medlyApi";
+import { etiquetaEstadoCita } from "../../../lib/estadoCita";
 
 export default function CitaDetallePantalla(): React.JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -140,7 +141,7 @@ export default function CitaDetallePantalla(): React.JSX.Element {
       <ScrollView contentContainerStyle={estilos.scroll}>
         <View style={estilos.card}>
           <Text style={estilos.label}>Estado</Text>
-          <Text style={estilos.valor}>{cita.estado.replace("_", " ")}</Text>
+          <Text style={estilos.valor}>{etiquetaEstadoCita(cita)}</Text>
 
           <Text style={[estilos.label, { marginTop: 16 }]}>Médico</Text>
           <Text style={estilos.valor}>{med}</Text>

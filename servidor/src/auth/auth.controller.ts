@@ -4,6 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { LoginPacienteDto } from './dto/login-paciente.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegistroDto } from '../usuarios/dto/registro.dto';
 
@@ -22,6 +23,17 @@ export class AuthController {
   @Post('login')
   async login(@Body() body: LoginDto, @Req() req: Request) {
     return this.authService.validarUsuario(body.correo, body.contrasena, req);
+  }
+
+  /** Login con correo, CURP o teléfono (usar esta ruta en la app móvil). */
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @Post('ingreso')
+  async ingreso(@Body() body: LoginPacienteDto, @Req() req: Request) {
+    return this.authService.validarUsuario(
+      body.identificador,
+      body.contrasena,
+      req,
+    );
   }
 
   @Post('refresh')

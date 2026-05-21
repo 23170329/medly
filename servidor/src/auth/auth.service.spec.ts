@@ -238,7 +238,7 @@ describe('AuthService', () => {
   // ---------------------------------------------------------------------------
   describe('validarUsuario', () => {
     it('should login a patient by email and return tokens', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([pacienteFixture]);
+      mockQueryBuilder.getOne.mockResolvedValue(pacienteFixture);
       mockBcryptCompare.mockResolvedValue(true);
       mockJwtService.signAsync
         .mockResolvedValueOnce('access-email')
@@ -250,7 +250,7 @@ describe('AuthService', () => {
         mockReq,
       );
 
-      expect(mockQueryBuilder.getMany).toHaveBeenCalled();
+      expect(mockQueryBuilder.getOne).toHaveBeenCalled();
       expect(mockBcryptCompare).toHaveBeenCalledWith(
         'Password123',
         pacienteFixture.cuenta.password,
@@ -268,7 +268,7 @@ describe('AuthService', () => {
     });
 
     it('should login a patient by CURP', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([pacientePorCURP]);
+      mockQueryBuilder.getOne.mockResolvedValue(pacientePorCURP);
       mockBcryptCompare.mockResolvedValue(true);
       mockJwtService.signAsync
         .mockResolvedValueOnce('access-curp')
@@ -287,7 +287,7 @@ describe('AuthService', () => {
     });
 
     it('should login a patient by phone', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([pacientePorTelefono]);
+      mockQueryBuilder.getOne.mockResolvedValue(pacientePorTelefono);
       mockBcryptCompare.mockResolvedValue(true);
       mockJwtService.signAsync
         .mockResolvedValueOnce('access-phone')
@@ -306,7 +306,7 @@ describe('AuthService', () => {
     });
 
     it('should login a staff member (RECEPCIONISTA)', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([]);
+      mockQueryBuilder.getOne.mockResolvedValue(null);
       mockCuentaStaffRepo.findOne.mockResolvedValue(staffFixture);
       mockBcryptCompare.mockResolvedValue(true);
       mockJwtService.signAsync
@@ -340,7 +340,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException on wrong password (patient found)', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([pacienteFixture]);
+      mockQueryBuilder.getOne.mockResolvedValue(pacienteFixture);
       mockBcryptCompare.mockResolvedValue(false);
       mockCuentaStaffRepo.findOne.mockResolvedValue(null);
 
@@ -356,7 +356,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when user is not found', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([]);
+      mockQueryBuilder.getOne.mockResolvedValue(null);
       mockCuentaStaffRepo.findOne.mockResolvedValue(null);
 
       await expect(
@@ -371,7 +371,7 @@ describe('AuthService', () => {
     });
 
     it('should not reveal whether email, CURP, phone or password was wrong', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([]);
+      mockQueryBuilder.getOne.mockResolvedValue(null);
       mockCuentaStaffRepo.findOne.mockResolvedValue(null);
 
       let error: Error | null = null;

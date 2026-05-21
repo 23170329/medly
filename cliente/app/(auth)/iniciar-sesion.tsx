@@ -9,13 +9,18 @@ import {
   Alert,
 } from "react-native";
 
-import { API_URL } from "../../constants/api";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
+import api from "../../lib/apiCliente";
 import { Ionicons } from "@expo/vector-icons";
 import { Entrada } from "../../componentes/comunes/Entrada";
 import { Boton } from "../../componentes/comunes/Boton";
 import { COLORES } from "../../constants/theme";
 import { useAuthStore, type Usuario } from "../../stores/auth.store";
+import { redirigirTrasLogin } from "../../lib/rutasAuth";
+import {
+  normalizarIdentificadorLogin,
+  tipoIdentificadorLogin,
+} from "../../lib/identificadorLogin";
 
 export default function IniciarSesionScreen() {
   const [identificador, setIdentificador] = useState("");
@@ -29,46 +34,88 @@ export default function IniciarSesionScreen() {
       return;
     }
 
+    const id = normalizarIdentificadorLogin(identificador);
+    if (!id) {
+      Alert.alert("Atención", "Ingresa un correo, CURP o teléfono válido.");
+      return;
+    }
+    const tipo = tipoIdentificadorLogin(id);
+
+    const postLogin = async (
+      ruta: string,
+      cuerpo: Record<string, string>,
+    ) => {
+      const { data } = await api.post<{
+        access_token: string;
+        refresh_token: string;
+        usuario: Usuario;
+        message?: string | string[];
+      }>(ruta, cuerpo);
+      return data;
+    };
+
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          correo: identificador.trim(),
-          contrasena,
-        }),
-      });
-
-      let datos: Record<string, unknown> = {};
+      let datos: {
+        access_token: string;
+        refresh_token: string;
+        usuario: Usuario;
+      };
       try {
-        datos = (await response.json()) as Record<string, unknown>;
-      } catch {
-        /* cuerpo no JSON */
-      }
-
-      if (response.ok && datos.access_token && datos.refresh_token) {
-        const usuario = datos.usuario as Usuario;
-        await setAuth(
-          usuario,
-          String(datos.access_token),
-          String(datos.refresh_token),
-        );
-
-        if (usuario.rol === "RECEPCIONISTA") {
-          router.replace("/(recepcion)");
-        } else if (usuario.rol === "MEDICO") {
-          router.replace("/(medico)");
+        datos = await postLogin("/auth/ingreso", {
+          identificador: id,
+          contrasena,
+        });
+      } catch (primero: unknown) {
+        const st = (primero as { response?: { status?: number } }).response
+          ?.status;
+        if (st === 404 && tipo === "correo") {
+          datos = await postLogin("/auth/login", { correo: id, contrasena });
         } else {
-          router.replace("/(privado)/inicio");
+          throw primero;
         }
-      } else {
-        const raw = datos.message ?? datos.error ?? "No se pudo iniciar sesión";
-        const mensaje = Array.isArray(raw) ? raw.join("\n") : String(raw);
-        Alert.alert("Error", mensaje);
       }
+
+      if (datos.access_token && datos.refresh_token) {
+        await setAuth(datos.usuario, datos.access_token, datos.refresh_token);
+        redirigirTrasLogin(datos.usuario, id);
+        return;
+      }
+      Alert.alert("Error", "No se pudo iniciar sesión");
     } catch (error) {
+      const err = error as {
+        response?: { data?: { message?: string | string[] } };
+      };
+      const raw =
+        err.response?.data?.message ??
+        err.response?.data?.error ??
+        "No se pudo iniciar sesión";
+      let mensaje = Array.isArray(raw) ? raw.join("\n") : String(raw);
+      if (
+        typeof mensaje === "string" &&
+        (mensaje.includes("must be an email") ||
+          mensaje.includes("correo must be an email"))
+      ) {
+        mensaje =
+          "El servidor en Railway aún no tiene la actualización para CURP/teléfono. Entra con tu correo, o redespliega el API (carpeta servidor) y ejecuta npx expo start -c.";
+      } else if (
+        typeof mensaje === "string" &&
+        mensaje.includes("Cannot POST") &&
+        (mensaje.includes("/auth/ingreso") || mensaje.includes("/api/v1"))
+      ) {
+        mensaje =
+          "Falta desplegar el API nuevo en Railway (ruta /auth/ingreso), o usa http://TU_IP:3000/api/v1 en cliente/.env con npm run start:dev en servidor.";
+      } else if (
+        typeof mensaje === "string" &&
+        mensaje.includes("Cannot POST") &&
+        mensaje.includes("/api/v1")
+      ) {
+        mensaje =
+          "La URL del API no coincide con el servidor. En cliente/.env usa Railway sin /api/v1, o local con http://TU_IP:3000/api/v1.";
+      }
+      if (err.response) {
+        Alert.alert("Error", mensaje);
+        return;
+      }
       console.error(error);
       Alert.alert(
         "Error de conexión",
@@ -98,8 +145,10 @@ export default function IniciarSesionScreen() {
           <Entrada
             etiqueta="Correo, CURP o Teléfono"
             icono="person-outline"
-            placeholder="correo@email.com / CURP / teléfono"
+            placeholder="Correo, CURP o teléfono (10 dígitos)"
             autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="default"
             value={identificador}
             onChangeText={setIdentificador}
           />
@@ -108,7 +157,7 @@ export default function IniciarSesionScreen() {
             etiqueta="Contraseña"
             icono="lock-closed-outline"
             placeholder="Minimo 8 caracteres"
-            secureTextEntry
+            permitirVerContrasena
             value={contrasena}
             onChangeText={setContrasena}
           />
