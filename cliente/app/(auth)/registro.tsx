@@ -411,7 +411,18 @@ export default function RegistroScreen() {
                 )}
               </View>
             </View>
-            <Boton titulo="CONTINUAR →" alPresionar={avanzarPaso} />
+            <View style={styles.botonesPaso}>
+              <TouchableOpacity
+                style={styles.btnRegresar}
+                onPress={() => router.replace("/(auth)/iniciar-sesion")}
+              >
+                <Ionicons name="chevron-back" size={20} color={COLORES.texto} />
+                <Text style={styles.btnRegresarTexto}>REGRESAR</Text>
+              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Boton titulo="CONTINUAR →" alPresionar={avanzarPaso} />
+              </View>
+            </View>
           </View>
         )}
 
@@ -447,7 +458,7 @@ export default function RegistroScreen() {
               etiqueta="CONTRASEÑA"
               placeholder="Mínimo 8 caracteres"
               icono="lock-closed-outline"
-              secureTextEntry
+              permitirVerContrasena
               value={contrasena}
               onChangeText={(t) => {
                 setContrasena(t);
@@ -464,7 +475,7 @@ export default function RegistroScreen() {
               etiqueta="CONFIRMAR CONTRASEÑA"
               placeholder="********"
               icono="lock-closed-outline"
-              secureTextEntry
+              permitirVerContrasena
               value={confirmarContrasena}
               onChangeText={(t) => {
                 setConfirmarContrasena(t);

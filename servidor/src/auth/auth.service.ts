@@ -13,6 +13,11 @@ import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity';
 import { Paciente } from '../usuarios/entities/paciente.entity';
 import { CuentaStaff } from '../staff/entities/cuenta-staff.entity';
 import { JwtPayload } from './jwt-payload.interface';
+import {
+  esCurp,
+  esTelefono,
+  normalizarIdentificadorLogin,
+} from './identificador-login.util';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { RegistroDto } from '../usuarios/dto/registro.dto';
 import { AuditoriaService } from '../auditoria/auditoria.service';
@@ -293,35 +298,49 @@ export class AuthService {
     );
   }
 
+  private soloDigitos(valor: string): string {
+    return valor.replace(/\D/g, '');
+  }
+
+  private normalizarTelefonoMx(valor: string): string {
+    let d = this.soloDigitos(valor);
+    if (d.length === 12 && d.startsWith('52')) d = d.slice(2);
+    if (d.length === 13 && d.startsWith('521')) d = d.slice(3);
+    return d;
+  }
+
   private async buscarPacientePorIdentificador(
     identificador: string,
   ): Promise<Paciente | null> {
-    const idNorm = identificador.trim();
-    const pacientes = await this.cuentaUsuarioRepository.manager
-      .createQueryBuilder(Paciente, 'p')
-      .innerJoinAndSelect('p.cuenta', 'c')
-      .where(
-        `LOWER(TRIM("p"."correoElectronico")) = :email
-         OR "p"."curp" = :curp
-         OR "p"."telefono" = :tel`,
-        {
-          email: idNorm.toLowerCase(),
-          curp: idNorm.toUpperCase(),
-          tel: idNorm.replace(/\D/g, ''),
-        },
-      )
-      .getMany();
+    const id = normalizarIdentificadorLogin(identificador);
+    if (!id) return null;
 
-    for (const p of pacientes) {
-      if (
-        p.correoElectronico.toLowerCase() === idNorm.toLowerCase() ||
-        p.curp === idNorm.toUpperCase() ||
-        p.telefono === idNorm.replace(/\D/g, '')
-      ) {
-        return p;
-      }
+    const telExpr = `REGEXP_REPLACE(COALESCE(p.telefono, ''), '[^0-9]', '', 'g')`;
+    const qb = this.cuentaUsuarioRepository.manager
+      .createQueryBuilder(Paciente, 'p')
+      .innerJoinAndSelect('p.cuenta', 'c');
+
+    if (id.includes('@')) {
+      qb.where('LOWER(TRIM(p.correoElectronico)) = :email', {
+        email: id.toLowerCase(),
+      });
+    } else if (esCurp(id)) {
+      qb.where('UPPER(TRIM(p.curp)) = :curp', { curp: id });
+    } else if (esTelefono(id)) {
+      const tel = this.normalizarTelefonoMx(id);
+      qb.where(
+        `(${telExpr} = :tel OR ${telExpr} = :tel52 OR ${telExpr} = :tel521)`,
+        {
+          tel,
+          tel52: `52${tel}`,
+          tel521: `521${tel}`,
+        },
+      );
+    } else {
+      return null;
     }
-    return null;
+
+    return qb.getOne();
   }
 
   async validarUsuario(
@@ -329,7 +348,8 @@ export class AuthService {
     contrasena: string,
     req?: Request,
   ): Promise<AuthTokensResponse> {
-    const paciente = await this.buscarPacientePorIdentificador(identificador);
+    const idLogin = normalizarIdentificadorLogin(identificador);
+    const paciente = await this.buscarPacientePorIdentificador(idLogin);
 
     if (paciente?.cuenta) {
       const ok = await bcrypt.compare(contrasena, paciente.cuenta.password);

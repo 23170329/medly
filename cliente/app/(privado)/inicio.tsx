@@ -18,10 +18,11 @@ import { EncabezadoPaciente } from "../../componentes/layout/EncabezadoPaciente"
 import {
   fetchEspecialidades,
   fetchNotificacionesNoLeidas,
-  fetchProximaCita,
   type EspecialidadDto,
   type CitaDto,
 } from "../../lib/medlyApi";
+import { anticipoCompletado, etiquetaEstadoCita } from "../../lib/estadoCita";
+import { resolverProximaCita } from "../../lib/proximaCita";
 
 interface AccesoRapido {
   readonly id: string;
@@ -74,7 +75,7 @@ function iconoEsp(icono: string | null): React.ComponentProps<typeof Ionicons>["
 }
 
 export default function InicioPantalla(): React.JSX.Element {
-  const { usuario } = useAuthStore();
+  const { usuario, accessToken } = useAuthStore();
   const [especialidades, setEspecialidades] = useState<EspecialidadDto[]>([]);
   const [proxima, setProxima] = useState<CitaDto | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -85,7 +86,7 @@ export default function InicioPantalla(): React.JSX.Element {
     try {
       const [esp, px, notifCount] = await Promise.all([
         fetchEspecialidades().catch(() => []),
-        fetchProximaCita().catch(() => null),
+        resolverProximaCita().catch(() => null),
         fetchNotificacionesNoLeidas().catch(() => 0),
       ]);
       setEspecialidades(esp.slice(0, 6));
@@ -101,20 +102,25 @@ export default function InicioPantalla(): React.JSX.Element {
 
   useFocusEffect(
     useCallback(() => {
+      if (!accessToken) return;
       void cargar();
-    }, [cargar]),
+    }, [cargar, accessToken]),
   );
 
   const nombreMostrar =
     `${usuario?.nombre ?? ""} ${usuario?.apellido ?? ""}`.trim() || "Paciente";
   const inicialNombre = (usuario?.nombre?.charAt(0) ?? "P").toUpperCase();
 
-  const bannerMedico = proxima?.medico
-    ? `${proxima.medico.nombre} ${proxima.medico.apellidoPat}`
+  const tieneProxima = proxima != null;
+  const bannerMedico = tieneProxima
+    ? `${proxima.medico?.nombre ?? ""} ${proxima.medico?.apellidoPat ?? ""}`.trim()
     : "Sin cita próxima";
-  const bannerEsp =
-    proxima?.medico?.especialidad?.nombre ?? "Agenda tu próxima visita";
+  const bannerEsp = tieneProxima
+    ? (proxima.medico?.especialidad?.nombre ?? proxima.sucursal?.nombre ?? "")
+    : "Agenda tu próxima visita";
   const ini = proxima ? new Date(proxima.inicio) : null;
+  const anticipoOk = proxima ? anticipoCompletado(proxima) : false;
+  const estadoProxima = proxima ? etiquetaEstadoCita(proxima) : "";
 
   return (
     <SafeAreaView style={estilos.areaSegura}>
@@ -132,7 +138,18 @@ export default function InicioPantalla(): React.JSX.Element {
           notificacionesNoLeidas={notifNoLeidas}
         />
 
-        <View style={estilos.tarjetaProxima}>
+        <TouchableOpacity
+          style={estilos.tarjetaProxima}
+          activeOpacity={tieneProxima ? 0.85 : 1}
+          disabled={!tieneProxima}
+          onPress={() =>
+            tieneProxima && router.push(`/(privado)/citas/${proxima.citaID}`)
+          }
+          accessibilityRole="button"
+          accessibilityLabel={
+            tieneProxima ? "Ver detalle de próxima cita" : "Sin cita próxima"
+          }
+        >
           <View style={estilos.tarjetaProximaHeader}>
             <Text style={estilos.bannerLabel}>PRÓXIMA CITA</Text>
             <TouchableOpacity
@@ -150,6 +167,29 @@ export default function InicioPantalla(): React.JSX.Element {
             <>
               <Text style={estilos.bannerMedico}>{bannerMedico}</Text>
               <Text style={estilos.bannerEsp}>{bannerEsp}</Text>
+              {tieneProxima && (
+                <View
+                  style={[
+                    estilos.badgeEstado,
+                    anticipoOk && estilos.badgeAnticipoOk,
+                  ]}
+                >
+                  <Ionicons
+                    name={anticipoOk ? "checkmark-circle" : "time-outline"}
+                    size={14}
+                    color={anticipoOk ? COLORES.exito : "#D97706"}
+                  />
+                  <Text
+                    style={[
+                      estilos.badgeEstadoTxt,
+                      anticipoOk && { color: COLORES.exito },
+                    ]}
+                  >
+                    {estadoProxima}
+                    {anticipoOk ? " · 50% pagado" : ""}
+                  </Text>
+                </View>
+              )}
               {ini && (
                 <View style={estilos.bannerFilas}>
                   <View style={estilos.bannerFila}>
@@ -175,7 +215,7 @@ export default function InicioPantalla(): React.JSX.Element {
               )}
             </>
           )}
-        </View>
+        </TouchableOpacity>
 
         <Text style={estilos.seccionTitulo}>ACCESOS RÁPIDOS</Text>
         <View style={estilos.gridAccesos}>
@@ -290,6 +330,25 @@ const estilos = StyleSheet.create({
     gap: 6,
   },
   bannerDato: { fontSize: 14, color: paleta.navy, fontWeight: "500" },
+  badgeEstado: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    marginBottom: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BORDES.radio,
+    backgroundColor: "#FEF3C7",
+  },
+  badgeAnticipoOk: {
+    backgroundColor: "#DCF0E4",
+  },
+  badgeEstadoTxt: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#D97706",
+  },
 
   seccionHeader: {
     flexDirection: "row",

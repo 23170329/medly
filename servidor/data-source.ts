@@ -21,6 +21,7 @@ import { MedlyCurpStaffConsultas1747120000000 } from './src/migrations/174712000
 import { PacienteApellidoMatNotNull1747130000000 } from './src/migrations/1747130000000-PacienteApellidoMatNotNull';
 import { RolStaffAdmin1747140000000 } from './src/migrations/1747140000000-RolStaffAdmin';
 import { SucursalLatLng1747150000000 } from './src/migrations/1747150000000-SucursalLatLng';
+import { NormalizarTelefonoPaciente1747160000000 } from './src/migrations/1747160000000-NormalizarTelefonoPaciente';
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
@@ -76,6 +77,7 @@ export default new DataSource({
     PacienteApellidoMatNotNull1747130000000,
     RolStaffAdmin1747140000000,
     SucursalLatLng1747150000000,
+    NormalizarTelefonoPaciente1747160000000,
   ],
   synchronize: false,
   logging: process.env.TYPEORM_LOGGING === 'true',

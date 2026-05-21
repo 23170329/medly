@@ -184,8 +184,8 @@ export async function marcarNotificacionLeida(
 }
 
 export async function fetchSucursales(): Promise<SucursalDto[]> {
-  const { data } = await api.get<SucursalDto[]>("/sucursales");
-  return data;
+  const { data } = await api.get<SucursalDto[]>("/sucursal");
+  return Array.isArray(data) ? data : [];
 }
 
 export async function fetchEstadisticasPerfil(): Promise<{

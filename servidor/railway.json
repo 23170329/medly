@@ -5,8 +5,8 @@
     "buildCommand": "npm run build"
   },
   "deploy": {
-    "startCommand": "npx typeorm-ts-node-commonjs -d ./data-source.ts migration:run && node dist/src/main.js",
-    "healthcheckPath": "/api",
+    "startCommand": "npx typeorm-ts-node-commonjs -d ./data-source.ts migration:run && node dist/main.js",
+    "healthcheckPath": "/api/v1/docs",
     "healthcheckTimeout": 10,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3

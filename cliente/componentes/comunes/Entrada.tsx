@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   TextInput,
   Text,
   StyleSheet,
   TextInputProps,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORES, BORDES } from "../../constants/theme";
@@ -14,10 +15,24 @@ interface EntradaProps extends TextInputProps {
   icono?: keyof typeof Ionicons.glyphMap;
   error?: string;
   mensajeError?: string;
+  /** Muestra icono de ojo para contraseñas */
+  permitirVerContrasena?: boolean;
 }
 
-export const Entrada = ({ etiqueta, icono, error, mensajeError, ...props }: EntradaProps) => {
+export const Entrada = ({
+  etiqueta,
+  icono,
+  error,
+  mensajeError,
+  permitirVerContrasena,
+  secureTextEntry,
+  ...props
+}: EntradaProps) => {
   const msg = error ?? mensajeError;
+  const [visible, setVisible] = useState(false);
+  const esContrasena = Boolean(permitirVerContrasena || secureTextEntry);
+  const ocultar = esContrasena && !visible;
+
   return (
     <View style={styles.contenedor}>
       <Text style={styles.etiqueta}>{etiqueta}</Text>
@@ -33,8 +48,23 @@ export const Entrada = ({ etiqueta, icono, error, mensajeError, ...props }: Entr
         <TextInput
           style={styles.input}
           placeholderTextColor={COLORES.textoPlaceholder}
+          secureTextEntry={ocultar}
           {...props}
         />
+        {esContrasena && (
+          <TouchableOpacity
+            onPress={() => setVisible((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name={visible ? "eye-off-outline" : "eye-outline"}
+              size={22}
+              color={COLORES.primario}
+            />
+          </TouchableOpacity>
+        )}
       </View>
       {msg && <Text style={styles.textoError}>{msg}</Text>}
     </View>

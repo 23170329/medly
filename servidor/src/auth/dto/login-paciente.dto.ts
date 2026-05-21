@@ -3,16 +3,15 @@ import { IsString, MinLength } from 'class-validator';
 import { normalizarIdentificadorLogin } from '../identificador-login.util';
 import { IsIdentificadorLogin } from '../validators/is-identificador-login.validator';
 
-export class LoginDto {
-  /** Correo, CURP (18) o teléfono (10 dígitos). No usar @IsEmail aquí. */
-  @Transform(({ obj, value }) => {
-    const raw = obj.correo ?? value;
-    return typeof raw === 'string' ? normalizarIdentificadorLogin(raw) : raw;
-  })
+/** Login paciente: identificador explícito (evita validación legacy de "correo"). */
+export class LoginPacienteDto {
+  @Transform(({ value }) =>
+    typeof value === 'string' ? normalizarIdentificadorLogin(value) : value,
+  )
   @IsString()
   @MinLength(1)
   @IsIdentificadorLogin()
-  correo!: string;
+  identificador!: string;
 
   @IsString()
   @MinLength(1)

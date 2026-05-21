@@ -9,6 +9,7 @@ import {
 import { router } from "expo-router";
 import { COLORES, paleta } from "../../constants/theme";
 import { useAuthStore } from "../../stores/auth.store";
+import { redirigirTrasSplash } from "../../lib/rutasAuth";
 
 export default function SplashPantalla(): React.JSX.Element {
   const cargarSesion = useAuthStore((s) => s.cargarSesion);
@@ -21,19 +22,7 @@ export default function SplashPantalla(): React.JSX.Element {
       if (cancel) return;
       const tok = useAuthStore.getState().accessToken;
       const usuario = useAuthStore.getState().usuario;
-      if (tok && usuario) {
-        if (usuario.rol === "RECEPCIONISTA") {
-          router.replace("/(recepcion)");
-        } else if (usuario.rol === "MEDICO") {
-          router.replace("/(medico)");
-        } else {
-          router.replace("/(privado)/inicio");
-        }
-      } else if (tok) {
-        router.replace("/(privado)/inicio");
-      } else {
-        router.replace("/(auth)/iniciar-sesion");
-      }
+      redirigirTrasSplash(usuario, Boolean(tok));
     };
     void run();
     return () => {

@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "npm run build --workspace=servidor",
-    "start": "node servidor/dist/src/main.js"
+    "start": "node servidor/dist/main.js"
   },
   "devDependencies": {
     "@types/react": "~19.1.0"
