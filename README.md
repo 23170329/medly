@@ -31,7 +31,7 @@ cp .env.example servidor/.env
 cp cliente/.env.example cliente/.env
 ```
 
-Rellena `DATABASE_URL` y las URLs con los valores de Railway. En `cliente/.env` usa `EXPO_PUBLIC_API_URL=https://….up.railway.app` (sin `/api/v1` en el deploy actual).
+Rellena `DATABASE_URL` y las URLs con los valores de Railway. En `cliente/.env` usa `EXPO_PUBLIC_API_URL=https://….up.railway.app` (el cliente añade `/api/v1` automáticamente).
 
 Tras cambios en login (CURP/teléfono), **sube el código a Git y redespliega** el servicio `servidor` en Railway (`npm run build` + migraciones). La app usa `POST /auth/ingreso` para CURP y teléfono; sin redespliegue solo funcionará el correo en `/auth/login`.
 
@@ -57,6 +57,16 @@ npm run seed
 ```
 
 Usan `DATABASE_URL` de `servidor/.env`.
+
+**Login médico / recepción (no uses Registro de paciente):**
+
+| Rol | Correo | Contraseña |
+|-----|--------|------------|
+| Médico | `doctor@medly.d` | `DoctorMedly1!` |
+| Médico | `adriana@medly.d` | `12345678a` |
+| Recepción | `recepcion@medly.r` | `RecepMedly1!` |
+
+Si el login devuelve 401 en Railway, casi siempre falta ejecutar `npm run seed` contra la misma `DATABASE_URL` del despliegue.
 
 ### Comprobar el API
 

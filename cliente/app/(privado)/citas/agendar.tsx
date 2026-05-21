@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import {
   crearCheckoutSession,
+  marcarAnticipoRealizado,
   crearCita,
   fetchEspecialidades,
   fetchMedicoSucursales,
@@ -195,6 +196,7 @@ export default function AgendarCitaPantalla() {
     setCargando(true);
     try {
       const cita = await crearCita(slotSel.slotID);
+      await marcarAnticipoRealizado(cita.citaID);
       const { url } = await crearCheckoutSession(cita.citaID);
       if (!url) {
         Alert.alert("Pagos", "No se pudo iniciar el checkout de Stripe.");

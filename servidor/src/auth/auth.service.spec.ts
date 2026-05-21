@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 import { AuthTokensResponse } from './auth.service';
 import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity';
 import { CuentaStaff } from '../staff/entities/cuenta-staff.entity';
+import { Medico } from '../medicos/entities/medico.entity';
 import { Paciente } from '../usuarios/entities/paciente.entity';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
@@ -18,10 +19,12 @@ import { Request } from 'express';
 
 jest.mock('bcryptjs', () => ({
   compare: jest.fn(),
+  hash: jest.fn().mockResolvedValue('$2a$10$mockedhash'),
 }));
 
 import * as bcrypt from 'bcryptjs';
 const mockBcryptCompare = bcrypt.compare as jest.Mock;
+const mockBcryptHash = bcrypt.hash as jest.Mock;
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -36,7 +39,17 @@ describe('AuthService', () => {
     findOne: jest.Mock;
   };
   let mockCuentaUsuarioRepo: { manager: typeof mockManager };
-  let mockCuentaStaffRepo: { findOne: jest.Mock };
+  let mockStaffQueryBuilder: {
+    leftJoinAndSelect: jest.Mock;
+    where: jest.Mock;
+    getOne: jest.Mock;
+  };
+  let mockCuentaStaffRepo: {
+    findOne: jest.Mock;
+    save: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let mockMedicoRepo: { findOne: jest.Mock; find: jest.Mock };
   let mockJwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
   let mockConfigService: { get: jest.Mock; getOrThrow: jest.Mock };
   let mockUsuariosService: { registrarPaciente: jest.Mock };
@@ -101,7 +114,20 @@ describe('AuthService', () => {
 
     mockCuentaUsuarioRepo = { manager: mockManager };
 
-    mockCuentaStaffRepo = { findOne: jest.fn() };
+    mockStaffQueryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn(),
+    };
+    mockCuentaStaffRepo = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(mockStaffQueryBuilder),
+    };
+    mockMedicoRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockResolvedValue([]),
+    };
 
     mockJwtService = { signAsync: jest.fn(), verifyAsync: jest.fn() };
 
@@ -132,6 +158,10 @@ describe('AuthService', () => {
         {
           provide: getRepositoryToken(CuentaStaff),
           useValue: mockCuentaStaffRepo,
+        },
+        {
+          provide: getRepositoryToken(Medico),
+          useValue: mockMedicoRepo,
         },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
@@ -306,8 +336,7 @@ describe('AuthService', () => {
     });
 
     it('should login a staff member (RECEPCIONISTA)', async () => {
-      mockQueryBuilder.getOne.mockResolvedValue(null);
-      mockCuentaStaffRepo.findOne.mockResolvedValue(staffFixture);
+      mockStaffQueryBuilder.getOne.mockResolvedValue(staffFixture);
       mockBcryptCompare.mockResolvedValue(true);
       mockJwtService.signAsync
         .mockResolvedValueOnce('access-staff')
@@ -319,10 +348,11 @@ describe('AuthService', () => {
         mockReq,
       );
 
-      expect(mockCuentaStaffRepo.findOne).toHaveBeenCalledWith({
-        where: { correo: 'staff@medly.com' },
-        relations: ['medico'],
-      });
+      expect(mockCuentaStaffRepo.createQueryBuilder).toHaveBeenCalledWith('s');
+      expect(mockStaffQueryBuilder.where).toHaveBeenCalledWith(
+        'LOWER(TRIM(s.correo)) = :email',
+        { email: 'staff@medly.com' },
+      );
       expect(mockBcryptCompare).toHaveBeenCalledWith(
         'StaffPass123',
         staffFixture.password,
@@ -339,10 +369,41 @@ describe('AuthService', () => {
       );
     });
 
+    it('should login staff with plain-text password and migrate to bcrypt', async () => {
+      const staffPlano = {
+        ...staffFixture,
+        password: '12345678a',
+      };
+      mockStaffQueryBuilder.getOne.mockResolvedValue(staffPlano);
+      mockBcryptCompare.mockResolvedValue(true);
+      mockJwtService.signAsync
+        .mockResolvedValueOnce('access-plain')
+        .mockResolvedValueOnce('refresh-plain');
+
+      await service.validarUsuario('adriana@medly.d', '12345678a', mockReq);
+
+      expect(mockCuentaStaffRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          password: expect.stringMatching(/^\$2[aby]\$/),
+        }),
+      );
+    });
+
+    it('should throw UnauthorizedException on wrong password (staff found)', async () => {
+      mockStaffQueryBuilder.getOne.mockResolvedValue(staffFixture);
+      mockBcryptCompare.mockResolvedValue(false);
+
+      await expect(
+        service.validarUsuario('staff@medly.com', 'WrongPass1', mockReq),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(mockQueryBuilder.getOne).not.toHaveBeenCalled();
+    });
+
     it('should throw UnauthorizedException on wrong password (patient found)', async () => {
+      mockStaffQueryBuilder.getOne.mockResolvedValue(null);
       mockQueryBuilder.getOne.mockResolvedValue(pacienteFixture);
       mockBcryptCompare.mockResolvedValue(false);
-      mockCuentaStaffRepo.findOne.mockResolvedValue(null);
 
       await expect(
         service.validarUsuario('test@example.com', 'WrongPass1', mockReq),
@@ -357,7 +418,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException when user is not found', async () => {
       mockQueryBuilder.getOne.mockResolvedValue(null);
-      mockCuentaStaffRepo.findOne.mockResolvedValue(null);
+      mockStaffQueryBuilder.getOne.mockResolvedValue(null);
 
       await expect(
         service.validarUsuario('unknown@example.com', 'SomePass1', mockReq),

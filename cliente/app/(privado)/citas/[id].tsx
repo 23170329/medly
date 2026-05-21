@@ -53,7 +53,10 @@ export default function CitaDetallePantalla(): React.JSX.Element {
     if (!cita) return;
     setModalCancelar(false);
     try {
-      if (cita.estado === "PENDIENTE_PAGO") {
+      if (
+        cita.estado === "PENDIENTE_PAGO" ||
+        cita.estado === "ANTICIPO_REALIZADO"
+      ) {
         await abandonarReserva(cita.citaID);
         Alert.alert("Listo", "Se liberó la reserva pendiente de pago.");
       } else {
@@ -68,8 +71,11 @@ export default function CitaDetallePantalla(): React.JSX.Element {
 
   const textoPoliticaCancel = useMemo((): string => {
     if (!cita) return "";
-    if (cita.estado === "PENDIENTE_PAGO") {
-      return "Aún no se ha completado el pago. Si abandonas la reserva, podrás elegir otro horario sin cargo.";
+    if (
+      cita.estado === "PENDIENTE_PAGO" ||
+      cita.estado === "ANTICIPO_REALIZADO"
+    ) {
+      return "Aún no se ha completado el pago en Stripe. Si abandonas la reserva, podrás elegir otro horario sin cargo.";
     }
     const ini = new Date(cita.inicio).getTime();
     const horas = (ini - Date.now()) / (1000 * 60 * 60);
@@ -164,9 +170,10 @@ export default function CitaDetallePantalla(): React.JSX.Element {
             Total: ${cita.montoTotal} MXN · Anticipo (50%): ${cita.montoAnticipo}{" "}
             MXN
           </Text>
-          {(cita.pagos ?? []).some(
-            (p) => p.tipo === "ANTICIPO_50" && p.estado === "COMPLETADO",
-          ) && (
+          {(cita.estado === "ANTICIPO_REALIZADO" ||
+            (cita.pagos ?? []).some(
+              (p) => p.tipo === "ANTICIPO_50" && p.estado === "COMPLETADO",
+            )) && (
             <View style={estilos.anticipoPagado}>
               <Ionicons
                 name="checkmark-circle"
@@ -180,7 +187,9 @@ export default function CitaDetallePantalla(): React.JSX.Element {
           )}
         </View>
 
-        {(cita.estado === "CONFIRMADA" || cita.estado === "PENDIENTE_PAGO") && (
+        {(cita.estado === "CONFIRMADA" ||
+          cita.estado === "PENDIENTE_PAGO" ||
+          cita.estado === "ANTICIPO_REALIZADO") && (
           <TouchableOpacity
             style={estilos.btnCancel}
             onPress={() => setModalCancelar(true)}

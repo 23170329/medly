@@ -10,7 +10,7 @@ import {
   RefreshControl,
   Linking,
   Alert,
-  ImageBackground,
+  Image,
   Dimensions,
 } from "react-native";
 import { router } from "expo-router";
@@ -18,30 +18,72 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import { fetchSucursales, type SucursalDto } from "../../../lib/medlyApi";
-import { imagenParaSucursal } from "../../../constants/sucursalesVisuales";
-import { MAPA_MEDLY_URL } from "../../../constants/mapas";
+import { collageParaSucursal, nombreCortoSucursal } from "../../../constants/sucursalesVisuales";
+import { GOOGLE_BUSINESS_SHARE_URL } from "../../../constants/mapas";
+import { resolverListaSucursales } from "../../../constants/sucursalesCatalogo";
 
 const ANCHO = Dimensions.get("window").width;
-const ALTO_CARD = Math.round(ANCHO * 0.72);
+const PADDING = 20;
+const ANCHO_CARD = ANCHO - PADDING * 2;
+const ALTO_COLLAGE = Math.round(ANCHO_CARD * 0.52);
+const ALTO_BANDA = Math.round(ANCHO_CARD * 0.28);
+const ALTO_CARD = ALTO_COLLAGE + ALTO_BANDA;
+const RADIO_CARD = 22;
+const MARGEN_BANDA_H = 26;
+const MARGEN_BANDA_V = 20;
 
-function abrirMapa(s: SucursalDto): void {
-  if (s.latitud != null && s.longitud != null) {
-    const url = `https://www.google.com/maps?q=${s.latitud},${s.longitud}`;
-    Linking.openURL(url).catch(() => abrirMapaCompartido());
-    return;
-  }
-  abrirMapaCompartido();
-}
-
-function abrirMapaCompartido(): void {
-  Linking.openURL(MAPA_MEDLY_URL).catch(() =>
-    Alert.alert("Error", "No se pudo abrir el mapa."),
+function abrirGoogleBusiness(): void {
+  Linking.openURL(GOOGLE_BUSINESS_SHARE_URL).catch(() =>
+    Alert.alert(
+      "No se pudo abrir",
+      "Abre Google Maps o el navegador para ver el perfil de Medly.",
+    ),
   );
 }
 
-function nombreCorto(nombre: string): string {
-  const partes = nombre.trim().split(/\s+/);
-  return partes.length > 1 ? partes[partes.length - 1] : nombre;
+function TarjetaSucursal({ s }: { readonly s: SucursalDto }): React.JSX.Element {
+  const imgs = collageParaSucursal(s);
+  const etiqueta = nombreCortoSucursal(s.nombre);
+
+  return (
+    <View style={estilos.cardWrap}>
+      <View style={estilos.collage}>
+        <Image source={imgs.principal} style={estilos.imgPrincipal} resizeMode="cover" />
+        <View style={estilos.colDerecha}>
+          <Image
+            source={imgs.secundariaArriba}
+            style={estilos.imgSecundaria}
+            resizeMode="cover"
+          />
+          <Image
+            source={imgs.secundariaAbajo}
+            style={[estilos.imgSecundaria, estilos.imgSecundariaAbajo]}
+            resizeMode="cover"
+          />
+        </View>
+      </View>
+
+      <View style={estilos.bandaInfo}>
+        <View style={estilos.bandaIzquierda}>
+          <Text style={estilos.cardLabel}>Sucursal</Text>
+          <Text style={estilos.cardNombre}>{etiqueta}</Text>
+        </View>
+        <View style={estilos.bandaDerecha}>
+          <TouchableOpacity
+            style={estilos.btnGoogleCard}
+            onPress={abrirGoogleBusiness}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`Ver ${etiqueta} en Google Business`}
+          >
+            <Ionicons name="logo-google" size={15} color={paleta.white} />
+            <Text style={estilos.btnGoogleCardTxt}>Google</Text>
+          </TouchableOpacity>
+          <Text style={estilos.cardMarca}>Medly</Text>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 export default function SucursalesPantalla(): React.JSX.Element {
@@ -52,10 +94,10 @@ export default function SucursalesPantalla(): React.JSX.Element {
     setCargando(true);
     try {
       const data = await fetchSucursales();
-      setLista(data);
+      setLista(resolverListaSucursales(data));
     } catch (e) {
       console.warn("fetchSucursales:", e);
-      setLista([]);
+      setLista(resolverListaSucursales([]));
     } finally {
       setCargando(false);
     }
@@ -70,11 +112,15 @@ export default function SucursalesPantalla(): React.JSX.Element {
   return (
     <SafeAreaView style={estilos.area}>
       <View style={estilos.header}>
-        <TouchableOpacity onPress={() => router.back()} style={estilos.back}>
-          <Ionicons name="chevron-back" size={24} color={paleta.white} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={estilos.back}
+          accessibilityRole="button"
+          accessibilityLabel="Regresar"
+        >
+          <Ionicons name="chevron-back" size={22} color={paleta.navy} />
         </TouchableOpacity>
         <Text style={estilos.tituloHeader}>SUCURSALES</Text>
-        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView
@@ -91,53 +137,18 @@ export default function SucursalesPantalla(): React.JSX.Element {
             <Ionicons name="business-outline" size={48} color={paleta.teal} />
             <Text style={estilos.vacioTitulo}>Sin sucursales activas</Text>
             <Text style={estilos.vacioTxt}>
-              No pudimos cargar el listado. Desliza hacia abajo para reintentar.
+              Desliza hacia abajo para reintentar.
             </Text>
             <TouchableOpacity
-              style={estilos.btnMapaGeneral}
-              onPress={abrirMapaCompartido}
+              style={estilos.btnGoogleVacio}
+              onPress={abrirGoogleBusiness}
             >
-              <Ionicons name="location" size={18} color={paleta.white} />
-              <Text style={estilos.btnMapaGeneralTxt}>Ver ubicación en Maps</Text>
+              <Ionicons name="logo-google" size={18} color={paleta.white} />
+              <Text style={estilos.btnGoogleVacioTxt}>Ver en Google</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          lista.map((s) => (
-            <TouchableOpacity
-              key={s.sucursalID}
-              activeOpacity={0.92}
-              onPress={() => abrirMapa(s)}
-              style={estilos.cardWrap}
-              accessibilityRole="button"
-              accessibilityLabel={`${s.nombre}, ver ubicación`}
-            >
-              <ImageBackground
-                source={imagenParaSucursal(s.sucursalID)}
-                style={estilos.cardImg}
-                imageStyle={estilos.cardImgRadius}
-                resizeMode="cover"
-              >
-                <View style={estilos.cardOverlay}>
-                  <View>
-                    <Text style={estilos.cardLabel}>Sucursal</Text>
-                    <Text style={estilos.cardNombre}>
-                      {nombreCorto(s.nombre)}
-                    </Text>
-                    <Text style={estilos.cardDir} numberOfLines={2}>
-                      {s.direccion}
-                    </Text>
-                  </View>
-                  <View style={estilos.cardPie}>
-                    <Text style={estilos.cardMarca}>Medly</Text>
-                    <View style={estilos.btnMapaChip}>
-                      <Ionicons name="location" size={14} color={paleta.white} />
-                      <Text style={estilos.btnMapaChipTxt}>Ubicación</Text>
-                    </View>
-                  </View>
-                </View>
-              </ImageBackground>
-            </TouchableOpacity>
-          ))
+          lista.map((s) => <TarjetaSucursal key={s.sucursalID} s={s} />)
         )}
       </ScrollView>
     </SafeAreaView>
@@ -149,94 +160,132 @@ const estilos = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: paleta.headerBar,
-    borderBottomLeftRadius: BORDES.radio + 6,
-    borderBottomRightRadius: BORDES.radio + 6,
+    paddingTop: 8,
+    paddingBottom: 12,
+    gap: 12,
   },
   back: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: paleta.white,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: paleta.navy,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   tituloHeader: {
-    fontSize: 16,
+    flex: 1,
+    fontSize: 18,
     fontWeight: "800",
-    color: paleta.white,
-    letterSpacing: 1.2,
+    color: paleta.navy,
+    letterSpacing: 1.5,
   },
-  scroll: { padding: 20, paddingBottom: 40, gap: 20 },
+  scroll: {
+    paddingHorizontal: PADDING,
+    paddingBottom: 32,
+    gap: 24,
+  },
   cardWrap: {
-    borderRadius: BORDES.radio + 10,
-    overflow: "hidden",
-    shadowColor: paleta.navy,
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
-  cardImg: {
-    width: "100%",
+    width: ANCHO_CARD,
     height: ALTO_CARD,
-    justifyContent: "flex-end",
+    borderRadius: RADIO_CARD,
+    overflow: "hidden",
+    backgroundColor: paleta.navy,
+    shadowColor: paleta.navy,
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
-  cardImgRadius: {
-    borderRadius: BORDES.radio + 10,
+  collage: {
+    flexDirection: "row",
+    height: ALTO_COLLAGE,
+    gap: 3,
+    padding: 3,
+    paddingBottom: 0,
   },
-  cardOverlay: {
+  imgPrincipal: {
+    flex: 1.55,
+    height: "100%",
+    borderTopLeftRadius: RADIO_CARD - 4,
+    borderBottomLeftRadius: 4,
+  },
+  colDerecha: {
+    flex: 1,
+    gap: 3,
+  },
+  imgSecundaria: {
+    flex: 1,
+    width: "100%",
+    borderTopRightRadius: 4,
+  },
+  imgSecundariaAbajo: {
+    borderBottomRightRadius: RADIO_CARD - 4,
+  },
+  bandaInfo: {
+    height: ALTO_BANDA,
+    backgroundColor: paleta.navy,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    paddingLeft: MARGEN_BANDA_H,
+    paddingRight: MARGEN_BANDA_H,
+    paddingTop: MARGEN_BANDA_V,
+    paddingBottom: MARGEN_BANDA_V,
+    borderBottomLeftRadius: RADIO_CARD,
+    borderBottomRightRadius: RADIO_CARD,
+  },
+  bandaIzquierda: {
     flex: 1,
     justifyContent: "flex-end",
-    padding: 20,
-    backgroundColor: "rgba(47, 65, 86, 0.55)",
-    borderBottomLeftRadius: BORDES.radio + 10,
-    borderBottomRightRadius: BORDES.radio + 10,
+    paddingRight: 12,
+    minWidth: 0,
+  },
+  bandaDerecha: {
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+    gap: 12,
+    paddingBottom: 2,
   },
   cardLabel: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.85)",
-    marginBottom: 2,
+    fontSize: 15,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.9)",
+    marginBottom: 6,
+    letterSpacing: 0.2,
   },
   cardNombre: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: "800",
     color: paleta.white,
-    letterSpacing: 0.5,
-  },
-  cardDir: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.75)",
-    marginTop: 6,
-    maxWidth: "85%",
-  },
-  cardPie: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 16,
+    letterSpacing: 0.4,
+    lineHeight: 38,
   },
   cardMarca: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "600",
-    color: "rgba(255,255,255,0.9)",
+    color: "rgba(255,255,255,0.95)",
+    marginTop: 2,
   },
-  btnMapaChip: {
+  btnGoogleCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     backgroundColor: paleta.teal,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: BORDES.radioPill,
   },
-  btnMapaChipTxt: {
+  btnGoogleCardTxt: {
     fontSize: 12,
     fontWeight: "700",
     color: paleta.white,
+    letterSpacing: 0.3,
   },
   vacio: {
     alignItems: "center",
@@ -254,17 +303,17 @@ const estilos = StyleSheet.create({
     color: COLORES.textoMuted,
     textAlign: "center",
   },
-  btnMapaGeneral: {
+  btnGoogleVacio: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginTop: 8,
-    backgroundColor: paleta.teal,
-    paddingHorizontal: 18,
+    backgroundColor: paleta.navy,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: BORDES.radioPill,
   },
-  btnMapaGeneralTxt: {
+  btnGoogleVacioTxt: {
     fontSize: 14,
     fontWeight: "700",
     color: paleta.white,

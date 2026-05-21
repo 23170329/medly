@@ -142,7 +142,10 @@ export class CitasService {
     if (!cita) {
       throw new NotFoundException('Cita no encontrada');
     }
-    if (cita.estado !== EstadoCita.PENDIENTE_PAGO) {
+    if (
+      cita.estado !== EstadoCita.PENDIENTE_PAGO &&
+      cita.estado !== EstadoCita.ANTICIPO_REALIZADO
+    ) {
       throw new BadRequestException('La cita no está pendiente de pago');
     }
 
@@ -175,14 +178,18 @@ export class CitasService {
     }
     if (
       cita.estado !== EstadoCita.CONFIRMADA &&
-      cita.estado !== EstadoCita.PENDIENTE_PAGO
+      cita.estado !== EstadoCita.PENDIENTE_PAGO &&
+      cita.estado !== EstadoCita.ANTICIPO_REALIZADO
     ) {
       throw new BadRequestException(
         'Solo se pueden cancelar citas confirmadas o pendientes de pago',
       );
     }
 
-    if (cita.estado === EstadoCita.PENDIENTE_PAGO) {
+    if (
+      cita.estado === EstadoCita.PENDIENTE_PAGO ||
+      cita.estado === EstadoCita.ANTICIPO_REALIZADO
+    ) {
       await this.abandonarPago(pacienteId, citaId);
       return {
         mensaje: 'Reserva cancelada. El horario quedó liberado.',
@@ -231,7 +238,11 @@ export class CitasService {
       .leftJoinAndSelect('c.pagos', 'p')
       .where('c.pacienteID = :pid', { pid: pacienteId })
       .andWhere('c.estado IN (:...estados)', {
-        estados: [EstadoCita.CONFIRMADA, EstadoCita.PENDIENTE_PAGO],
+        estados: [
+          EstadoCita.CONFIRMADA,
+          EstadoCita.PENDIENTE_PAGO,
+          EstadoCita.ANTICIPO_REALIZADO,
+        ],
       })
       .andWhere('c.inicio >= :now', { now: new Date() })
       .orderBy('c.inicio', 'ASC')
@@ -331,14 +342,18 @@ export class CitasService {
     }
     if (
       cita.estado !== EstadoCita.CONFIRMADA &&
-      cita.estado !== EstadoCita.PENDIENTE_PAGO
+      cita.estado !== EstadoCita.PENDIENTE_PAGO &&
+      cita.estado !== EstadoCita.ANTICIPO_REALIZADO
     ) {
       throw new BadRequestException(
         'Solo se pueden cancelar citas confirmadas o pendientes de pago',
       );
     }
 
-    if (cita.estado === EstadoCita.PENDIENTE_PAGO) {
+    if (
+      cita.estado === EstadoCita.PENDIENTE_PAGO ||
+      cita.estado === EstadoCita.ANTICIPO_REALIZADO
+    ) {
       await this.abandonarPago(cita.pacienteID, citaId);
       return {
         mensaje: 'Reserva cancelada por el médico. El horario quedó liberado.',

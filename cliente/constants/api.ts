@@ -1,9 +1,8 @@
 import Constants from "expo-constants";
 
 /**
- * URL base del API NestJS (sin barra final).
- * - Railway (deploy actual): https://….railway.app  → rutas /auth/login
- * - Nest local (main.ts): http://IP:3000/api/v1     → rutas /auth/login bajo prefijo
+ * URL base del API NestJS (siempre con `/api/v1`, sin barra final).
+ * Ejemplo: https://medly-production.up.railway.app/api/v1
  */
 export function getApiUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
@@ -11,7 +10,7 @@ export function getApiUrl(): string {
     const looksLikeExample =
       fromEnv.includes("192.168.X.X") || fromEnv.includes("192.168.1.10");
     if (!looksLikeExample) {
-      return normalizarBaseUrl(fromEnv);
+      return asegurarPrefijoApi(fromEnv);
     }
   }
 
@@ -31,47 +30,27 @@ export function getApiUrl(): string {
     const host = debuggerHost.split("/")[0];
     const ip = host.split(":")[0];
     if (ip) {
-      return normalizarBaseUrl(`http://${ip}:3000`, { esDesarrolloLocal: true });
+      return asegurarPrefijoApi(`http://${ip}:3000`);
     }
   }
 
-  return normalizarBaseUrl("http://localhost:3000", { esDesarrolloLocal: true });
+  return asegurarPrefijoApi("http://localhost:3000");
 }
 
-function normalizarBaseUrl(
-  base: string,
-  opts?: { esDesarrolloLocal?: boolean },
-): string {
-  const limpio = base.replace(/\/$/, "");
+function asegurarPrefijoApi(base: string): string {
+  let limpio = base.replace(/\/$/, "");
+  // Quitar prefijo duplicado si en .env pusieron .../api/v1/api/v1
+  while (limpio.endsWith("/api/v1/api/v1")) {
+    limpio = limpio.replace(/\/api\/v1\/api\/v1$/, "/api/v1");
+  }
   if (limpio.endsWith("/api/v1")) {
     return limpio;
   }
-
-  const prefijoExplicito = process.env.EXPO_PUBLIC_API_PREFIX?.trim();
-  if (prefijoExplicito === "api/v1") {
-    return `${limpio}/api/v1`;
-  }
-  if (prefijoExplicito === "none" || prefijoExplicito === "") {
+  // EXPO_PUBLIC_API_PREFIX=none solo si el servidor NO usa prefijo global
+  if (process.env.EXPO_PUBLIC_API_PREFIX?.trim() === "none") {
     return limpio;
   }
-
-  // Railway en producción aún sirve rutas sin prefijo global
-  if (/\.railway\.app$/i.test(limpio) || /\.up\.railway\.app$/i.test(limpio)) {
-    return limpio;
-  }
-
-  // Nest local (puerto 3000 / LAN)
-  if (
-    opts?.esDesarrolloLocal ||
-    /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:3000)?$/i.test(
-      limpio,
-    ) ||
-    /:3000$/i.test(limpio)
-  ) {
-    return `${limpio}/api/v1`;
-  }
-
-  return limpio;
+  return `${limpio}/api/v1`;
 }
 
 export const API_URL = getApiUrl();

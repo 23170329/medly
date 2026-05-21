@@ -34,6 +34,54 @@ export class PagosService {
     this.stripe = key ? new Stripe(key) : null;
   }
 
+  private puedeIniciarCheckout(estado: EstadoCita): boolean {
+    return (
+      estado === EstadoCita.PENDIENTE_PAGO ||
+      estado === EstadoCita.ANTICIPO_REALIZADO
+    );
+  }
+
+  private puedeCompletarPagoStripe(estado: EstadoCita): boolean {
+    return (
+      estado === EstadoCita.PENDIENTE_PAGO ||
+      estado === EstadoCita.ANTICIPO_REALIZADO
+    );
+  }
+
+  /** Marca la cita como anticipo realizado al confirmar pago (antes de Stripe). */
+  async marcarAnticipoRealizado(
+    pacienteId: number,
+    citaID: number,
+  ): Promise<{ citaID: number; estado: EstadoCita }> {
+    const cita = await this.citaRepo.findOne({
+      where: { citaID, pacienteID: pacienteId },
+      relations: ['pagos'],
+    });
+    if (!cita) {
+      throw new NotFoundException('Cita no encontrada');
+    }
+    if (cita.estado === EstadoCita.ANTICIPO_REALIZADO) {
+      return { citaID, estado: cita.estado };
+    }
+    if (cita.estado !== EstadoCita.PENDIENTE_PAGO) {
+      throw new BadRequestException(
+        'La cita no está pendiente de pago o ya fue confirmada',
+      );
+    }
+
+    const pagoPendiente = cita.pagos?.find(
+      (p) =>
+        p.tipo === TipoPago.ANTICIPO_50 && p.estado === EstadoPago.PENDIENTE,
+    );
+    if (!pagoPendiente) {
+      throw new BadRequestException('No hay anticipo pendiente');
+    }
+
+    cita.estado = EstadoCita.ANTICIPO_REALIZADO;
+    await this.citaRepo.save(cita);
+    return { citaID, estado: cita.estado };
+  }
+
   async crearCheckoutSession(
     pacienteId: number,
     citaID: number,
@@ -51,7 +99,7 @@ export class PagosService {
     if (!cita) {
       throw new NotFoundException('Cita no encontrada');
     }
-    if (cita.estado !== EstadoCita.PENDIENTE_PAGO) {
+    if (!this.puedeIniciarCheckout(cita.estado)) {
       throw new BadRequestException('La cita no está pendiente de pago');
     }
 
@@ -154,7 +202,7 @@ export class PagosService {
           where: { citaID: citaId },
           relations: ['pagos', 'slot'],
         });
-        if (!cita || cita.estado !== EstadoCita.PENDIENTE_PAGO) {
+        if (!cita || !this.puedeCompletarPagoStripe(cita.estado)) {
           res.json({ received: true });
           return;
         }

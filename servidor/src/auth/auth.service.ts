@@ -12,6 +12,7 @@ import * as bcrypt from 'bcryptjs';
 import { CuentaUsuario } from '../usuarios/entities/cuenta-usuario.entity';
 import { Paciente } from '../usuarios/entities/paciente.entity';
 import { CuentaStaff } from '../staff/entities/cuenta-staff.entity';
+import { Medico } from '../medicos/entities/medico.entity';
 import { JwtPayload } from './jwt-payload.interface';
 import {
   esCurp,
@@ -64,6 +65,8 @@ export class AuthService {
     private readonly cuentaUsuarioRepository: Repository<CuentaUsuario>,
     @InjectRepository(CuentaStaff)
     private readonly cuentaStaffRepository: Repository<CuentaStaff>,
+    @InjectRepository(Medico)
+    private readonly medicoRepository: Repository<Medico>,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly usuariosService: UsuariosService,
@@ -90,6 +93,24 @@ export class AuthService {
       email: p.correoElectronico,
       rol: 'PACIENTE',
     };
+  }
+
+  /** Repara cuentas MEDICO sin ficha vinculada (p. ej. seed incompleto en producción). */
+  private async asegurarVinculoMedicoStaff(s: CuentaStaff): Promise<CuentaStaff> {
+    if (s.rol !== 'MEDICO' || s.medico?.medicoID != null) {
+      return s;
+    }
+    const med =
+      (await this.medicoRepository.findOne({ where: { cedula: 'CED001' } })) ??
+      (await this.medicoRepository.find({ order: { medicoID: 'ASC' }, take: 1 }))[0];
+    if (!med) {
+      throw new BadRequestException(
+        'Cuenta de médico sin vínculo. Ejecuta npm run seed en el servidor o contacta soporte.',
+      );
+    }
+    s.medico = med;
+    await this.cuentaStaffRepository.save(s);
+    return s;
   }
 
   private buildUsuarioStaff(s: CuentaStaff): AuthUsuarioResponse {
@@ -275,7 +296,8 @@ export class AuthService {
       if (!staff || staff.rol !== decoded.rol) {
         throw new UnauthorizedException('Sesión no válida');
       }
-      return this.emitAuthTokensStaff(staff, 'Sesión renovada');
+      const staffListo = await this.asegurarVinculoMedicoStaff(staff);
+      return this.emitAuthTokensStaff(staffListo, 'Sesión renovada');
     }
 
     if (decoded.cuentaId == null) {
@@ -343,12 +365,72 @@ export class AuthService {
     return qb.getOne();
   }
 
+  private async buscarStaffPorCorreo(correo: string): Promise<CuentaStaff | null> {
+    const email = correo.trim().toLowerCase();
+    return this.cuentaStaffRepository
+      .createQueryBuilder('s')
+      .leftJoinAndSelect('s.medico', 'medico')
+      .where('LOWER(TRIM(s.correo)) = :email', { email })
+      .getOne();
+  }
+
+  private async verificarContrasenaStaff(
+    plano: string,
+    almacenada: string,
+  ): Promise<boolean> {
+    if (!almacenada) return false;
+    if (/^\$2[aby]\$/.test(almacenada)) {
+      return bcrypt.compare(plano, almacenada);
+    }
+    return plano === almacenada;
+  }
+
+  private async migrarContrasenaStaffSiPlano(
+    staff: CuentaStaff,
+    contrasena: string,
+  ): Promise<void> {
+    if (/^\$2[aby]\$/.test(staff.password)) return;
+    staff.password = await bcrypt.hash(contrasena, 10);
+    await this.cuentaStaffRepository.save(staff);
+  }
+
+  private async intentarLoginStaff(
+    correo: string,
+    contrasena: string,
+    req?: Request,
+  ): Promise<AuthTokensResponse | null> {
+    const staff = await this.buscarStaffPorCorreo(correo);
+    if (!staff) return null;
+
+    const ok = await this.verificarContrasenaStaff(contrasena, staff.password);
+    if (!ok) {
+      throw new UnauthorizedException(
+        'Correo, CURP o teléfono incorrectos, o contraseña incorrecta',
+      );
+    }
+    await this.migrarContrasenaStaffSiPlano(staff, contrasena);
+    const staffListo = await this.asegurarVinculoMedicoStaff(staff);
+    await this.auditoriaService.registrar({
+      tipo: 'LOGIN_EXITOSO',
+      descripcion: `Staff ${staffListo.correo} (${staffListo.rol})`,
+      usuarioID: staffListo.cuentaStaffID,
+      req,
+    });
+    return this.emitAuthTokensStaff(staffListo, 'Login exitoso');
+  }
+
   async validarUsuario(
     identificador: string,
     contrasena: string,
     req?: Request,
   ): Promise<AuthTokensResponse> {
     const idLogin = normalizarIdentificadorLogin(identificador);
+
+    if (idLogin.includes('@')) {
+      const staffLogin = await this.intentarLoginStaff(idLogin, contrasena, req);
+      if (staffLogin) return staffLogin;
+    }
+
     const paciente = await this.buscarPacientePorIdentificador(idLogin);
 
     if (paciente?.cuenta) {
@@ -365,24 +447,6 @@ export class AuthService {
           paciente.cuenta,
           'Login exitoso',
         );
-      }
-    }
-
-    const idNorm = identificador.trim().toLowerCase();
-    const staff = await this.cuentaStaffRepository.findOne({
-      where: { correo: idNorm },
-      relations: ['medico'],
-    });
-    if (staff) {
-      const ok = await bcrypt.compare(contrasena, staff.password);
-      if (ok) {
-        await this.auditoriaService.registrar({
-          tipo: 'LOGIN_EXITOSO',
-          descripcion: `Staff ${staff.correo} (${staff.rol})`,
-          usuarioID: staff.cuentaStaffID,
-          req,
-        });
-        return this.emitAuthTokensStaff(staff, 'Login exitoso');
       }
     }
 

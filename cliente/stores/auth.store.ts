@@ -1,10 +1,13 @@
 import { create } from "zustand";
 import * as SecureStore from "expo-secure-store";
 import { API_URL } from "../constants/api";
+import { normalizarUsuarioSesion } from "../lib/usuarioSesion";
 
 export interface Usuario {
   id: string;
   pacienteId?: number;
+  staffId?: number;
+  medicoId?: number;
   nombre: string;
   apellido: string;
   email: string;
@@ -33,10 +36,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   cargando: true,
 
   setAuth: async (usuario, accessToken, refreshToken) => {
+    const normalizado = normalizarUsuarioSesion(usuario, usuario.email);
     await SecureStore.setItemAsync("access_token", accessToken);
     await SecureStore.setItemAsync("refresh_token", refreshToken);
-    await SecureStore.setItemAsync("usuario", JSON.stringify(usuario));
-    set({ usuario, accessToken, refreshToken });
+    await SecureStore.setItemAsync("usuario", JSON.stringify(normalizado));
+    set({ usuario: normalizado, accessToken, refreshToken });
   },
 
   refreshAccessToken: async () => {
@@ -86,10 +90,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const refreshToken = await SecureStore.getItemAsync("refresh_token");
       const usuarioStr = await SecureStore.getItemAsync("usuario");
       if (accessToken && usuarioStr) {
+        const parsed = JSON.parse(usuarioStr) as Usuario;
+        const usuario = normalizarUsuarioSesion(parsed, parsed.email);
         set({
           accessToken,
           refreshToken: refreshToken ?? null,
-          usuario: JSON.parse(usuarioStr) as Usuario,
+          usuario,
         });
       }
     } catch {

@@ -7,6 +7,9 @@ export function anticipoCompletado(cita: CitaDto): boolean {
 }
 
 export function etiquetaEstadoCita(cita: CitaDto): string {
+  if (cita.estado === "ANTICIPO_REALIZADO") {
+    return "Anticipo realizado";
+  }
   if (cita.estado === "CONFIRMADA" && anticipoCompletado(cita)) {
     return "Anticipo realizado";
   }
@@ -26,5 +29,9 @@ export function etiquetaEstadoCita(cita: CitaDto): string {
 }
 
 export function esCitaActivaFutura(estado: EstadoCitaApi): boolean {
-  return estado === "CONFIRMADA" || estado === "PENDIENTE_PAGO";
+  return (
+    estado === "CONFIRMADA" ||
+    estado === "PENDIENTE_PAGO" ||
+    estado === "ANTICIPO_REALIZADO"
+  );
 }

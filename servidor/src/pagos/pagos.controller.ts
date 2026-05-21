@@ -22,6 +22,16 @@ import { CheckoutSessionDto } from './dto/checkout-session.dto';
 export class PagosController {
   constructor(private readonly pagosService: PagosService) {}
 
+  @Post('anticipo-realizado')
+  @UseGuards(JwtAuthGuard, PatientOnlyGuard)
+  @ApiBearerAuth()
+  async anticipoRealizado(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CheckoutSessionDto,
+  ) {
+    return this.pagosService.marcarAnticipoRealizado(user.sub, dto.citaID);
+  }
+
   @Post('checkout-session')
   @UseGuards(JwtAuthGuard, PatientOnlyGuard)
   @ApiBearerAuth()

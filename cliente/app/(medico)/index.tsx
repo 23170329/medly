@@ -72,7 +72,7 @@ export default function MedicoInicio(): React.JSX.Element {
       >
         <Text style={estilos.titulo}>Panel médico</Text>
         <Text style={estilos.sub}>
-          Cuenta demo: doctor@medly.local. Expediente aislado por médico (NOM-004).
+          Cuenta demo: doctor@medly.d / DoctorMedly1!
         </Text>
 
         <Text style={estilos.sec}>Citas pendientes por atender</Text>
