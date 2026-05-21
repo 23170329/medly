@@ -17,7 +17,7 @@ export default function RecepcionInicio(): React.JSX.Element {
     <SafeAreaView style={estilos.area}>
       <Text style={estilos.titulo}>Recepción</Text>
       <Text style={estilos.sub}>
-        Registro de pacientes y citas en mostrador (cuenta demo: recepcion@medly.local).
+        Registro de pacientes y citas en mostrador (demo: recepcion@medly.r).
       </Text>
 
       <TouchableOpacity

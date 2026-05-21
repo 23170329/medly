@@ -306,7 +306,6 @@ describe('AuthService', () => {
     });
 
     it('should login a staff member (RECEPCIONISTA)', async () => {
-      mockQueryBuilder.getOne.mockResolvedValue(null);
       mockCuentaStaffRepo.findOne.mockResolvedValue(staffFixture);
       mockBcryptCompare.mockResolvedValue(true);
       mockJwtService.signAsync
@@ -339,10 +338,21 @@ describe('AuthService', () => {
       );
     });
 
+    it('should throw UnauthorizedException on wrong password (staff found)', async () => {
+      mockCuentaStaffRepo.findOne.mockResolvedValue(staffFixture);
+      mockBcryptCompare.mockResolvedValue(false);
+
+      await expect(
+        service.validarUsuario('staff@medly.com', 'WrongPass1', mockReq),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(mockQueryBuilder.getOne).not.toHaveBeenCalled();
+    });
+
     it('should throw UnauthorizedException on wrong password (patient found)', async () => {
+      mockCuentaStaffRepo.findOne.mockResolvedValue(null);
       mockQueryBuilder.getOne.mockResolvedValue(pacienteFixture);
       mockBcryptCompare.mockResolvedValue(false);
-      mockCuentaStaffRepo.findOne.mockResolvedValue(null);
 
       await expect(
         service.validarUsuario('test@example.com', 'WrongPass1', mockReq),

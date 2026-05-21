@@ -343,12 +343,44 @@ export class AuthService {
     return qb.getOne();
   }
 
+  private async intentarLoginStaff(
+    correo: string,
+    contrasena: string,
+    req?: Request,
+  ): Promise<AuthTokensResponse | null> {
+    const staff = await this.cuentaStaffRepository.findOne({
+      where: { correo },
+      relations: ['medico'],
+    });
+    if (!staff) return null;
+
+    const ok = await bcrypt.compare(contrasena, staff.password);
+    if (!ok) {
+      throw new UnauthorizedException(
+        'Correo, CURP o teléfono incorrectos, o contraseña incorrecta',
+      );
+    }
+    await this.auditoriaService.registrar({
+      tipo: 'LOGIN_EXITOSO',
+      descripcion: `Staff ${staff.correo} (${staff.rol})`,
+      usuarioID: staff.cuentaStaffID,
+      req,
+    });
+    return this.emitAuthTokensStaff(staff, 'Login exitoso');
+  }
+
   async validarUsuario(
     identificador: string,
     contrasena: string,
     req?: Request,
   ): Promise<AuthTokensResponse> {
     const idLogin = normalizarIdentificadorLogin(identificador);
+
+    if (idLogin.includes('@')) {
+      const staffLogin = await this.intentarLoginStaff(idLogin, contrasena, req);
+      if (staffLogin) return staffLogin;
+    }
+
     const paciente = await this.buscarPacientePorIdentificador(idLogin);
 
     if (paciente?.cuenta) {
@@ -365,24 +397,6 @@ export class AuthService {
           paciente.cuenta,
           'Login exitoso',
         );
-      }
-    }
-
-    const idNorm = identificador.trim().toLowerCase();
-    const staff = await this.cuentaStaffRepository.findOne({
-      where: { correo: idNorm },
-      relations: ['medico'],
-    });
-    if (staff) {
-      const ok = await bcrypt.compare(contrasena, staff.password);
-      if (ok) {
-        await this.auditoriaService.registrar({
-          tipo: 'LOGIN_EXITOSO',
-          descripcion: `Staff ${staff.correo} (${staff.rol})`,
-          usuarioID: staff.cuentaStaffID,
-          req,
-        });
-        return this.emitAuthTokensStaff(staff, 'Login exitoso');
       }
     }
 

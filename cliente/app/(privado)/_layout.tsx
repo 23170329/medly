@@ -3,6 +3,7 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, View } from "react-native";
 import { paleta } from "../../constants/theme";
+import { useGuardRol } from "../../hooks/useGuardRol";
 
 interface TabIconProps {
   readonly name: React.ComponentProps<typeof Ionicons>["name"];
@@ -24,6 +25,7 @@ function TabIcon({ name, focused, size }: TabIconProps): React.JSX.Element {
 }
 
 export default function PrivadoLayout(): React.JSX.Element {
+  useGuardRol(["PACIENTE", "ADMIN"]);
   return (
     <Tabs
       screenOptions={{
@@ -67,7 +69,7 @@ export default function PrivadoLayout(): React.JSX.Element {
 
       {/* */}
       <Tabs.Screen
-        name="sucursales/index"
+        name="sucursales"
         options={{
           title: "Sucursales",
           tabBarIcon: ({ focused, size }) => (

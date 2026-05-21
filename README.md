@@ -31,7 +31,7 @@ cp .env.example servidor/.env
 cp cliente/.env.example cliente/.env
 ```
 
-Rellena `DATABASE_URL` y las URLs con los valores de Railway. En `cliente/.env` usa `EXPO_PUBLIC_API_URL=https://….up.railway.app` (sin `/api/v1` en el deploy actual).
+Rellena `DATABASE_URL` y las URLs con los valores de Railway. En `cliente/.env` usa `EXPO_PUBLIC_API_URL=https://….up.railway.app` (el cliente añade `/api/v1` automáticamente).
 
 Tras cambios en login (CURP/teléfono), **sube el código a Git y redespliega** el servicio `servidor` en Railway (`npm run build` + migraciones). La app usa `POST /auth/ingreso` para CURP y teléfono; sin redespliegue solo funcionará el correo en `/auth/login`.
 

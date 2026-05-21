@@ -1,5 +1,7 @@
 export enum EstadoCita {
   PENDIENTE_PAGO = 'PENDIENTE_PAGO',
+  /** Usuario confirmó y abrió pasarela; anticipo en proceso o registrado. */
+  ANTICIPO_REALIZADO = 'ANTICIPO_REALIZADO',
   CONFIRMADA = 'CONFIRMADA',
   CANCELADA = 'CANCELADA',
   COMPLETADA = 'COMPLETADA',

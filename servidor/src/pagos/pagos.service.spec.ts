@@ -181,6 +181,22 @@ describe('PagosService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('allows checkout when cita is ANTICIPO_REALIZADO', async () => {
+      citaRepo.findOne.mockResolvedValue({
+        ...mockCitaPendiente,
+        estado: EstadoCita.ANTICIPO_REALIZADO,
+      } as Cita);
+      mockStripeInstance.checkout.sessions.create.mockResolvedValue({
+        id: 'cs_anticipo',
+        url: 'https://checkout.stripe.com/pay/cs_anticipo',
+      });
+
+      const result = await service.crearCheckoutSession(pacienteId, citaID);
+
+      expect(result.url).toContain('checkout.stripe.com');
+      expect(mockStripeInstance.checkout.sessions.create).toHaveBeenCalled();
+    });
+
     it('throws BadRequestException when no pending anticipo pago', async () => {
       citaRepo.findOne.mockResolvedValue({
         ...mockCitaPendiente,
@@ -201,6 +217,37 @@ describe('PagosService', () => {
       await expect(
         service.crearCheckoutSession(pacienteId, citaID),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('marcarAnticipoRealizado', () => {
+    const pacienteId = 1;
+    const citaID = 1;
+
+    it('sets cita estado to ANTICIPO_REALIZADO', async () => {
+      const cita = { ...mockCitaPendiente } as Cita;
+      citaRepo.findOne.mockResolvedValue(cita);
+
+      const result = await service.marcarAnticipoRealizado(pacienteId, citaID);
+
+      expect(cita.estado).toBe(EstadoCita.ANTICIPO_REALIZADO);
+      expect(citaRepo.save).toHaveBeenCalledWith(cita);
+      expect(result).toEqual({
+        citaID,
+        estado: EstadoCita.ANTICIPO_REALIZADO,
+      });
+    });
+
+    it('is idempotent when already ANTICIPO_REALIZADO', async () => {
+      citaRepo.findOne.mockResolvedValue({
+        ...mockCitaPendiente,
+        estado: EstadoCita.ANTICIPO_REALIZADO,
+      } as Cita);
+
+      const result = await service.marcarAnticipoRealizado(pacienteId, citaID);
+
+      expect(citaRepo.save).not.toHaveBeenCalled();
+      expect(result.estado).toBe(EstadoCita.ANTICIPO_REALIZADO);
     });
   });
 
@@ -264,6 +311,7 @@ describe('PagosService', () => {
         const slot = { slotID: 1, estado: EstadoSlot.RESERVADO } as SlotAgenda;
         const cita = {
           ...mockCitaPendiente,
+          estado: EstadoCita.ANTICIPO_REALIZADO,
           pagos: [pago],
           slot,
         } as Cita;

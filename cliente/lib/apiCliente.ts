@@ -28,7 +28,11 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     const url = String(originalRequest.url ?? "");
-    if (url.includes("/auth/refresh") || url.includes("/auth/login")) {
+    if (
+      url.includes("/auth/refresh") ||
+      url.includes("/auth/login") ||
+      url.includes("/auth/ingreso")
+    ) {
       return Promise.reject(error);
     }
     originalRequest._retry = true;

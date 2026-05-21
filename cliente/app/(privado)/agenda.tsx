@@ -32,6 +32,7 @@ type FiltroValor = EstadoCita | "TODAS";
 
 function mapEstadoApi(a: EstadoCitaApi): EstadoCita {
   if (a === "PENDIENTE_PAGO") return "PENDIENTE";
+  if (a === "ANTICIPO_REALIZADO") return "CONFIRMADA";
   if (a === "CONFIRMADA") return "CONFIRMADA";
   if (a === "CANCELADA") return "CANCELADA";
   return "COMPLETADA";
@@ -134,10 +135,11 @@ function toUi(d: CitaDto): CitaUi {
     estado: mapEstadoApi(d.estado),
     monto: Math.round(parseFloat(d.montoTotal)),
     anticipoPagado:
-      d.estado === "CONFIRMADA" &&
-      (d.pagos ?? []).some(
-        (p) => p.tipo === "ANTICIPO_50" && p.estado === "COMPLETADO",
-      ),
+      d.estado === "ANTICIPO_REALIZADO" ||
+      (d.estado === "CONFIRMADA" &&
+        (d.pagos ?? []).some(
+          (p) => p.tipo === "ANTICIPO_50" && p.estado === "COMPLETADO",
+        )),
     raw: d,
   };
 }
@@ -165,7 +167,10 @@ function TarjetaCita({ cita, onActualizar }: TarjetaCitaProps): React.JSX.Elemen
           style: "destructive",
           onPress: async () => {
             try {
-              if (cita.raw.estado === "PENDIENTE_PAGO") {
+              if (
+                cita.raw.estado === "PENDIENTE_PAGO" ||
+                cita.raw.estado === "ANTICIPO_REALIZADO"
+              ) {
                 await abandonarReserva(cita.raw.citaID);
               } else {
                 await cancelarCita(cita.raw.citaID);

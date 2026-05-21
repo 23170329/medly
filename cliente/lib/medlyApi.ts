@@ -45,6 +45,7 @@ export interface SlotDto {
 
 export type EstadoCitaApi =
   | "PENDIENTE_PAGO"
+  | "ANTICIPO_REALIZADO"
   | "CONFIRMADA"
   | "CANCELADA"
   | "COMPLETADA";
@@ -147,6 +148,14 @@ export async function abandonarReserva(id: number): Promise<void> {
   await api.delete(`/citas/${id}/reserva`);
 }
 
+export async function marcarAnticipoRealizado(citaID: number): Promise<{
+  citaID: number;
+  estado: EstadoCitaApi;
+}> {
+  const { data } = await api.post(`/pagos/anticipo-realizado`, { citaID });
+  return data;
+}
+
 export async function crearCheckoutSession(citaID: number): Promise<{
   url: string | null;
   sessionId: string;
@@ -184,8 +193,18 @@ export async function marcarNotificacionLeida(
 }
 
 export async function fetchSucursales(): Promise<SucursalDto[]> {
-  const { data } = await api.get<SucursalDto[]>("/sucursal");
-  return Array.isArray(data) ? data : [];
+  const rutas = ["/sucursal", "/sucursales"];
+  for (const ruta of rutas) {
+    try {
+      const { data } = await api.get<SucursalDto[]>(ruta);
+      if (Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+    } catch {
+      /* siguiente ruta */
+    }
+  }
+  return [];
 }
 
 export async function fetchEstadisticasPerfil(): Promise<{
