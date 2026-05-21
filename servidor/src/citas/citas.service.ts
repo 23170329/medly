@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,9 +12,13 @@ import { Medico } from '../medicos/entities/medico.entity';
 import { Pago } from '../pagos/entities/pago.entity';
 import { EstadoCita, EstadoPago, EstadoSlot, TipoPago } from '../common/enums';
 import { PagosService } from '../pagos/pagos.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @Injectable()
 export class CitasService {
+  private readonly logger = new Logger(CitasService.name);
+
   constructor(
     @InjectRepository(Cita)
     private readonly citaRepo: Repository<Cita>,
@@ -23,6 +28,8 @@ export class CitasService {
     private readonly pagoRepo: Repository<Pago>,
     private readonly ds: DataSource,
     private readonly pagosService: PagosService,
+    private readonly notificacionesService: NotificacionesService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   async crearReserva(pacienteId: number, slotID: number): Promise<Cita> {
@@ -81,7 +88,7 @@ export class CitasService {
   async misCitas(pacienteId: number): Promise<Cita[]> {
     return this.citaRepo.find({
       where: { pacienteID: pacienteId },
-      relations: ['medico', 'medico.especialidad', 'sucursal', 'slot'],
+      relations: ['medico', 'medico.especialidad', 'sucursal', 'slot', 'pagos'],
       order: { inicio: 'DESC' },
     });
   }
@@ -221,6 +228,7 @@ export class CitasService {
       .leftJoinAndSelect('c.medico', 'm')
       .leftJoinAndSelect('m.especialidad', 'e')
       .leftJoinAndSelect('c.sucursal', 's')
+      .leftJoinAndSelect('c.pagos', 'p')
       .where('c.pacienteID = :pid', { pid: pacienteId })
       .andWhere('c.estado = :est', { est: EstadoCita.CONFIRMADA })
       .andWhere('c.inicio >= :now', { now: new Date() })
@@ -314,7 +322,7 @@ export class CitasService {
   ): Promise<{ mensaje: string; reembolsoProcesado: boolean }> {
     const cita = await this.citaRepo.findOne({
       where: { citaID: citaId, medicoID: medicoId },
-      relations: ['pagos', 'slot'],
+      relations: ['pagos', 'slot', 'medico', 'paciente'],
     });
     if (!cita) {
       throw new NotFoundException('Cita no encontrada');
@@ -356,6 +364,29 @@ export class CitasService {
     if (slot) {
       slot.estado = EstadoSlot.LIBRE;
       await this.slotRepo.save(slot);
+    }
+
+    try {
+      const nombreMedico = cita.medico
+        ? `${cita.medico.nombre} ${cita.medico.apellidoPat}`
+        : 'Médico';
+      const fechaStr = cita.inicio
+        ? new Date(cita.inicio).toLocaleDateString('es-MX', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '';
+      await this.notificacionesService.crear({
+        pacienteID: cita.pacienteID,
+        titulo: 'Cita cancelada',
+        mensaje: `Tu cita con ${nombreMedico} del ${fechaStr} ha sido cancelada por el médico.`,
+      });
+    } catch {
+      this.logger.warn('No se pudo crear notificación de cancelación');
     }
 
     return {

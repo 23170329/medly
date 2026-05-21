@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "module": "commonjs",
+    "moduleResolution": "node",
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -9,6 +10,7 @@
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
+    "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
@@ -17,9 +19,15 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@common/*": ["./src/common/*"],
-      "@config/*": ["./src/config/*"],
-      "@shared/*": ["./src/shared/*"]
+      "@common/*": [
+        "./src/common/*"
+      ],
+      "@config/*": [
+        "./src/config/*"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ]
     }
   }
 }

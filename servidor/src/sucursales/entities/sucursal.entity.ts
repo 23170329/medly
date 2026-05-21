@@ -27,4 +27,10 @@ export class Sucursal {
 
   @Column({ type: 'int', default: 1 })
   capacidadConsultorios!: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  latitud!: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  longitud!: number | null;
 }

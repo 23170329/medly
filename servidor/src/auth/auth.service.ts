@@ -15,6 +15,8 @@ import { CuentaStaff } from '../staff/entities/cuenta-staff.entity';
 import { JwtPayload } from './jwt-payload.interface';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { RegistroDto } from '../usuarios/dto/registro.dto';
+import { AuditoriaService } from '../auditoria/auditoria.service';
+import { Request } from 'express';
 
 export type AuthUsuarioResponse =
   | {
@@ -60,6 +62,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly usuariosService: UsuariosService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   private refreshSecret(): string {
@@ -207,7 +210,10 @@ export class AuthService {
     };
   }
 
-  async registrar(dto: RegistroDto): Promise<AuthTokensResponse> {
+  async registrar(
+    dto: RegistroDto,
+    req?: Request,
+  ): Promise<AuthTokensResponse> {
     await this.usuariosService.registrarPaciente(dto);
     const correoNorm = dto.correoElectronico.trim().toLowerCase();
     const paciente = await this.cuentaUsuarioRepository.manager
@@ -220,6 +226,14 @@ export class AuthService {
     if (!paciente?.cuenta) {
       throw new BadRequestException('No se pudo completar el registro');
     }
+
+    await this.auditoriaService.registrar({
+      tipo: 'REGISTRO_USUARIO',
+      descripcion: `Registro de ${correoNorm}`,
+      usuarioID: paciente.pacienteID,
+      req,
+    });
+
     return this.emitAuthTokensPaciente(
       paciente,
       paciente.cuenta,
@@ -279,23 +293,53 @@ export class AuthService {
     );
   }
 
-  async validarUsuario(
-    correo: string,
-    contrasena: string,
-  ): Promise<AuthTokensResponse> {
-    const correoNorm = correo.trim().toLowerCase();
-
-    const paciente = await this.cuentaUsuarioRepository.manager
+  private async buscarPacientePorIdentificador(
+    identificador: string,
+  ): Promise<Paciente | null> {
+    const idNorm = identificador.trim();
+    const pacientes = await this.cuentaUsuarioRepository.manager
       .createQueryBuilder(Paciente, 'p')
       .innerJoinAndSelect('p.cuenta', 'c')
-      .where('LOWER(TRIM("p"."correoElectronico")) = :email', {
-        email: correoNorm,
-      })
-      .getOne();
+      .where(
+        `LOWER(TRIM("p"."correoElectronico")) = :email
+         OR "p"."curp" = :curp
+         OR "p"."telefono" = :tel`,
+        {
+          email: idNorm.toLowerCase(),
+          curp: idNorm.toUpperCase(),
+          tel: idNorm.replace(/\D/g, ''),
+        },
+      )
+      .getMany();
+
+    for (const p of pacientes) {
+      if (
+        p.correoElectronico.toLowerCase() === idNorm.toLowerCase() ||
+        p.curp === idNorm.toUpperCase() ||
+        p.telefono === idNorm.replace(/\D/g, '')
+      ) {
+        return p;
+      }
+    }
+    return null;
+  }
+
+  async validarUsuario(
+    identificador: string,
+    contrasena: string,
+    req?: Request,
+  ): Promise<AuthTokensResponse> {
+    const paciente = await this.buscarPacientePorIdentificador(identificador);
 
     if (paciente?.cuenta) {
       const ok = await bcrypt.compare(contrasena, paciente.cuenta.password);
       if (ok) {
+        await this.auditoriaService.registrar({
+          tipo: 'LOGIN_EXITOSO',
+          descripcion: `Paciente ${paciente.correoElectronico}`,
+          usuarioID: paciente.pacienteID,
+          req,
+        });
         return this.emitAuthTokensPaciente(
           paciente,
           paciente.cuenta,
@@ -304,20 +348,35 @@ export class AuthService {
       }
     }
 
+    const idNorm = identificador.trim().toLowerCase();
     const staff = await this.cuentaStaffRepository.findOne({
-      where: { correo: correoNorm },
+      where: { correo: idNorm },
       relations: ['medico'],
     });
     if (staff) {
       const ok = await bcrypt.compare(contrasena, staff.password);
       if (ok) {
+        await this.auditoriaService.registrar({
+          tipo: 'LOGIN_EXITOSO',
+          descripcion: `Staff ${staff.correo} (${staff.rol})`,
+          usuarioID: staff.cuentaStaffID,
+          req,
+        });
         return this.emitAuthTokensStaff(staff, 'Login exitoso');
       }
     }
 
+    await this.auditoriaService.registrar({
+      tipo: 'LOGIN_FALLIDO',
+      descripcion: `Intento fallido para "${identificador}"`,
+      req,
+    });
+
     if (process.env.LOGIN_DEBUG === 'true') {
-      this.logger.warn(`Login fallido para "${correoNorm}"`);
+      this.logger.warn(`Login fallido para "${identificador}"`);
     }
-    throw new UnauthorizedException('Correo o contraseña incorrectos');
+    throw new UnauthorizedException(
+      'Correo, CURP o teléfono incorrectos, o contraseña incorrecta',
+    );
   }
 }

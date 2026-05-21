@@ -13,13 +13,15 @@ interface EntradaProps extends TextInputProps {
   etiqueta: string;
   icono?: keyof typeof Ionicons.glyphMap;
   error?: string;
+  mensajeError?: string;
 }
 
-export const Entrada = ({ etiqueta, icono, error, ...props }: EntradaProps) => {
+export const Entrada = ({ etiqueta, icono, error, mensajeError, ...props }: EntradaProps) => {
+  const msg = error ?? mensajeError;
   return (
     <View style={styles.contenedor}>
       <Text style={styles.etiqueta}>{etiqueta}</Text>
-      <View style={[styles.contenedorInput, error && styles.inputError]}>
+      <View style={[styles.contenedorInput, msg && styles.inputError]}>
         {icono && (
           <Ionicons
             name={icono}
@@ -30,11 +32,11 @@ export const Entrada = ({ etiqueta, icono, error, ...props }: EntradaProps) => {
         )}
         <TextInput
           style={styles.input}
-          placeholderTextColor="#A0A0A0"
+          placeholderTextColor={COLORES.textoPlaceholder}
           {...props}
         />
       </View>
-      {error && <Text style={styles.textoError}>{error}</Text>}
+      {msg && <Text style={styles.textoError}>{msg}</Text>}
     </View>
   );
 };

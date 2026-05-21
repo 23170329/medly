@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { ContentTypeGuard } from './common/guards/content-type.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -27,8 +30,12 @@ import { Pago } from './pagos/entities/pago.entity';
 import { CuentaStaff } from './staff/entities/cuenta-staff.entity';
 import { BloqueoAgenda } from './horarios/entities/bloqueo-agenda.entity';
 import { ConsultaClinica } from './consultas/entities/consulta-clinica.entity';
+import { Notificacion } from './notificaciones/entities/notificacion.entity';
+import { Auditoria } from './auditoria/entities/auditoria.entity';
 import { RecepcionModule } from './recepcion/recepcion.module';
 import { MedicoPanelModule } from './medico-panel/medico-panel.module';
+import { NotificacionesModule } from './notificaciones/notificaciones.module';
+import { AuditoriaModule } from './auditoria/auditoria.module';
 
 const entities = [
   Paciente,
@@ -46,10 +53,24 @@ const entities = [
   Cita,
   Pago,
   ConsultaClinica,
+  Notificacion,
+  Auditoria,
 ];
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        name: 'general',
+        ttl: 60_000,
+        limit: 60,
+      },
+      {
+        name: 'auth',
+        ttl: 60_000,
+        limit: 10,
+      },
+    ]),
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: envValidationSchema,
@@ -69,7 +90,7 @@ const entities = [
             password: parsed.password,
             database: parsed.pathname.slice(1),
             entities,
-            synchronize: true, // <-- CAMBIADO A TRUE
+            synchronize: true,
             logging: config.get('NODE_ENV') === 'development',
           };
         }
@@ -81,7 +102,7 @@ const entities = [
           password: config.get<string>('DB_PASS'),
           database: config.get<string>('DB_NAME'),
           entities,
-          synchronize: true, // <-- CAMBIADO A TRUE
+          synchronize: true,
           logging: config.get('NODE_ENV') === 'development',
         };
       },
@@ -96,8 +117,20 @@ const entities = [
     PagosModule,
     RecepcionModule,
     MedicoPanelModule,
+    NotificacionesModule,
+    AuditoriaModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ContentTypeGuard,
+    },
+  ],
 })
 export class AppModule {}

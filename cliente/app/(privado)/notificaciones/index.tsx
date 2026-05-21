@@ -1,0 +1,206 @@
+import React, { useCallback, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+} from "react-native";
+import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { COLORES, paleta, BORDES } from "../../../constants/theme";
+import {
+  fetchNotificaciones,
+  marcarNotificacionLeida,
+  type NotificacionDto,
+} from "../../../lib/medlyApi";
+
+export default function NotificacionesPantalla(): React.JSX.Element {
+  const [lista, setLista] = useState<NotificacionDto[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    try {
+      const data = await fetchNotificaciones();
+      setLista(data);
+    } catch {
+      setLista([]);
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void cargar();
+    }, [cargar]),
+  );
+
+  const handleMarcarLeida = async (id: number): Promise<void> => {
+    try {
+      await marcarNotificacionLeida(id);
+      setLista((prev) =>
+        prev.map((n) =>
+          n.notificacionID === id ? { ...n, leida: true } : n,
+        ),
+      );
+    } catch {
+      /* ignore */
+    }
+  };
+
+  return (
+    <SafeAreaView style={estilos.area}>
+      <View style={estilos.header}>
+        <TouchableOpacity onPress={() => router.back()} style={estilos.back}>
+          <Ionicons name="chevron-back" size={24} color={paleta.white} />
+        </TouchableOpacity>
+        <Text style={estilos.titulo}>NOTIFICACIONES</Text>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={estilos.scroll}
+        refreshControl={
+          <RefreshControl refreshing={cargando} onRefresh={() => void cargar()} />
+        }
+      >
+        {cargando && lista.length === 0 ? (
+          <ActivityIndicator style={{ marginTop: 40 }} color={paleta.navy} />
+        ) : lista.length === 0 ? (
+          <View style={estilos.vacio}>
+            <Ionicons
+              name="notifications-off-outline"
+              size={56}
+              color={paleta.skyblue}
+            />
+            <Text style={estilos.vacioTitulo}>Sin notificaciones</Text>
+            <Text style={estilos.vacioSub}>
+              No tienes notificaciones pendientes
+            </Text>
+          </View>
+        ) : (
+          lista.map((n) => (
+            <TouchableOpacity
+              key={n.notificacionID}
+              style={[estilos.card, !n.leida && estilos.cardNoLeida]}
+              onPress={() => void handleMarcarLeida(n.notificacionID)}
+              accessibilityRole="button"
+            >
+              <View style={estilos.cardHeader}>
+                <View
+                  style={[
+                    estilos.dot,
+                    { backgroundColor: n.leida ? "transparent" : paleta.teal },
+                  ]}
+                />
+                <Text
+                  style={[
+                    estilos.cardTitulo,
+                    !n.leida && estilos.cardTituloNoLeida,
+                  ]}
+                >
+                  {n.titulo}
+                </Text>
+              </View>
+              <Text style={estilos.cardMensaje}>{n.mensaje}</Text>
+              <Text style={estilos.cardFecha}>
+                {new Date(n.fechaCreacion).toLocaleDateString("es-MX", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </Text>
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const estilos = StyleSheet.create({
+  area: { flex: 1, backgroundColor: COLORES.fondo },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  back: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: paleta.teal,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  titulo: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: paleta.navy,
+    letterSpacing: 1,
+  },
+  scroll: { padding: 24, paddingBottom: 48 },
+  card: {
+    backgroundColor: paleta.white,
+    borderRadius: BORDES.radio,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: "transparent",
+  },
+  cardNoLeida: {
+    borderLeftColor: paleta.teal,
+    backgroundColor: "#F0F7FA",
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  cardTitulo: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: paleta.navy,
+  },
+  cardTituloNoLeida: {
+    fontWeight: "800",
+  },
+  cardMensaje: {
+    fontSize: 13,
+    color: "#666",
+    lineHeight: 19,
+    marginBottom: 8,
+  },
+  cardFecha: {
+    fontSize: 11,
+    color: paleta.teal,
+    fontWeight: "500",
+  },
+  vacio: { alignItems: "center", paddingTop: 60 },
+  vacioTitulo: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: paleta.navy,
+    marginTop: 16,
+  },
+  vacioSub: {
+    fontSize: 14,
+    color: paleta.teal,
+    marginTop: 6,
+  },
+});

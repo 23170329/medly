@@ -163,6 +163,20 @@ export default function CitaDetallePantalla(): React.JSX.Element {
             Total: ${cita.montoTotal} MXN · Anticipo (50%): ${cita.montoAnticipo}{" "}
             MXN
           </Text>
+          {(cita.pagos ?? []).some(
+            (p) => p.tipo === "ANTICIPO_50" && p.estado === "COMPLETADO",
+          ) && (
+            <View style={estilos.anticipoPagado}>
+              <Ionicons
+                name="checkmark-circle"
+                size={16}
+                color={COLORES.exito}
+              />
+              <Text style={estilos.anticipoPagadoTexto}>
+                Anticipo realizado
+              </Text>
+            </View>
+          )}
         </View>
 
         {(cita.estado === "CONFIRMADA" || cita.estado === "PENDIENTE_PAGO") && (
@@ -291,5 +305,21 @@ const estilos = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: paleta.red,
+  },
+  anticipoPagado: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    backgroundColor: "#DCF0E4",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: BORDES.radio,
+    alignSelf: "flex-start",
+  },
+  anticipoPagadoTexto: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: paleta.green,
   },
 });

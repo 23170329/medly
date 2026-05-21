@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -14,25 +14,52 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Entrada } from "../../componentes/comunes/Entrada";
 import { Boton } from "../../componentes/comunes/Boton";
-import { COLORES } from "../../constants/theme";
+import { COLORES, BORDES } from "../../constants/theme";
 import { useAuthStore, type Usuario } from "../../stores/auth.store";
 
 import { API_URL } from "../../constants/api";
 import {
   normalizarCurp,
-  validarPasoAcceso,
-  validarPasoDatosPersonales,
+  validarCoherenciaCurp,
+  validarPasoAccesoDetallado,
+  validarPasoDatosPersonalesDetallado,
+  type ErroresPaso,
 } from "../../lib/validacionRegistro";
+
+function RequisitoContra({
+  cumple,
+  texto,
+}: {
+  cumple: boolean;
+  texto: string;
+}): React.JSX.Element {
+  return (
+    <View style={styles.reqRow}>
+      <Ionicons
+        name={cumple ? "checkmark-circle" : "ellipse-outline"}
+        size={16}
+        color={cumple ? COLORES.exito : COLORES.textoMuted}
+      />
+      <Text
+        style={[
+          styles.reqTexto,
+          { color: cumple ? COLORES.exito : COLORES.textoMuted },
+        ]}
+      >
+        {texto}
+      </Text>
+    </View>
+  );
+}
 
 export default function RegistroScreen() {
   const [paso, setPaso] = useState(1);
 
-  // Estados para guardar la información del formulario
   const [nombres, setNombres] = useState("");
   const [apellidoPaterno, setApellidoPaterno] = useState("");
   const [apellidoMaterno, setApellidoMaterno] = useState("");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
-  const [fecha, setFecha] = useState(new Date()); // Guarda la fecha real
+  const [fecha, setFecha] = useState(new Date());
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [genero, setGenero] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -43,6 +70,12 @@ export default function RegistroScreen() {
   const [avisoPrivacidad, setAvisoPrivacidad] = useState(false);
   const [consentimiento, setConsentimiento] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
+
+  const [erroresP1, setErroresP1] = useState<ErroresPaso>({});
+  const [erroresP2, setErroresP2] = useState<ErroresPaso>({});
+  const [errorCurpCoherencia, setErrorCurpCoherencia] = useState<
+    string | null
+  >(null);
 
   const seleccionarFecha = (event: any, fechaSeleccionada?: Date) => {
     setMostrarCalendario(false);
@@ -60,7 +93,7 @@ export default function RegistroScreen() {
   };
 
   const handleRegistro = async () => {
-    const errP1 = validarPasoDatosPersonales({
+    const errP1 = validarPasoDatosPersonalesDetallado({
       nombres,
       apellidoPaterno,
       apellidoMaterno,
@@ -68,19 +101,38 @@ export default function RegistroScreen() {
       genero,
       curp,
     });
-    if (errP1) {
-      Alert.alert("Revisa tus datos", errP1);
+    const tieneErrorP1 = Object.values(errP1).some(Boolean);
+    setErroresP1(errP1);
+
+    if (tieneErrorP1) {
+      setPaso(1);
       return;
     }
-    const errP2 = validarPasoAcceso({
+
+    const errCurp = validarCoherenciaCurp({
+      curp,
+      nombres,
+      apellidoPaterno,
+      apellidoMaterno,
+      fechaNacimiento,
+    });
+    setErrorCurpCoherencia(errCurp);
+    if (errCurp) {
+      setPaso(1);
+      return;
+    }
+
+    const errP2 = validarPasoAccesoDetallado({
       telefono,
       correo,
       contrasena,
       confirmarContrasena,
     });
-    if (errP2) {
-      Alert.alert("Revisa tus datos", errP2);
-      setPaso(3);
+    const tieneErrorP2 = Object.values(errP2).some(Boolean);
+    setErroresP2(errP2);
+
+    if (tieneErrorP2) {
+      setPaso(2);
       return;
     }
 
@@ -105,7 +157,7 @@ export default function RegistroScreen() {
           correoElectronico: correo.trim().toLowerCase(),
           telefono: telefono.replace(/\D/g, ""),
           fechaNacimiento: fechaNac,
-          genero,
+          genero: genero.trim().toUpperCase(),
           curp: normalizarCurp(curp),
           password: contrasena,
         }),
@@ -146,7 +198,7 @@ export default function RegistroScreen() {
 
   const avanzarPaso = (): void => {
     if (paso === 1) {
-      const err = validarPasoDatosPersonales({
+      const err = validarPasoDatosPersonalesDetallado({
         nombres,
         apellidoPaterno,
         apellidoMaterno,
@@ -154,41 +206,52 @@ export default function RegistroScreen() {
         genero,
         curp,
       });
-      if (err) {
-        Alert.alert("Revisa tus datos", err);
-        setPaso(1);
-        return;
-      }
+      setErroresP1(err);
+      const tieneError = Object.values(err).some(Boolean);
+      if (tieneError) return;
+
+      const errCurp = validarCoherenciaCurp({
+        curp,
+        nombres,
+        apellidoPaterno,
+        apellidoMaterno,
+        fechaNacimiento,
+      });
+      setErrorCurpCoherencia(errCurp);
+      if (errCurp) return;
     }
     if (paso === 2) {
-      const err = validarPasoAcceso({
+      const err = validarPasoAccesoDetallado({
         telefono,
         correo,
         contrasena,
         confirmarContrasena,
       });
-      if (err) {
-        Alert.alert("Revisa tus datos", err);
-         setPaso(2);
-        return;
-      }
+      setErroresP2(err);
+      const tieneError = Object.values(err).some(Boolean);
+      if (tieneError) return;
     }
     setPaso((p) => p + 1);
   };
 
+  const retrocederPaso = (): void => {
+    setPaso((p) => Math.max(1, p - 1));
+  };
+
   const finalizarRegistro = () => router.replace("/(privado)/inicio");
 
-const validarContra =  () => {
-       if (contrasena !== confirmarContrasena) 
-        {
-        alert("Las contraseñas no coinciden");
-        }
-        else {
-          setPaso(3);
-        }
-      return;
-    }
-  
+  const reqsContra = useMemo(
+    () => [
+      { cumple: contrasena.length >= 8, texto: "Mínimo 8 caracteres" },
+      {
+        cumple: /(?=.*[A-Za-zÁÉÍÓÚÑáéíóúñ])/.test(contrasena),
+        texto: "Al menos una letra",
+      },
+      { cumple: /(?=.*\d)/.test(contrasena), texto: "Al menos un número" },
+    ],
+    [contrasena],
+  );
+
   const IndicadorPasos = () => (
     <View style={styles.contenedorIndicador}>
       {[1, 2, 3].map((num) => (
@@ -203,7 +266,6 @@ const validarContra =  () => {
   return (
     <SafeAreaView style={styles.areaSegura}>
       <ScrollView contentContainerStyle={styles.contenedorScroll}>
-        {/* Cabecera dinámica: Muestra el logo y los pasos solo si no es la pantalla de éxito */}
         {paso < 4 && (
           <View style={styles.encabezado}>
             <Image
@@ -222,36 +284,51 @@ const validarContra =  () => {
           </View>
         )}
 
-        {/* --- PASO 1: DATOS PERSONALES --- */}
+        {/* PASO 1: DATOS PERSONALES */}
         {paso === 1 && (
           <View style={styles.formulario}>
             <Entrada
               etiqueta="NOMBRES"
               placeholder="Nombres"
               value={nombres}
-              onChangeText={setNombres}
+              onChangeText={(t) => {
+                setNombres(t);
+                setErroresP1((p) => ({ ...p, nombres: null }));
+              }}
+              mensajeError={erroresP1.nombres ?? undefined}
             />
             <Entrada
               etiqueta="APELLIDO PATERNO (obligatorio)"
               placeholder="Apellido Paterno"
               value={apellidoPaterno}
-              onChangeText={setApellidoPaterno}
+              onChangeText={(t) => {
+                setApellidoPaterno(t);
+                setErroresP1((p) => ({ ...p, apellidoPaterno: null }));
+              }}
+              mensajeError={erroresP1.apellidoPaterno ?? undefined}
             />
             <Entrada
               etiqueta="APELLIDO MATERNO"
               placeholder="Apellido materno"
               value={apellidoMaterno}
-              onChangeText={setApellidoMaterno}
+              onChangeText={(t) => {
+                setApellidoMaterno(t);
+                setErroresP1((p) => ({ ...p, apellidoMaterno: null }));
+              }}
+              mensajeError={erroresP1.apellidoMaterno ?? undefined}
             />
             <Entrada
               etiqueta="CURP"
               placeholder="18 caracteres alfanuméricos"
               value={curp}
-              onChangeText={(t) =>
-                setCurp(t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18))
-              }
+              onChangeText={(t) => {
+                setCurp(t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18));
+                setErroresP1((p) => ({ ...p, curp: null }));
+                setErrorCurpCoherencia(null);
+              }}
               maxLength={18}
               autoCapitalize="characters"
+              mensajeError={erroresP1.curp ?? errorCurpCoherencia ?? undefined}
             />
 
             <View style={styles.fila}>
@@ -263,8 +340,9 @@ const validarContra =  () => {
                       placeholder="AAAA/MM/DD"
                       icono="calendar-outline"
                       value={fechaNacimiento}
-                      editable={false} // Evita la edición manual
+                      editable={false}
                       onChangeText={setFechaNacimiento}
+                      mensajeError={erroresP1.fechaNacimiento ?? undefined}
                     />
                   </View>
                 </TouchableOpacity>
@@ -273,7 +351,7 @@ const validarContra =  () => {
                     value={fecha}
                     mode="date"
                     display="default"
-                    maximumDate={new Date()} // Opcional: evita elegir fechas futuras
+                    maximumDate={new Date()}
                     onChange={seleccionarFecha}
                   />
                 )}
@@ -282,73 +360,62 @@ const validarContra =  () => {
                 <Text style={styles.etiqueta}>GÉNERO</Text>
                 <View style={styles.contenedorGenero}>
                   <TouchableOpacity
+                    activeOpacity={0.85}
                     style={[
-                      styles.botonGenero,
-                      genero === "M" && styles.botonGeneroActivo,
+                      styles.tarjetaGenero,
+                      genero === "H" && styles.tarjetaGeneroActiva,
                     ]}
-                    onPress={() => setGenero("M")}
-                  >
-                    <Ionicons
-                      name="male-outline"
-                      size={24}
-                      color={genero === "M" ? COLORES.blanco : COLORES.texto}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.botonGenero,
-                      genero === "F" && styles.botonGeneroActivo,
-                    ]}
-                    onPress={() => setGenero("F")}
-                  >
-                    <Ionicons
-                      name="female-outline"
-                      size={24}
-                      color={genero === "F" ? COLORES.blanco : COLORES.texto}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.botonGenero,
-                      genero === "X" && styles.botonGeneroActivo,
-                    ]}
-                    onPress={() => setGenero("X")}
+                    onPress={() => {
+                      setGenero("H");
+                      setErroresP1((p) => ({ ...p, genero: null }));
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Hombre"
+                    accessibilityState={{ selected: genero === "H" }}
                   >
                     <Text
-                      style={{
-                        fontWeight: "700",
-                        color: genero === "X" ? COLORES.blanco : COLORES.texto,
-                      }}
+                      style={[
+                        styles.generoLetra,
+                        genero === "H" && styles.generoLetraActiva,
+                      ]}
                     >
-                      X
+                      H
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
+                    activeOpacity={0.85}
                     style={[
-                      styles.botonGenero,
-                      genero === "OTRO" && styles.botonGeneroActivo,
+                      styles.tarjetaGenero,
+                      genero === "M" && styles.tarjetaGeneroActiva,
                     ]}
-                    onPress={() => setGenero("OTRO")}
+                    onPress={() => {
+                      setGenero("M");
+                      setErroresP1((p) => ({ ...p, genero: null }));
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Mujer"
+                    accessibilityState={{ selected: genero === "M" }}
                   >
                     <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: "700",
-                        color:
-                          genero === "OTRO" ? COLORES.blanco : COLORES.texto,
-                      }}
+                      style={[
+                        styles.generoLetra,
+                        genero === "M" && styles.generoLetraActiva,
+                      ]}
                     >
-                      Otro
+                      M
                     </Text>
                   </TouchableOpacity>
                 </View>
+                {erroresP1.genero && (
+                  <Text style={styles.errorTexto}>{erroresP1.genero}</Text>
+                )}
               </View>
             </View>
             <Boton titulo="CONTINUAR →" alPresionar={avanzarPaso} />
           </View>
         )}
 
-        {/* --- PASO 2: DATOS DE ACCESO --- */}
+        {/* PASO 2: DATOS DE ACCESO */}
         {paso === 2 && (
           <View style={styles.formulario}>
             <Entrada
@@ -357,7 +424,11 @@ const validarContra =  () => {
               icono="call-outline"
               keyboardType="phone-pad"
               value={telefono}
-              onChangeText={setTelefono}
+              onChangeText={(t) => {
+                setTelefono(t);
+                setErroresP2((p) => ({ ...p, telefono: null }));
+              }}
+              mensajeError={erroresP2.telefono ?? undefined}
             />
             <Entrada
               etiqueta="CORREO ELECTRÓNICO"
@@ -366,7 +437,11 @@ const validarContra =  () => {
               keyboardType="email-address"
               autoCapitalize="none"
               value={correo}
-              onChangeText={setCorreo}
+              onChangeText={(t) => {
+                setCorreo(t);
+                setErroresP2((p) => ({ ...p, correo: null }));
+              }}
+              mensajeError={erroresP2.correo ?? undefined}
             />
             <Entrada
               etiqueta="CONTRASEÑA"
@@ -374,22 +449,46 @@ const validarContra =  () => {
               icono="lock-closed-outline"
               secureTextEntry
               value={contrasena}
-              onChangeText={setContrasena}
+              onChangeText={(t) => {
+                setContrasena(t);
+                setErroresP2((p) => ({ ...p, contrasena: null }));
+              }}
+              mensajeError={erroresP2.contrasena ?? undefined}
             />
+            <View style={styles.reqsContainer}>
+              {reqsContra.map((r) => (
+                <RequisitoContra key={r.texto} cumple={r.cumple} texto={r.texto} />
+              ))}
+            </View>
             <Entrada
               etiqueta="CONFIRMAR CONTRASEÑA"
               placeholder="********"
               icono="lock-closed-outline"
               secureTextEntry
               value={confirmarContrasena}
-              onChangeText={setConfirmarContrasena}
+              onChangeText={(t) => {
+                setConfirmarContrasena(t);
+                setErroresP2((p) => ({ ...p, confirmarContrasena: null }));
+              }}
+              mensajeError={erroresP2.confirmarContrasena ?? undefined}
             />
 
-            <Boton titulo="CONTINUAR →" alPresionar={validarContra} />
+            <View style={styles.botonesPaso}>
+              <TouchableOpacity
+                style={styles.btnRegresar}
+                onPress={retrocederPaso}
+              >
+                <Ionicons name="chevron-back" size={20} color={COLORES.texto} />
+                <Text style={styles.btnRegresarTexto}>REGRESAR</Text>
+              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Boton titulo="CONTINUAR →" alPresionar={avanzarPaso} />
+              </View>
+            </View>
           </View>
         )}
 
-        {/* --- PASO 3: ASPECTOS LEGALES --- */}
+        {/* PASO 3: ASPECTOS LEGALES */}
         {paso === 3 && (
           <View style={styles.formulario}>
             <TouchableOpacity
@@ -432,13 +531,22 @@ const validarContra =  () => {
               </Text>
             </TouchableOpacity>
 
-            <View style={{ marginTop: 40 }}>
-              <Boton titulo="FINALIZAR →" alPresionar={handleRegistro} />
+            <View style={styles.botonesPaso}>
+              <TouchableOpacity
+                style={styles.btnRegresar}
+                onPress={retrocederPaso}
+              >
+                <Ionicons name="chevron-back" size={20} color={COLORES.texto} />
+                <Text style={styles.btnRegresarTexto}>REGRESAR</Text>
+              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Boton titulo="FINALIZAR →" alPresionar={handleRegistro} />
+              </View>
             </View>
           </View>
         )}
 
-        {/* --- PASO 4: ÉXITO --- */}
+        {/* PASO 4: ÉXITO */}
         {paso === 4 && (
           <View style={styles.contenedorExito}>
             <View style={styles.circuloExito}>
@@ -479,7 +587,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     marginBottom: 16,
-    borderRadius: 50, // Hace que la imagen se vea circular si es cuadrada
+    borderRadius: 50,
   },
   tituloPaso: {
     fontSize: 14,
@@ -520,21 +628,32 @@ const styles = StyleSheet.create({
   },
   contenedorGenero: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: COLORES.blanco,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORES.skyblue,
-    height: 50,
-  },
-  botonGenero: {
-    flex: 1,
-    justifyContent: "center",
+    gap: 12,
     alignItems: "center",
-    borderRadius: 12,
   },
-  botonGeneroActivo: {
+  tarjetaGenero: {
+    flex: 1,
+    height: 50,
+    paddingHorizontal: 12,
+    borderRadius: BORDES.radio,
+    backgroundColor: COLORES.blanco,
+    borderWidth: 1,
+    borderColor: COLORES.grisClaro,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tarjetaGeneroActiva: {
     backgroundColor: COLORES.primario,
+    borderColor: COLORES.primario,
+  },
+  generoLetra: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    color: COLORES.textoPlaceholder,
+  },
+  generoLetraActiva: {
+    color: COLORES.blanco,
   },
   contenedorCheckbox: {
     flexDirection: "row",
@@ -588,5 +707,42 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     paddingHorizontal: 20,
+  },
+  errorTexto: {
+    fontSize: 12,
+    color: COLORES.peligro,
+    marginTop: 4,
+  },
+  reqsContainer: {
+    marginBottom: 16,
+    marginTop: -8,
+    paddingHorizontal: 4,
+  },
+  reqRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  reqTexto: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  botonesPaso: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 16,
+  },
+  btnRegresar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  btnRegresarTexto: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORES.texto,
   },
 });

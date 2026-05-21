@@ -8,12 +8,30 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Linking,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import { fetchSucursales, type SucursalDto } from "../../../lib/medlyApi";
+
+function abrirMapa(s: SucursalDto): void {
+  if (s.latitud && s.longitud) {
+    const url = `https://www.google.com/maps?q=${s.latitud},${s.longitud}`;
+    Linking.openURL(url).catch(() =>
+      Alert.alert("Error", "No se pudo abrir el mapa."),
+    );
+  } else {
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      `${s.nombre} ${s.direccion}`,
+    )}`;
+    Linking.openURL(url).catch(() =>
+      Alert.alert("Error", "No se pudo abrir el mapa."),
+    );
+  }
+}
 
 export default function SucursalesPantalla(): React.JSX.Element {
   const [lista, setLista] = useState<SucursalDto[]>([]);
@@ -70,6 +88,15 @@ export default function SucursalesPantalla(): React.JSX.Element {
                 <Text style={estilos.cap}>
                   Consultorios: {s.capacidadConsultorios}
                 </Text>
+                <TouchableOpacity
+                  style={estilos.btnMapa}
+                  onPress={() => abrirMapa(s)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ver ${s.nombre} en mapa`}
+                >
+                  <Ionicons name="map-outline" size={14} color={paleta.teal} />
+                  <Text style={estilos.btnMapaTexto}>Ver en mapa</Text>
+                </TouchableOpacity>
               </View>
             </View>
           ))
@@ -134,4 +161,21 @@ const estilos = StyleSheet.create({
   },
   tel: { fontSize: 13, color: paleta.navy },
   cap: { fontSize: 12, color: paleta.teal, marginTop: 6 },
+  btnMapa: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: BORDES.radio,
+    borderWidth: 1,
+    borderColor: paleta.teal,
+    alignSelf: "flex-start",
+  },
+  btnMapaTexto: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: paleta.teal,
+  },
 });
