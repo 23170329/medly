@@ -64,7 +64,8 @@ Usan `DATABASE_URL` de `servidor/.env`.
 |-----|--------|------------|
 | Médico | `doctor@medly.d` | `DoctorMedly1!` |
 | Médico | `adriana@medly.d` | `12345678a` |
-| Recepción | `recepcion@medly.r` | `RecepMedly1!` |
+| Recepción Norte | `recepcion@medly.r` | `RecepMedly1!` |
+| Recepción Sur | `recepcion.sur@medly.r` | `RecepMedly1!` |
 
 Si el login devuelve 401 en Railway, casi siempre falta ejecutar `npm run seed` contra la misma `DATABASE_URL` del despliegue.
 

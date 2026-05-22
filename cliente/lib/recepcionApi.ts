@@ -57,6 +57,53 @@ export function fetchCitasRecepcion(token: string): Promise<CitaMedicoDto[]> {
   return recepcionFetch("/recepcion/citas", token);
 }
 
+export interface CitaRecepcionDetalleDto extends CitaMedicoDto {
+  pagos?: Array<{
+    pagoID: number;
+    monto: string;
+    tipo: string;
+    estado: string;
+  }>;
+}
+
+export function fetchCitaRecepcion(
+  token: string,
+  citaId: number,
+): Promise<CitaRecepcionDetalleDto> {
+  return recepcionFetch(`/recepcion/citas/${citaId}`, token);
+}
+
+export function crearReservaRecepcion(
+  token: string,
+  pacienteId: number,
+  slotID: number,
+): Promise<CitaMedicoDto> {
+  return recepcionFetch("/recepcion/citas/reserva", token, {
+    method: "POST",
+    body: JSON.stringify({ pacienteId, slotID }),
+  });
+}
+
+export function marcarAnticipoRecepcion(
+  token: string,
+  citaID: number,
+): Promise<{ citaID: number; estado: string }> {
+  return recepcionFetch("/recepcion/pagos/anticipo-realizado", token, {
+    method: "POST",
+    body: JSON.stringify({ citaID }),
+  });
+}
+
+export function crearCheckoutRecepcion(
+  token: string,
+  citaID: number,
+): Promise<{ url: string | null; sessionId: string }> {
+  return recepcionFetch("/recepcion/pagos/checkout-session", token, {
+    method: "POST",
+    body: JSON.stringify({ citaID }),
+  });
+}
+
 export function fetchPacienteRecepcion(
   token: string,
   pacienteId: number,

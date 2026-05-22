@@ -303,9 +303,12 @@ export class CitasService {
     });
   }
 
-  /** Agenda de recepción: citas futuras confirmadas o en proceso de pago. */
-  async listarCitasRecepcion(limite = 80): Promise<Cita[]> {
-    return this.citaRepo
+  /** Agenda de recepción; opcionalmente solo la sucursal asignada al staff. */
+  async listarCitasRecepcion(
+    sucursalId?: number | null,
+    limite = 80,
+  ): Promise<Cita[]> {
+    const qb = this.citaRepo
       .createQueryBuilder('c')
       .leftJoinAndSelect('c.paciente', 'p')
       .leftJoinAndSelect('c.medico', 'm')
@@ -318,10 +321,51 @@ export class CitasService {
           EstadoCita.PENDIENTE_PAGO,
           EstadoCita.ANTICIPO_REALIZADO,
         ],
-      })
-      .orderBy('c.inicio', 'ASC')
-      .take(limite)
-      .getMany();
+      });
+    if (sucursalId != null) {
+      qb.andWhere('c.sucursalID = :sid', { sid: sucursalId });
+    }
+    return qb.orderBy('c.inicio', 'ASC').take(limite).getMany();
+  }
+
+  async obtenerCitaRecepcion(
+    citaId: number,
+    sucursalId?: number | null,
+  ): Promise<Cita> {
+    const c = await this.citaRepo.findOne({
+      where: { citaID: citaId },
+      relations: [
+        'paciente',
+        'medico',
+        'medico.especialidad',
+        'sucursal',
+        'slot',
+        'pagos',
+      ],
+    });
+    if (!c) {
+      throw new NotFoundException('Cita no encontrada');
+    }
+    if (sucursalId != null && c.sucursalID !== sucursalId) {
+      throw new NotFoundException('Cita no encontrada en tu sucursal');
+    }
+    return c;
+  }
+
+  async asegurarSlotEnSucursal(
+    slotID: number,
+    sucursalId: number | null,
+  ): Promise<SlotAgenda> {
+    const slot = await this.slotRepo.findOne({ where: { slotID } });
+    if (!slot) {
+      throw new NotFoundException('Horario no encontrado');
+    }
+    if (sucursalId != null && slot.sucursalID !== sucursalId) {
+      throw new BadRequestException(
+        'Este horario no pertenece a tu sucursal asignada',
+      );
+    }
+    return slot;
   }
 
   async listarCitasMedico(medicoId: number): Promise<Cita[]> {

@@ -59,7 +59,10 @@ export default function RecepcionAgenda(): React.JSX.Element {
           onPerfil={() => router.push("/(recepcion)/perfil")}
         />
 
-        <Text style={estilos.tituloSec}>AGENDA</Text>
+        <Text style={estilos.tituloSec}>
+          AGENDA
+          {usuario?.sucursalNombre ? ` · ${usuario.sucursalNombre}` : ""}
+        </Text>
 
         {citas.length === 0 ? (
           <View style={estilos.vacio}>
@@ -79,30 +82,56 @@ export default function RecepcionAgenda(): React.JSX.Element {
           citas.map((c) => {
             const ini = new Date(c.inicio);
             return (
-              <TouchableOpacity key={c.citaID} style={estilos.fila} activeOpacity={0.7}>
-                <View style={estilos.filaIzq}>
-                  <Text style={estilos.fecha}>
-                    {ini
-                      .toLocaleDateString("es-MX", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                      })
-                      .toUpperCase()}
-                  </Text>
-                  <Text style={estilos.hora}>
-                    {ini.toLocaleTimeString("es-MX", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={estilos.consulta}>Consulta médica</Text>
-                  <Text style={estilos.paciente}>{nombrePaciente(c.paciente)}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={paleta.teal} />
-              </TouchableOpacity>
+              <View key={c.citaID} style={estilos.fila}>
+                <TouchableOpacity
+                  style={estilos.filaContenido}
+                  activeOpacity={0.7}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(recepcion)/citas/[id]",
+                      params: { id: String(c.citaID) },
+                    })
+                  }
+                >
+                  <View style={estilos.filaIzq}>
+                    <Text style={estilos.fecha}>
+                      {ini
+                        .toLocaleDateString("es-MX", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                        })
+                        .toUpperCase()}
+                    </Text>
+                    <Text style={estilos.hora}>
+                      {ini.toLocaleTimeString("es-MX", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={estilos.consulta}>Consulta médica</Text>
+                    <Text style={estilos.paciente}>{nombrePaciente(c.paciente)}</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={estilos.btnLlamar}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(recepcion)/citas/[id]/llamar",
+                      params: {
+                        id: String(c.citaID),
+                        telefono: c.paciente?.telefono ?? "",
+                        paciente: nombrePaciente(c.paciente),
+                      },
+                    })
+                  }
+                  accessibilityLabel="Llamar para confirmar"
+                >
+                  <Ionicons name="chevron-forward" size={20} color={paleta.teal} />
+                </TouchableOpacity>
+              </View>
             );
           })
         )}
@@ -156,10 +185,22 @@ const estilos = StyleSheet.create({
     alignItems: "center",
     backgroundColor: paleta.white,
     borderRadius: BORDES.radio,
-    padding: 14,
     marginBottom: 10,
-    gap: 12,
     elevation: 1,
+    overflow: "hidden",
+  },
+  filaContenido: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    gap: 12,
+  },
+  btnLlamar: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderLeftWidth: 1,
+    borderLeftColor: paleta.skyblue,
   },
   filaIzq: { alignItems: "center", minWidth: 72 },
   fecha: { fontSize: 11, fontWeight: "800", color: paleta.teal },

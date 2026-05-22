@@ -194,22 +194,46 @@ async function seed(): Promise<void> {
   const passRep = await bcrypt.hash('RecepMedly1!', 10);
   const passDoc = await bcrypt.hash('DoctorMedly1!', 10);
 
+  const norte = sucursales.find((s) => s.nombre.includes('Norte'))!;
+  const sur = sucursales.find((s) => s.nombre.includes('Sur'))!;
+
   let recep = await staffRepo.findOne({ where: { correo: 'recepcion@medly.r' } });
   if (!recep) {
     recep = staffRepo.create({
-      nombre: 'Recepción Demo',
+      nombre: 'Lucia',
       correo: 'recepcion@medly.r',
       password: passRep,
       rol: 'RECEPCIONISTA',
       medico: null,
+      sucursalID: norte.sucursalID,
     });
   } else {
-    recep.nombre = 'Recepción Demo';
+    recep.nombre = 'Lucia';
     recep.password = passRep;
     recep.rol = 'RECEPCIONISTA';
     recep.medico = null;
+    recep.sucursalID = norte.sucursalID;
   }
   await staffRepo.save(recep);
+
+  let recepSur = await staffRepo.findOne({
+    where: { correo: 'recepcion.sur@medly.r' },
+  });
+  if (!recepSur) {
+    recepSur = staffRepo.create({
+      nombre: 'Recepción Sur',
+      correo: 'recepcion.sur@medly.r',
+      password: passRep,
+      rol: 'RECEPCIONISTA',
+      medico: null,
+      sucursalID: sur.sucursalID,
+    });
+  } else {
+    recepSur.password = passRep;
+    recepSur.sucursalID = sur.sucursalID;
+    recepSur.rol = 'RECEPCIONISTA';
+  }
+  await staffRepo.save(recepSur);
 
   if (med) {
     let doctor = await staffRepo.findOne({
@@ -232,7 +256,7 @@ async function seed(): Promise<void> {
     }
     await staffRepo.save(doctor);
     console.log(
-      'Cuentas staff (login app): recepcion@medly.r / RecepMedly1! · doctor@medly.d / DoctorMedly1!',
+      'Cuentas staff: recepcion@medly.r (Norte) / recepcion.sur@medly.r (Sur) · RecepMedly1! · doctor@medly.d / DoctorMedly1!',
     );
   } else {
     console.warn(
