@@ -132,7 +132,7 @@ describe('UsuariosService', () => {
         nombre: validDto.nombre,
         apellido_pat: validDto.apellido_pat,
         apellido_mat: validDto.apellido_mat,
-        correoElectronico: validDto.correoElectronico.trim().toLowerCase(),
+        correoElectronico: (validDto.correoElectronico ?? '').trim().toLowerCase(),
         telefono: validDto.telefono,
         fechaNacimiento: validDto.fechaNacimiento,
         genero: validDto.genero,

@@ -8,6 +8,9 @@ import {
   TouchableOpacity,
   Modal,
   Alert,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -19,8 +22,17 @@ import {
   cancelarCitaMedico,
   fetchCitasMedico,
   nombrePaciente,
+  type CausaCancelacionMedico,
   type CitaMedicoDto,
 } from "../../../../lib/medicoApi";
+
+const CAUSAS: { id: CausaCancelacionMedico; etiqueta: string }[] = [
+  { id: "EMERGENCIA_MEDICA", etiqueta: "Emergencia médica" },
+  { id: "ENFERMEDAD_MEDICO", etiqueta: "Enfermedad del médico" },
+  { id: "CONFLICTO_AGENDA", etiqueta: "Conflicto de agenda" },
+  { id: "REAGENDAMIENTO", etiqueta: "Reagendamiento" },
+  { id: "OTRO", etiqueta: "Otro" },
+];
 
 export default function GestionarCitaMedico(): React.JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,6 +40,9 @@ export default function GestionarCitaMedico(): React.JSX.Element {
   const token = useAuthStore((s) => s.accessToken);
   const [cita, setCita] = useState<CitaMedicoDto | null>(null);
   const [modalCancel, setModalCancel] = useState(false);
+  const [causa, setCausa] = useState<CausaCancelacionMedico | "">("");
+  const [motivo, setMotivo] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   const cargar = useCallback(async () => {
     if (!token || !citaId) return;
@@ -46,16 +61,39 @@ export default function GestionarCitaMedico(): React.JSX.Element {
     }, [cargar]),
   );
 
+  const abrirModalCancelar = (): void => {
+    setCausa("");
+    setMotivo("");
+    setModalCancel(true);
+  };
+
   const cancelar = async (): Promise<void> => {
-    if (!token) return;
-    setModalCancel(false);
+    if (!token || !causa) {
+      Alert.alert("Revisa", "Selecciona la causa de la cancelación.");
+      return;
+    }
+    const motivoTrim = motivo.trim();
+    if (motivoTrim.length < 10) {
+      Alert.alert(
+        "Revisa",
+        "Describe el motivo de la cancelación (mínimo 10 caracteres).",
+      );
+      return;
+    }
+    setEnviando(true);
     try {
-      const r = await cancelarCitaMedico(token, citaId);
+      const r = await cancelarCitaMedico(token, citaId, {
+        causa,
+        motivo: motivoTrim,
+      });
+      setModalCancel(false);
       Alert.alert("Cita cancelada", r.mensaje, [
         { text: "OK", onPress: () => router.back() },
       ]);
     } catch (e: unknown) {
       Alert.alert("Error", e instanceof Error ? e.message : "No se pudo cancelar.");
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -118,42 +156,95 @@ export default function GestionarCitaMedico(): React.JSX.Element {
           <Text style={estilos.btnIniciarTxt}>INICIAR</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={estilos.btnCancelar}
-          onPress={() => setModalCancel(true)}
-        >
+        <TouchableOpacity style={estilos.btnCancelar} onPress={abrirModalCancelar}>
           <Text style={estilos.btnCancelarTxt}>CANCELAR CITA</Text>
         </TouchableOpacity>
       </ScrollView>
 
       <Modal visible={modalCancel} transparent animationType="fade">
-        <View style={estilos.modalOverlay}>
-          <View style={estilos.modalCard}>
-            <Text style={estilos.modalTitulo}>¿Cancelar esta cita?</Text>
-            <View style={estilos.aviso}>
-              <Ionicons
-                name="warning-outline"
-                size={22}
-                color={paleta.yellowText}
-              />
-              <Text style={estilos.avisoTxt}>
-                El pago será reembolsado al paciente según la política vigente.
+        <KeyboardAvoidingView
+          style={estilos.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={estilos.modalScroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={estilos.modalCard}>
+              <Text style={estilos.modalTitulo}>Cancelar cita</Text>
+              <Text style={estilos.modalSub}>
+                Indica la causa y el motivo. El paciente recibirá una
+                notificación en su campana.
               </Text>
+
+              <Text style={estilos.campoLbl}>CAUSA</Text>
+              <View style={estilos.causasWrap}>
+                {CAUSAS.map((c) => (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[
+                      estilos.causaChip,
+                      causa === c.id && estilos.causaChipActiva,
+                    ]}
+                    onPress={() => setCausa(c.id)}
+                  >
+                    <Text
+                      style={[
+                        estilos.causaChipTxt,
+                        causa === c.id && estilos.causaChipTxtActiva,
+                      ]}
+                    >
+                      {c.etiqueta}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={estilos.campoLbl}>MOTIVO (obligatorio)</Text>
+              <TextInput
+                style={estilos.motivoInput}
+                placeholder="Explica por qué se cancela la cita…"
+                placeholderTextColor={COLORES.textoPlaceholder}
+                value={motivo}
+                onChangeText={setMotivo}
+                multiline
+                maxLength={500}
+                textAlignVertical="top"
+              />
+              <Text style={estilos.motivoHint}>
+                Mínimo 10 caracteres · {motivo.trim().length}/500
+              </Text>
+
+              <View style={estilos.aviso}>
+                <Ionicons
+                  name="warning-outline"
+                  size={22}
+                  color={paleta.yellowText}
+                />
+                <Text style={estilos.avisoTxt}>
+                  El pago será reembolsado al paciente según la política vigente.
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={estilos.modalPrim}
+                onPress={() => setModalCancel(false)}
+                disabled={enviando}
+              >
+                <Text style={estilos.modalPrimTxt}>CONTINUAR ATENDIENDO</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[estilos.modalPel, enviando && { opacity: 0.6 }]}
+                onPress={() => void cancelar()}
+                disabled={enviando}
+              >
+                <Text style={estilos.modalPelTxt}>
+                  {enviando ? "CANCELANDO…" : "CONFIRMAR CANCELACIÓN"}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={estilos.modalPrim}
-              onPress={() => setModalCancel(false)}
-            >
-              <Text style={estilos.modalPrimTxt}>CONTINUAR ATENDIENDO</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={estilos.modalPel}
-              onPress={() => void cancelar()}
-            >
-              <Text style={estilos.modalPelTxt}>CANCELAR CITA</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -201,7 +292,11 @@ const estilos = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
-    padding: 24,
+  },
+  modalScroll: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: 20,
   },
   modalCard: {
     backgroundColor: paleta.white,
@@ -213,6 +308,51 @@ const estilos = StyleSheet.create({
     fontWeight: "800",
     color: paleta.navy,
     textAlign: "center",
+    marginBottom: 8,
+  },
+  modalSub: {
+    fontSize: 13,
+    color: paleta.teal,
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  campoLbl: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: paleta.teal,
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  causasWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+  causaChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDES.radioPill,
+    borderWidth: 1,
+    borderColor: paleta.skyblue,
+    backgroundColor: paleta.white,
+  },
+  causaChipActiva: {
+    backgroundColor: paleta.navy,
+    borderColor: paleta.navy,
+  },
+  causaChipTxt: { fontSize: 12, fontWeight: "600", color: paleta.navy },
+  causaChipTxtActiva: { color: paleta.white },
+  motivoInput: {
+    minHeight: 96,
+    borderWidth: 1,
+    borderColor: paleta.skyblue,
+    borderRadius: BORDES.radio,
+    padding: 12,
+    fontSize: 14,
+    color: paleta.navy,
+    backgroundColor: paleta.white,
+    marginBottom: 4,
+  },
+  motivoHint: {
+    fontSize: 11,
+    color: paleta.teal,
     marginBottom: 14,
   },
   aviso: {

@@ -9,18 +9,14 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Pressable,
 } from "react-native";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 import { EncabezadoPantallaMedico } from "../../../componentes/medico/EncabezadoPantallaMedico";
 import { IndicadorPasos } from "../../../componentes/comunes/IndicadorPasos";
-import { CalendarioMedly } from "../../../componentes/calendario/CalendarioMedly";
-import {
-  claveDiaLocal,
-  rangoConsultaSlots,
-} from "../../../lib/agendaPickerUtils";
+import { SeleccionFechaHoraAgenda } from "../../../componentes/citas/SeleccionFechaHoraAgenda";
+import { rangoConsultaSlots } from "../../../lib/agendaPickerUtils";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import { useAuthStore } from "../../../stores/auth.store";
 import {
@@ -40,16 +36,11 @@ import {
   crearReservaRecepcion,
   fetchCitaRecepcion,
   fetchPacienteRecepcion,
-  marcarAnticipoRecepcion,
   nombrePacienteRecep,
   type PacienteBusquedaDto,
 } from "../../../lib/recepcionApi";
 import { validarCurpPaciente } from "../../../lib/validacionRegistro";
-import {
-  construirRejillaDia,
-  esMismoDia,
-  fechasUnicasDesdeSlots,
-} from "../../../lib/agendaPickerUtils";
+import { esMismoDia, fechasUnicasDesdeSlots } from "../../../lib/agendaPickerUtils";
 
 const TOTAL_PASOS = 5;
 
@@ -57,7 +48,6 @@ WebBrowser.maybeCompleteAuthSession();
 
 export default function RecepcionAgendarCita(): React.JSX.Element {
   const token = useAuthStore((s) => s.accessToken);
-  const sucursalStaffId = useAuthStore((s) => s.usuario?.sucursalId);
   const [paso, setPaso] = useState(1);
   const [cargando, setCargando] = useState(false);
 
@@ -142,20 +132,13 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
     setCargando(true);
     try {
       const ms = await fetchMedicoSucursales(m.medicoID);
-      const filtradas =
-        sucursalStaffId != null
-          ? ms.filter((x) => x.sucursalID === sucursalStaffId)
-          : ms;
-      if (filtradas.length === 0) {
-        Alert.alert(
-          "Sin sucursal",
-          "Este médico no atiende en tu sucursal asignada.",
-        );
+      if (ms.length === 0) {
+        Alert.alert("Sin sucursal", "Este médico no tiene sucursales asignadas.");
         setMedSel(null);
         return;
       }
-      setSucursalesMed(filtradas);
-      if (filtradas.length === 1) setSucSel(filtradas[0]);
+      setSucursalesMed(ms);
+      if (ms.length === 1) setSucSel(ms[0]);
     } catch {
       Alert.alert("Error", "No se pudieron cargar sucursales.");
     } finally {
@@ -216,24 +199,6 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
     setHoraSeleccionada(null);
   }, [fechaSeleccionada]);
 
-  const diasConCupo = useMemo(
-    () => (paso === 4 ? fechasUnicasDesdeSlots(slots) : []),
-    [paso, slots],
-  );
-
-  const diasConCupoSet = useMemo(() => {
-    const set = new Set<string>();
-    for (const d of diasConCupo) {
-      set.add(claveDiaLocal(d));
-    }
-    return set;
-  }, [diasConCupo]);
-
-  const rejillaHorarios = useMemo(() => {
-    if (fechaSeleccionada == null) return [];
-    return construirRejillaDia(fechaSeleccionada, slots);
-  }, [fechaSeleccionada, slots]);
-
   const precio = medSel ? parseFloat(String(medSel.precioConsulta)) : 0;
   const anticipo = Math.round(precio * 0.5 * 100) / 100;
 
@@ -272,16 +237,18 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
           pacSel.pacienteID,
           slotSel.slotID,
         );
-        await marcarAnticipoRecepcion(token, cita.citaID);
         const { url } = await crearCheckoutRecepcion(token, cita.citaID);
         if (!url) {
-          Alert.alert("Pagos", "No se pudo abrir la pasarela de pago.");
+          Alert.alert(
+            "Pagos",
+            "No se pudo abrir Stripe. Revisa STRIPE_SECRET_KEY en servidor/.env",
+          );
           return;
         }
         const poll = setInterval(() => {
           void fetchCitaRecepcion(token, cita.citaID)
             .then((c) => {
-              if (c.estado === "CONFIRMADA" || c.estado === "ANTICIPO_REALIZADO") {
+              if (c.estado === "CONFIRMADA") {
                 clearInterval(poll);
                 router.replace({
                   pathname: "/(recepcion)/citas/confirmada",
@@ -294,7 +261,7 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
                     total: c.montoTotal,
                     anticipo: c.montoAnticipo,
                     mensaje:
-                      "Anticipo del 50% registrado correctamente. El pago con tarjeta/transferencia quedó en proceso o completado.",
+                      "Anticipo del 50% pagado con tarjeta/transferencia (Stripe). Cita confirmada.",
                     sucursal: sucSel?.sucursal?.nombre ?? "",
                   },
                 });
@@ -500,54 +467,19 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
         )}
 
         {paso === 4 && (
-          <>
-            {cargando ? (
-              <ActivityIndicator color={paleta.navy} style={{ marginVertical: 24 }} />
-            ) : (
-              <>
-                <CalendarioMedly
-                  mesVisible={mesAgenda}
-                  onMesVisibleChange={setMesAgenda}
-                  modo="dia"
-                  fechaSeleccionada={fechaSeleccionada}
-                  onSeleccionDia={setFechaSeleccionada}
-                  diaHabilitado={(d) => diasConCupoSet.has(claveDiaLocal(d))}
-                />
-                <Text style={estilos.horasTit}>HORARIOS DISPONIBLES</Text>
-                <View style={estilos.rejillaHoras}>
-                  {rejillaHorarios.map((celda) => {
-                    const activo = horaSeleccionada === celda.hora;
-                    const deshab = !celda.disponible;
-                    return (
-                      <Pressable
-                        key={celda.hora}
-                        disabled={deshab}
-                        style={[
-                          estilos.horaBtn,
-                          activo && estilos.horaBtnActivo,
-                          deshab && estilos.horaBtnOff,
-                        ]}
-                        onPress={() => {
-                          setHoraSeleccionada(celda.hora);
-                          setSlotSel(celda.slot ?? null);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            estilos.horaTxt,
-                            activo && estilos.horaTxtActivo,
-                            deshab && estilos.horaTxtOff,
-                          ]}
-                        >
-                          {celda.hora}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            )}
-          </>
+          <SeleccionFechaHoraAgenda
+            cargando={cargando}
+            slots={slots}
+            mesAgenda={mesAgenda}
+            onMesAgendaChange={setMesAgenda}
+            fechaSeleccionada={fechaSeleccionada}
+            onFechaSeleccionada={setFechaSeleccionada}
+            slotSeleccionado={slotSel}
+            onSlotSeleccionado={(slot, hora) => {
+              setSlotSel(slot);
+              setHoraSeleccionada(hora);
+            }}
+          />
         )}
 
         {paso === 5 && pacSel && medSel && slotSel && (
@@ -606,7 +538,7 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
             <ActivityIndicator color={paleta.white} />
           ) : (
             <Text style={estilos.btnPrimTxt}>
-              {paso === 5 ? "CONFIRMAR Y PAGAR" : paso === 4 ? "REALIZAR PAGO" : "CONTINUAR"}
+              {paso === 5 ? "CONFIRMAR Y PAGAR" : "CONTINUAR"}
             </Text>
           )}
         </TouchableOpacity>
@@ -685,26 +617,6 @@ const estilos = StyleSheet.create({
     color: paleta.navy,
     textAlign: "center",
   },
-  horasTit: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: paleta.teal,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  rejillaHoras: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  horaBtn: {
-    width: "30%",
-    paddingVertical: 10,
-    borderRadius: BORDES.radio,
-    backgroundColor: paleta.white,
-    alignItems: "center",
-  },
-  horaBtnActivo: { backgroundColor: paleta.navy },
-  horaBtnOff: { opacity: 0.35 },
-  horaTxt: { fontSize: 13, fontWeight: "600", color: paleta.navy },
-  horaTxtActivo: { color: paleta.white },
-  horaTxtOff: { color: paleta.teal },
   resumenCard: {
     backgroundColor: paleta.navy,
     borderRadius: BORDES.radio,

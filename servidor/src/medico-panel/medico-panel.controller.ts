@@ -23,6 +23,7 @@ import { BloqueosService, CrearBloqueoDto } from '../horarios/bloqueos.service';
 import { ConsultasService } from '../consultas/consultas.service';
 import { CrearConsultaDto } from '../consultas/dto/crear-consulta.dto';
 import { ActualizarConsultaDto } from '../consultas/dto/actualizar-consulta.dto';
+import { CancelarCitaMedicoDto } from './dto/cancelar-cita-medico.dto';
 
 @ApiTags('medico')
 @Controller('medico')
@@ -58,14 +59,16 @@ export class MedicoPanelController {
   async cancelarCita(
     @CurrentUser() u: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CancelarCitaMedicoDto,
   ) {
     const result = await this.citasService.cancelarPorMedico(
       this.medicoId(u),
       id,
+      dto,
     );
     await this.auditoriaService.registrar({
       tipo: 'CITA_CANCELADA_MEDICO',
-      descripcion: `Cita #${id} cancelada por médico #${this.medicoId(u)}`,
+      descripcion: `Cita #${id} cancelada por médico #${this.medicoId(u)}. Causa: ${dto.causa}. Motivo: ${dto.motivo}`,
       usuarioID: u.sub,
     });
     return result;

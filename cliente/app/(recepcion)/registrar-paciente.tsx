@@ -35,6 +35,19 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
   const [contrasena, setContrasena] = useState("");
   const [confirmar, setConfirmar] = useState("");
 
+  const limpiarFormulario = (): void => {
+    setNombres("");
+    setApellidoPaterno("");
+    setApellidoMaterno("");
+    setFechaNac("");
+    setGenero("");
+    setCurp("");
+    setTelefono("");
+    setCorreo("");
+    setContrasena("");
+    setConfirmar("");
+  };
+
   const enviar = async (): Promise<void> => {
     const err1 = validarPasoDatosPersonales({
       nombres,
@@ -102,6 +115,7 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
         Alert.alert("Error", Array.isArray(raw) ? raw.join("\n") : String(raw));
         return;
       }
+      limpiarFormulario();
       router.replace("/(recepcion)/citas/exito");
     } catch {
       Alert.alert("Error", "No se pudo conectar con el servidor.");

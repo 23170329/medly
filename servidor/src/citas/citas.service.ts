@@ -14,6 +14,10 @@ import { EstadoCita, EstadoPago, EstadoSlot, TipoPago } from '../common/enums';
 import { PagosService } from '../pagos/pagos.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
+import {
+  CancelarCitaMedicoDto,
+  etiquetaCausaCancelacion,
+} from '../medico-panel/dto/cancelar-cita-medico.dto';
 
 @Injectable()
 export class CitasService {
@@ -394,9 +398,39 @@ export class CitasService {
       .getMany();
   }
 
+  private async notificarCancelacionPorMedico(
+    cita: Cita,
+    cancelacion: CancelarCitaMedicoDto,
+  ): Promise<void> {
+    try {
+      const nombreMedico = cita.medico
+        ? `${cita.medico.nombre} ${cita.medico.apellidoPat}`
+        : 'Médico';
+      const fechaStr = cita.inicio
+        ? new Date(cita.inicio).toLocaleDateString('es-MX', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '';
+      const causa = etiquetaCausaCancelacion(cancelacion.causa);
+      await this.notificacionesService.crear({
+        pacienteID: cita.pacienteID,
+        titulo: 'Cita cancelada por el médico',
+        mensaje: `Tu cita con ${nombreMedico} del ${fechaStr} fue cancelada. Causa: ${causa}. Motivo: ${cancelacion.motivo}`,
+      });
+    } catch {
+      this.logger.warn('No se pudo crear notificación de cancelación');
+    }
+  }
+
   async cancelarPorMedico(
     medicoId: number,
     citaId: number,
+    cancelacion: CancelarCitaMedicoDto,
   ): Promise<{ mensaje: string; reembolsoProcesado: boolean }> {
     const cita = await this.citaRepo.findOne({
       where: { citaID: citaId, medicoID: medicoId },
@@ -419,6 +453,7 @@ export class CitasService {
       cita.estado === EstadoCita.PENDIENTE_PAGO ||
       cita.estado === EstadoCita.ANTICIPO_REALIZADO
     ) {
+      await this.notificarCancelacionPorMedico(cita, cancelacion);
       await this.abandonarPago(cita.pacienteID, citaId);
       return {
         mensaje: 'Reserva cancelada por el médico. El horario quedó liberado.',
@@ -438,6 +473,8 @@ export class CitasService {
     }
 
     cita.estado = EstadoCita.CANCELADA;
+    cita.causaCancelacion = cancelacion.causa;
+    cita.motivoCancelacion = cancelacion.motivo;
     await this.citaRepo.save(cita);
 
     const slot =
@@ -448,28 +485,7 @@ export class CitasService {
       await this.slotRepo.save(slot);
     }
 
-    try {
-      const nombreMedico = cita.medico
-        ? `${cita.medico.nombre} ${cita.medico.apellidoPat}`
-        : 'Médico';
-      const fechaStr = cita.inicio
-        ? new Date(cita.inicio).toLocaleDateString('es-MX', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-        : '';
-      await this.notificacionesService.crear({
-        pacienteID: cita.pacienteID,
-        titulo: 'Cita cancelada',
-        mensaje: `Tu cita con ${nombreMedico} del ${fechaStr} ha sido cancelada por el médico.`,
-      });
-    } catch {
-      this.logger.warn('No se pudo crear notificación de cancelación');
-    }
+    await this.notificarCancelacionPorMedico(cita, cancelacion);
 
     return {
       mensaje: puedeReembolso

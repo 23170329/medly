@@ -98,11 +98,22 @@ export function crearBloqueoMedico(
   });
 }
 
+export type CausaCancelacionMedico =
+  | "EMERGENCIA_MEDICA"
+  | "ENFERMEDAD_MEDICO"
+  | "CONFLICTO_AGENDA"
+  | "REAGENDAMIENTO"
+  | "OTRO";
+
 export function cancelarCitaMedico(
   token: string,
   citaId: number,
+  body: { causa: CausaCancelacionMedico; motivo: string },
 ): Promise<{ mensaje: string; reembolsoProcesado: boolean }> {
-  return medicoFetch(`/medico/citas/${citaId}/cancelar`, token, { method: "PATCH" });
+  return medicoFetch(`/medico/citas/${citaId}/cancelar`, token, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 }
 
 export function crearConsultaMedico(

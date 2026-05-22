@@ -54,6 +54,12 @@ export class Cita {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   montoAnticipo!: string;
 
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  causaCancelacion!: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  motivoCancelacion!: string | null;
+
   @ManyToOne(() => Paciente, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'pacienteID' })
   paciente!: Paciente;

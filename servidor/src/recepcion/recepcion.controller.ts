@@ -71,21 +71,12 @@ export class RecepcionController {
   }
 
   @Get('citas/:id')
-  async obtenerCita(
-    @CurrentUser() user: JwtPayload,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
-    const sucursalId = await this.sucursalDelStaff(user);
-    return this.citasService.obtenerCitaRecepcion(id, sucursalId);
+  async obtenerCita(@Param('id', ParseIntPipe) id: number) {
+    return this.citasService.obtenerCitaRecepcion(id, null);
   }
 
   @Post('citas/reserva')
-  async crearReserva(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: CrearCitaMostradorDto,
-  ) {
-    const sucursalId = await this.sucursalDelStaff(user);
-    await this.citasService.asegurarSlotEnSucursal(dto.slotID, sucursalId);
+  async crearReserva(@Body() dto: CrearCitaMostradorDto) {
     const paciente = await this.usuariosService.obtenerPerfil(dto.pacienteId);
     const errCurp = validarCoherenciaCurpServidor({
       curp: paciente.curp,
@@ -103,12 +94,7 @@ export class RecepcionController {
   }
 
   @Post('citas/mostrador')
-  async crearCitaMostrador(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: CrearCitaMostradorDto,
-  ) {
-    const sucursalId = await this.sucursalDelStaff(user);
-    await this.citasService.asegurarSlotEnSucursal(dto.slotID, sucursalId);
+  async crearCitaMostrador(@Body() dto: CrearCitaMostradorDto) {
     const paciente = await this.usuariosService.obtenerPerfil(dto.pacienteId);
     const errCurp = validarCoherenciaCurpServidor({
       curp: paciente.curp,
@@ -138,11 +124,7 @@ export class RecepcionController {
     @CurrentUser() user: JwtPayload,
     @Body() dto: CheckoutSessionDto,
   ) {
-    const sucursalId = await this.sucursalDelStaff(user);
-    return this.pagosService.marcarAnticipoRealizadoRecepcion(
-      dto.citaID,
-      sucursalId,
-    );
+    return this.pagosService.marcarAnticipoRealizadoRecepcion(dto.citaID, null);
   }
 
   @Post('pagos/checkout-session')
@@ -150,10 +132,6 @@ export class RecepcionController {
     @CurrentUser() user: JwtPayload,
     @Body() dto: CheckoutSessionDto,
   ) {
-    const sucursalId = await this.sucursalDelStaff(user);
-    return this.pagosService.crearCheckoutSessionRecepcion(
-      dto.citaID,
-      sucursalId,
-    );
+    return this.pagosService.crearCheckoutSessionRecepcion(dto.citaID, null);
   }
 }
