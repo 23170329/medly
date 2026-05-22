@@ -33,8 +33,9 @@ export interface CitaMedicoDto {
     nombre: string;
     apellido_pat: string;
     apellido_mat?: string | null;
+    telefono?: string | null;
   };
-  sucursal?: { nombre: string; direccion?: string };
+  sucursal?: { nombre: string; direccion?: string; telefono?: string };
   medico?: {
     nombre: string;
     apellidoPat: string;

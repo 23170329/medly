@@ -6,6 +6,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Medico } from '../../medicos/entities/medico.entity';
+import { Sucursal } from '../../sucursales/entities/sucursal.entity';
 
 export type RolStaff = 'RECEPCIONISTA' | 'MEDICO';
 
@@ -29,4 +30,11 @@ export class CuentaStaff {
   @ManyToOne(() => Medico, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'medicoID' })
   medico!: Medico | null;
+
+  @Column({ type: 'int', nullable: true })
+  sucursalID!: number | null;
+
+  @ManyToOne(() => Sucursal, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'sucursalID' })
+  sucursal!: Sucursal | null;
 }

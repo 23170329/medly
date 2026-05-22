@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  View,
   Text,
   StyleSheet,
   SafeAreaView,
@@ -11,13 +10,15 @@ import {
 import { router } from "expo-router";
 import { EncabezadoPantallaMedico } from "../../componentes/medico/EncabezadoPantallaMedico";
 import { Entrada } from "../../componentes/comunes/Entrada";
+import { FechaNacimientoGenero } from "../../componentes/comunes/FechaNacimientoGenero";
 import { Boton } from "../../componentes/comunes/Boton";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
 import { API_URL } from "../../constants/api";
 import { useAuthStore } from "../../stores/auth.store";
 import {
   normalizarCurp,
-  validarPasoAcceso,
+  validarCoherenciaCurp,
+  validarPasoAccesoRecepcion,
   validarPasoDatosPersonales,
 } from "../../lib/validacionRegistro";
 
@@ -27,7 +28,7 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
   const [apellidoPaterno, setApellidoPaterno] = useState("");
   const [apellidoMaterno, setApellidoMaterno] = useState("");
   const [fechaNac, setFechaNac] = useState("");
-  const [genero, setGenero] = useState("");
+  const [genero, setGenero] = useState<"" | "H" | "M">("");
   const [curp, setCurp] = useState("");
   const [telefono, setTelefono] = useState("");
   const [correo, setCorreo] = useState("");
@@ -47,7 +48,18 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
       Alert.alert("Revisa", err1);
       return;
     }
-    const err2 = validarPasoAcceso({
+    const errCurp = validarCoherenciaCurp({
+      curp,
+      nombres,
+      apellidoPaterno,
+      apellidoMaterno,
+      fechaNacimiento: fechaNac,
+    });
+    if (errCurp) {
+      Alert.alert("CURP", errCurp);
+      return;
+    }
+    const err2 = validarPasoAccesoRecepcion({
       telefono,
       correo,
       contrasena,
@@ -74,7 +86,9 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           nombre: nombres.trim(),
           apellido_pat: apellidoPaterno.trim(),
           apellido_mat: apellidoMaterno.trim(),
-          correoElectronico: correo.trim().toLowerCase(),
+          ...(correo.trim()
+            ? { correoElectronico: correo.trim().toLowerCase() }
+            : {}),
           telefono: telefono.replace(/\D/g, ""),
           fechaNacimiento,
           genero: genero.trim().toUpperCase(),
@@ -96,7 +110,10 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
 
   return (
     <SafeAreaView style={estilos.area}>
-      <ScrollView contentContainerStyle={estilos.scroll}>
+      <ScrollView
+        contentContainerStyle={estilos.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
         <EncabezadoPantallaMedico
           titulo="REGISTRAR PACIENTE"
           onAtras={() => router.back()}
@@ -109,41 +126,40 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           onChangeText={setApellidoPaterno}
         />
         <Entrada
-          etiqueta="APELLIDO MATERNO (obligatorio)"
+          etiqueta="APELLIDO MATERNO"
           value={apellidoMaterno}
           onChangeText={setApellidoMaterno}
         />
         <Entrada
-          etiqueta="NACIMIENTO (DD/MM/AAAA)"
-          value={fechaNac}
-          onChangeText={setFechaNac}
-        />
-        <Entrada
-          etiqueta="GÉNERO (H o M)"
-          value={genero}
-          onChangeText={(t) =>
-            setGenero(
-              t
-                .trim()
-                .toUpperCase()
-                .replace(/[^HM]/g, "")
-                .slice(0, 1),
-            )
-          }
-        />
-        <Entrada
-          etiqueta="CURP"
+          etiqueta="CURP (obligatorio)"
+          placeholder="18 caracteres alfanuméricos"
           value={curp}
           onChangeText={(t) =>
             setCurp(t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18))
           }
+          autoCapitalize="characters"
+          maxLength={18}
         />
-        <Entrada etiqueta="TELÉFONO" value={telefono} onChangeText={setTelefono} />
+        <FechaNacimientoGenero
+          fechaNacimiento={fechaNac}
+          onFechaNacimientoChange={setFechaNac}
+          genero={genero}
+          onGeneroChange={setGenero}
+        />
         <Entrada
-          etiqueta="CORREO"
+          etiqueta="TELÉFONO (obligatorio)"
+          value={telefono}
+          onChangeText={(t) => setTelefono(t.replace(/\D/g, "").slice(0, 10))}
+          keyboardType="phone-pad"
+          inputMode="numeric"
+          maxLength={10}
+        />
+        <Entrada
+          etiqueta="CORREO (opcional)"
           value={correo}
           onChangeText={setCorreo}
           autoCapitalize="none"
+          keyboardType="email-address"
         />
         <Entrada
           etiqueta="CONTRASEÑA INICIAL"

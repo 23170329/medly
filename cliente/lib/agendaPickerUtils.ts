@@ -45,8 +45,24 @@ export function claveFechaHora(fechaYmd: string, horaHm: string): string {
   return `${fechaYmd}T${horaHm}`;
 }
 
+/** Interpreta `inicio` del API (ISO / timestamptz) en hora local del dispositivo. */
+export function parseInicioSlotLocal(inicio: string): Date {
+  const d = new Date(inicio);
+  if (!Number.isNaN(d.getTime())) return d;
+  const m = inicio.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0);
+  }
+  return new Date();
+}
+
+/** Clave estable YYYY-MM-DD para comparar días (evita desfases con toISOString/UTC). */
+export function claveDiaLocal(d: Date): string {
+  return normalizarFechaLocal(d);
+}
+
 export function slotAFechaHoraLocal(s: SlotDto): { fecha: string; hora: string } {
-  const d = new Date(s.inicio);
+  const d = parseInicioSlotLocal(s.inicio);
   const fecha = normalizarFechaLocal(d);
   const hora = `${String(d.getHours()).padStart(2, "0")}:${String(
     d.getMinutes(),
@@ -59,14 +75,24 @@ export function fechasUnicasDesdeSlots(slots: SlotDto[]): Date[] {
   const seen = new Set<string>();
   const out: Date[] = [];
   for (const s of slots) {
-    const d = new Date(s.inicio);
-    const key = normalizarFechaLocal(d);
+    const d = parseInicioSlotLocal(s.inicio);
+    const key = claveDiaLocal(d);
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0));
   }
   out.sort((a, b) => a.getTime() - b.getTime());
   return out;
+}
+
+/** Rango recomendado para consultar slots libres (90 días). */
+export function rangoConsultaSlots(): { desde: string; hasta: string } {
+  const desde = new Date();
+  desde.setHours(0, 0, 0, 0);
+  const hasta = new Date(desde);
+  hasta.setDate(hasta.getDate() + 90);
+  hasta.setHours(23, 59, 59, 999);
+  return { desde: desde.toISOString(), hasta: hasta.toISOString() };
 }
 
 export interface CeldaHorario {

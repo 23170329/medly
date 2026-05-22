@@ -8,9 +8,8 @@ import {
   TouchableOpacity,
   Image,
   Alert,
-  Modal,
 } from "react-native";
-import { CalendarioMedly } from "../../componentes/calendario/CalendarioMedly";
+import { FechaNacimientoGenero } from "../../componentes/comunes/FechaNacimientoGenero";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Entrada } from "../../componentes/comunes/Entrada";
@@ -60,9 +59,6 @@ export default function RegistroScreen() {
   const [apellidoPaterno, setApellidoPaterno] = useState("");
   const [apellidoMaterno, setApellidoMaterno] = useState("");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
-  const [fecha, setFecha] = useState(new Date());
-  const [mesNacimiento, setMesNacimiento] = useState(() => new Date());
-  const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [genero, setGenero] = useState("");
   const [telefono, setTelefono] = useState("");
   const [correo, setCorreo] = useState("");
@@ -78,16 +74,6 @@ export default function RegistroScreen() {
   const [errorCurpCoherencia, setErrorCurpCoherencia] = useState<
     string | null
   >(null);
-
-  const aplicarFechaNacimiento = (fechaSeleccionada: Date): void => {
-    setFecha(fechaSeleccionada);
-    const dia = fechaSeleccionada.getDate().toString().padStart(2, "0");
-    const mes = (fechaSeleccionada.getMonth() + 1).toString().padStart(2, "0");
-    const anio = fechaSeleccionada.getFullYear();
-    setFechaNacimiento(`${dia}/${mes}/${anio}`);
-    setErroresP1((p) => ({ ...p, fechaNacimiento: null }));
-    setMostrarCalendario(false);
-  };
 
   const handleRegistro = async () => {
     const errP1 = validarPasoDatosPersonalesDetallado({
@@ -328,97 +314,20 @@ export default function RegistroScreen() {
               mensajeError={erroresP1.curp ?? errorCurpCoherencia ?? undefined}
             />
 
-            <View style={styles.fila}>
-              <View style={{ flex: 1, marginRight: 10 }}>
-                <TouchableOpacity onPress={() => setMostrarCalendario(true)}>
-                  <View pointerEvents="none">
-                    <Entrada
-                      etiqueta="NACIMIENTO"
-                      placeholder="AAAA/MM/DD"
-                      icono="calendar-outline"
-                      value={fechaNacimiento}
-                      editable={false}
-                      onChangeText={setFechaNacimiento}
-                      mensajeError={erroresP1.fechaNacimiento ?? undefined}
-                    />
-                  </View>
-                </TouchableOpacity>
-                <Modal visible={mostrarCalendario} transparent animationType="fade">
-                  <View style={styles.modalCalOverlay}>
-                    <View style={styles.modalCalCard}>
-                      <CalendarioMedly
-                        mesVisible={mesNacimiento}
-                        onMesVisibleChange={setMesNacimiento}
-                        modo="dia"
-                        fechaSeleccionada={fecha}
-                        onSeleccionDia={aplicarFechaNacimiento}
-                        maxDate={new Date()}
-                      />
-                      <TouchableOpacity
-                        style={styles.modalCalCerrar}
-                        onPress={() => setMostrarCalendario(false)}
-                      >
-                        <Text style={styles.modalCalCerrarTxt}>Cerrar</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </Modal>
-              </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.etiqueta}>GÉNERO</Text>
-                <View style={styles.contenedorGenero}>
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={[
-                      styles.tarjetaGenero,
-                      genero === "H" && styles.tarjetaGeneroActiva,
-                    ]}
-                    onPress={() => {
-                      setGenero("H");
-                      setErroresP1((p) => ({ ...p, genero: null }));
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Hombre"
-                    accessibilityState={{ selected: genero === "H" }}
-                  >
-                    <Text
-                      style={[
-                        styles.generoLetra,
-                        genero === "H" && styles.generoLetraActiva,
-                      ]}
-                    >
-                      H
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={[
-                      styles.tarjetaGenero,
-                      genero === "M" && styles.tarjetaGeneroActiva,
-                    ]}
-                    onPress={() => {
-                      setGenero("M");
-                      setErroresP1((p) => ({ ...p, genero: null }));
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Mujer"
-                    accessibilityState={{ selected: genero === "M" }}
-                  >
-                    <Text
-                      style={[
-                        styles.generoLetra,
-                        genero === "M" && styles.generoLetraActiva,
-                      ]}
-                    >
-                      M
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                {erroresP1.genero && (
-                  <Text style={styles.errorTexto}>{erroresP1.genero}</Text>
-                )}
-              </View>
-            </View>
+            <FechaNacimientoGenero
+              fechaNacimiento={fechaNacimiento}
+              onFechaNacimientoChange={setFechaNacimiento}
+              genero={genero}
+              onGeneroChange={(g) => {
+                setGenero(g);
+                setErroresP1((p) => ({ ...p, genero: null }));
+              }}
+              errorFecha={erroresP1.fechaNacimiento ?? undefined}
+              errorGenero={erroresP1.genero ?? undefined}
+              onFechaSeleccionada={() =>
+                setErroresP1((p) => ({ ...p, fechaNacimiento: null }))
+              }
+            />
             <View style={styles.botonesPaso}>
               <TouchableOpacity
                 style={styles.btnRegresar}
@@ -634,46 +543,6 @@ const styles = StyleSheet.create({
   formulario: {
     width: "100%",
   },
-  fila: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  etiqueta: {
-    fontSize: 12,
-    color: COLORES.texto,
-    marginBottom: 8,
-    fontWeight: "600",
-  },
-  contenedorGenero: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-  },
-  tarjetaGenero: {
-    flex: 1,
-    height: 50,
-    paddingHorizontal: 12,
-    borderRadius: BORDES.radio,
-    backgroundColor: COLORES.blanco,
-    borderWidth: 1,
-    borderColor: COLORES.grisClaro,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tarjetaGeneroActiva: {
-    backgroundColor: COLORES.primario,
-    borderColor: COLORES.primario,
-  },
-  generoLetra: {
-    fontSize: 22,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-    color: COLORES.textoPlaceholder,
-  },
-  generoLetraActiva: {
-    color: COLORES.blanco,
-  },
   contenedorCheckbox: {
     flexDirection: "row",
     alignItems: "center",
@@ -727,11 +596,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
   },
-  errorTexto: {
-    fontSize: 12,
-    color: COLORES.peligro,
-    marginTop: 4,
-  },
   reqsContainer: {
     marginBottom: 16,
     marginTop: -8,
@@ -762,26 +626,6 @@ const styles = StyleSheet.create({
   btnRegresarTexto: {
     fontSize: 13,
     fontWeight: "600",
-    color: COLORES.texto,
-  },
-  modalCalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    padding: 20,
-  },
-  modalCalCard: {
-    backgroundColor: COLORES.blanco,
-    borderRadius: BORDES.radio,
-    padding: 16,
-  },
-  modalCalCerrar: {
-    marginTop: 12,
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  modalCalCerrarTxt: {
-    fontWeight: "700",
     color: COLORES.texto,
   },
 });

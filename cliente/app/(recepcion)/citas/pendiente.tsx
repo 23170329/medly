@@ -14,7 +14,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { EncabezadoPantallaMedico } from "../../../componentes/medico/EncabezadoPantallaMedico";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import { useAuthStore } from "../../../stores/auth.store";
-import { crearCitaMostradorRecepcion } from "../../../lib/recepcionApi";
+import {
+  crearCitaMostradorRecepcion,
+  fetchPacienteRecepcion,
+} from "../../../lib/recepcionApi";
+import { validarCurpPaciente } from "../../../lib/validacionRegistro";
 
 const CLABE_DEMO = "012180001234567890";
 const BANCO_DEMO = "BBVA México";
@@ -49,6 +53,12 @@ export default function RecepcionCitaPendiente(): React.JSX.Element {
     }
     setCargando(true);
     try {
+      const perfil = await fetchPacienteRecepcion(token, pid);
+      const errCurp = validarCurpPaciente(perfil);
+      if (errCurp) {
+        Alert.alert("CURP del paciente", errCurp);
+        return;
+      }
       const cita = await crearCitaMostradorRecepcion(token, pid, sid);
       router.replace({
         pathname: "/(recepcion)/citas/confirmada",
@@ -59,6 +69,10 @@ export default function RecepcionCitaPendiente(): React.JSX.Element {
           especialidad: params.especialidad ?? "",
           inicio: cita.inicio,
           total: cita.montoTotal,
+          anticipo: cita.montoAnticipo,
+          mensaje:
+            cita.mensaje ??
+            "Anticipo del 50% registrado correctamente.",
           sucursal: params.sucursal ?? "",
         },
       });

@@ -10,6 +10,8 @@ type UsuarioApi = {
   pacienteId?: number;
   staffId?: number;
   medicoId?: number;
+  sucursalId?: number;
+  sucursalNombre?: string;
 };
 
 function normalizarRol(raw: unknown): Usuario["rol"] | null {
@@ -44,7 +46,9 @@ export function normalizarUsuarioSesion(
       pacienteId: raw.pacienteId,
       staffId: raw.staffId,
       medicoId: raw.medicoId,
-    };
+      sucursalId: raw.sucursalId,
+      sucursalNombre: raw.sucursalNombre,
+    } as Usuario;
   }
 
   if (raw.medicoId != null) rol = "MEDICO";
@@ -64,5 +68,7 @@ export function normalizarUsuarioSesion(
     pacienteId: raw.pacienteId,
     staffId: raw.staffId,
     medicoId: raw.medicoId,
+    sucursalId: raw.sucursalId,
+    sucursalNombre: raw.sucursalNombre,
   };
 }

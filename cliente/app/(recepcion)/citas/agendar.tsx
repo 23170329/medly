@@ -12,11 +12,15 @@ import {
   Pressable,
 } from "react-native";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 import { EncabezadoPantallaMedico } from "../../../componentes/medico/EncabezadoPantallaMedico";
 import { IndicadorPasos } from "../../../componentes/comunes/IndicadorPasos";
 import { CalendarioMedly } from "../../../componentes/calendario/CalendarioMedly";
-import { normalizarDia } from "../../../componentes/calendario/calendarioUtils";
+import {
+  claveDiaLocal,
+  rangoConsultaSlots,
+} from "../../../lib/agendaPickerUtils";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import { useAuthStore } from "../../../stores/auth.store";
 import {
@@ -31,10 +35,16 @@ import {
 } from "../../../lib/medlyApi";
 import {
   buscarPacientesRecepcion,
+  crearCheckoutRecepcion,
   crearCitaMostradorRecepcion,
+  crearReservaRecepcion,
+  fetchCitaRecepcion,
+  fetchPacienteRecepcion,
+  marcarAnticipoRecepcion,
   nombrePacienteRecep,
   type PacienteBusquedaDto,
 } from "../../../lib/recepcionApi";
+import { validarCurpPaciente } from "../../../lib/validacionRegistro";
 import {
   construirRejillaDia,
   esMismoDia,
@@ -43,8 +53,11 @@ import {
 
 const TOTAL_PASOS = 5;
 
+WebBrowser.maybeCompleteAuthSession();
+
 export default function RecepcionAgendarCita(): React.JSX.Element {
   const token = useAuthStore((s) => s.accessToken);
+  const sucursalStaffId = useAuthStore((s) => s.usuario?.sucursalId);
   const [paso, setPaso] = useState(1);
   const [cargando, setCargando] = useState(false);
 
@@ -59,6 +72,7 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
   const [busquedaMed, setBusquedaMed] = useState("");
   const [medicos, setMedicos] = useState<MedicoDto[]>([]);
   const [medSel, setMedSel] = useState<MedicoDto | null>(null);
+  const [sucursalesMed, setSucursalesMed] = useState<MedicoSucursalDto[]>([]);
   const [sucSel, setSucSel] = useState<MedicoSucursalDto | null>(null);
 
   const [slots, setSlots] = useState<SlotDto[]>([]);
@@ -124,10 +138,24 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
   const alElegirMedico = async (m: MedicoDto): Promise<void> => {
     setMedSel(m);
     setSucSel(null);
+    setSucursalesMed([]);
     setCargando(true);
     try {
       const ms = await fetchMedicoSucursales(m.medicoID);
-      setSucSel(ms.length === 1 ? ms[0] : ms[0] ?? null);
+      const filtradas =
+        sucursalStaffId != null
+          ? ms.filter((x) => x.sucursalID === sucursalStaffId)
+          : ms;
+      if (filtradas.length === 0) {
+        Alert.alert(
+          "Sin sucursal",
+          "Este médico no atiende en tu sucursal asignada.",
+        );
+        setMedSel(null);
+        return;
+      }
+      setSucursalesMed(filtradas);
+      if (filtradas.length === 1) setSucSel(filtradas[0]);
     } catch {
       Alert.alert("Error", "No se pudieron cargar sucursales.");
     } finally {
@@ -139,11 +167,26 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
     if (!medSel || !sucSel) return;
     setCargando(true);
     try {
+      const { desde, hasta } = rangoConsultaSlots();
       const data = await fetchSlots({
         medicoId: medSel.medicoID,
         sucursalId: sucSel.sucursalID,
+        desde,
+        hasta,
       });
       setSlots(data);
+      if (data.length === 0) {
+        Alert.alert(
+          "Sin horarios",
+          "No hay cupos libres en slot_agenda para este médico en la sucursal elegida.",
+        );
+      } else if (data.length > 0) {
+        const fechas = fechasUnicasDesdeSlots(data);
+        const primera = fechas[0];
+        if (primera) {
+          setMesAgenda(new Date(primera.getFullYear(), primera.getMonth(), 1));
+        }
+      }
     } catch {
       Alert.alert("Error", "No se pudieron cargar horarios.");
     } finally {
@@ -160,7 +203,11 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
     const fechas = fechasUnicasDesdeSlots(slots);
     setFechaSeleccionada((prev) => {
       if (prev != null && fechas.some((d) => esMismoDia(d, prev))) return prev;
-      return fechas[0] ?? null;
+      const primera = fechas[0] ?? null;
+      if (primera) {
+        setMesAgenda(new Date(primera.getFullYear(), primera.getMonth(), 1));
+      }
+      return primera;
     });
   }, [paso, slots]);
 
@@ -177,7 +224,7 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
   const diasConCupoSet = useMemo(() => {
     const set = new Set<string>();
     for (const d of diasConCupo) {
-      set.add(normalizarDia(d).toISOString());
+      set.add(claveDiaLocal(d));
     }
     return set;
   }, [diasConCupo]);
@@ -196,44 +243,112 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
     return especialidades.filter((e) => e.nombre.toLowerCase().includes(q));
   }, [especialidades, busquedaEsp]);
 
+  const validarPacienteAntesPago = async (): Promise<boolean> => {
+    if (!pacSel || !token) return false;
+    try {
+      const perfil = await fetchPacienteRecepcion(token, pacSel.pacienteID);
+      const err = validarCurpPaciente(perfil);
+      if (err) {
+        Alert.alert("CURP del paciente", err);
+        return false;
+      }
+      return true;
+    } catch {
+      Alert.alert("Error", "No se pudieron verificar los datos del paciente.");
+      return false;
+    }
+  };
+
   const confirmarPago = async (): Promise<void> => {
     if (!pacSel || !slotSel || !metodoPago || !token) return;
-    if (metodoPago === "transferencia") {
-      router.push({
-        pathname: "/(recepcion)/citas/pendiente",
-        params: {
-          pacienteId: String(pacSel.pacienteID),
-          slotID: String(slotSel.slotID),
-          paciente: nombrePacienteRecep(pacSel),
-          medico: `${medSel?.nombre ?? ""} ${medSel?.apellidoPat ?? ""}`.trim(),
-          especialidad: espSel?.nombre ?? "",
-          inicio: slotSel.inicio,
-          anticipo: String(anticipo),
-          total: String(precio),
-          sucursal: sucSel?.sucursal?.nombre ?? "",
-        },
-      });
-      return;
-    }
+    const okCurp = await validarPacienteAntesPago();
+    if (!okCurp) return;
+
     setCargando(true);
     try {
-      const cita = await crearCitaMostradorRecepcion(
-        token,
-        pacSel.pacienteID,
-        slotSel.slotID,
+      if (metodoPago === "transferencia") {
+        const cita = await crearReservaRecepcion(
+          token,
+          pacSel.pacienteID,
+          slotSel.slotID,
+        );
+        await marcarAnticipoRecepcion(token, cita.citaID);
+        const { url } = await crearCheckoutRecepcion(token, cita.citaID);
+        if (!url) {
+          Alert.alert("Pagos", "No se pudo abrir la pasarela de pago.");
+          return;
+        }
+        const poll = setInterval(() => {
+          void fetchCitaRecepcion(token, cita.citaID)
+            .then((c) => {
+              if (c.estado === "CONFIRMADA" || c.estado === "ANTICIPO_REALIZADO") {
+                clearInterval(poll);
+                router.replace({
+                  pathname: "/(recepcion)/citas/confirmada",
+                  params: {
+                    citaId: String(c.citaID),
+                    paciente: nombrePacienteRecep(pacSel),
+                    medico: `${medSel?.nombre ?? ""} ${medSel?.apellidoPat ?? ""}`.trim(),
+                    especialidad: espSel?.nombre ?? "",
+                    inicio: c.inicio,
+                    total: c.montoTotal,
+                    anticipo: c.montoAnticipo,
+                    mensaje:
+                      "Anticipo del 50% registrado correctamente. El pago con tarjeta/transferencia quedó en proceso o completado.",
+                    sucursal: sucSel?.sucursal?.nombre ?? "",
+                  },
+                });
+              }
+            })
+            .catch(() => undefined);
+        }, 2500);
+        setTimeout(() => clearInterval(poll), 10 * 60 * 1000);
+        await WebBrowser.openBrowserAsync(url);
+        return;
+      }
+
+      Alert.alert(
+        "Anticipo en efectivo",
+        `Indica al paciente que debe pagar $${anticipo.toFixed(0)} MXN (50% del total) en mostrador antes de la consulta.`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Registrar anticipo",
+            onPress: () => {
+              void (async () => {
+                try {
+                  const cita = await crearCitaMostradorRecepcion(
+                    token,
+                    pacSel.pacienteID,
+                    slotSel.slotID,
+                  );
+                  router.replace({
+                    pathname: "/(recepcion)/citas/confirmada",
+                    params: {
+                      citaId: String(cita.citaID),
+                      paciente: nombrePacienteRecep(pacSel),
+                      medico: `${medSel?.nombre ?? ""} ${medSel?.apellidoPat ?? ""}`.trim(),
+                      especialidad: espSel?.nombre ?? "",
+                      inicio: cita.inicio,
+                      total: cita.montoTotal,
+                      anticipo: cita.montoAnticipo,
+                      mensaje:
+                        cita.mensaje ??
+                        "Anticipo del 50% registrado correctamente en efectivo.",
+                      sucursal: sucSel?.sucursal?.nombre ?? "",
+                    },
+                  });
+                } catch (e) {
+                  Alert.alert(
+                    "Error",
+                    e instanceof Error ? e.message : "No se pudo confirmar.",
+                  );
+                }
+              })();
+            },
+          },
+        ],
       );
-      router.replace({
-        pathname: "/(recepcion)/citas/confirmada",
-        params: {
-          citaId: String(cita.citaID),
-          paciente: nombrePacienteRecep(pacSel),
-          medico: `${medSel?.nombre ?? ""} ${medSel?.apellidoPat ?? ""}`.trim(),
-          especialidad: espSel?.nombre ?? "",
-          inicio: cita.inicio,
-          total: cita.montoTotal,
-          sucursal: sucSel?.sucursal?.nombre ?? "",
-        },
-      });
     } catch (e) {
       Alert.alert("Error", e instanceof Error ? e.message : "No se pudo confirmar.");
     } finally {
@@ -358,6 +473,29 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
                 </Text>
               </TouchableOpacity>
             ))}
+            {medSel != null && sucursalesMed.length > 0 && (
+              <>
+                <Text style={estilos.sucTit}>SUCURSAL DE LA CITA</Text>
+                {sucursalesMed.map((ms) => (
+                  <TouchableOpacity
+                    key={ms.sucursalID}
+                    style={[
+                      estilos.sucCard,
+                      sucSel?.sucursalID === ms.sucursalID && estilos.cardSel,
+                    ]}
+                    onPress={() => setSucSel(ms)}
+                  >
+                    <Ionicons name="business-outline" size={20} color={paleta.navy} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={estilos.sucNombre}>{ms.sucursal.nombre}</Text>
+                      <Text style={estilos.sucDir} numberOfLines={1}>
+                        {ms.sucursal.direccion}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
           </>
         )}
 
@@ -373,9 +511,7 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
                   modo="dia"
                   fechaSeleccionada={fechaSeleccionada}
                   onSeleccionDia={setFechaSeleccionada}
-                  diaHabilitado={(d) =>
-                    diasConCupoSet.has(normalizarDia(d).toISOString())
-                  }
+                  diaHabilitado={(d) => diasConCupoSet.has(claveDiaLocal(d))}
                 />
                 <Text style={estilos.horasTit}>HORARIOS DISPONIBLES</Text>
                 <View style={estilos.rejillaHoras}>
@@ -445,7 +581,7 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
                 onPress={() => setMetodoPago("transferencia")}
               >
                 <Ionicons name="card-outline" size={22} color={paleta.navy} />
-                <Text style={estilos.metodoTxt}>Transferencia</Text>
+                <Text style={estilos.metodoTxt}>Tarjeta / transferencia</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -510,6 +646,27 @@ const estilos = StyleSheet.create({
   cardSel: { borderColor: paleta.teal },
   cardTit: { fontSize: 15, fontWeight: "700", color: paleta.navy },
   cardSub: { fontSize: 12, color: paleta.teal, marginTop: 4 },
+  sucTit: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: paleta.teal,
+    marginTop: 16,
+    marginBottom: 8,
+    letterSpacing: 0.6,
+  },
+  sucCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: paleta.white,
+    borderRadius: BORDES.radio,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  sucNombre: { fontSize: 14, fontWeight: "700", color: paleta.navy },
+  sucDir: { fontSize: 12, color: paleta.teal, marginTop: 2 },
   aviso: { textAlign: "center", color: paleta.teal, marginTop: 12 },
   gridEsp: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   espCard: {

@@ -82,6 +82,42 @@ export class PagosService {
     return { citaID, estado: cita.estado };
   }
 
+  /** Recepción: marca anticipo realizado para una cita de su sucursal. */
+  async marcarAnticipoRealizadoRecepcion(
+    citaID: number,
+    sucursalId: number | null,
+  ): Promise<{ citaID: number; estado: EstadoCita }> {
+    const cita = await this.citaRepo.findOne({
+      where: { citaID },
+      relations: ['pagos'],
+    });
+    if (!cita) {
+      throw new NotFoundException('Cita no encontrada');
+    }
+    if (sucursalId != null && cita.sucursalID !== sucursalId) {
+      throw new NotFoundException('Cita no encontrada en tu sucursal');
+    }
+    return this.marcarAnticipoRealizado(cita.pacienteID, citaID);
+  }
+
+  /** Recepción: abre checkout Stripe para anticipo de cita en mostrador. */
+  async crearCheckoutSessionRecepcion(
+    citaID: number,
+    sucursalId: number | null,
+  ): Promise<{ url: string | null; sessionId: string }> {
+    const cita = await this.citaRepo.findOne({
+      where: { citaID },
+      relations: ['pagos'],
+    });
+    if (!cita) {
+      throw new NotFoundException('Cita no encontrada');
+    }
+    if (sucursalId != null && cita.sucursalID !== sucursalId) {
+      throw new NotFoundException('Cita no encontrada en tu sucursal');
+    }
+    return this.crearCheckoutSession(cita.pacienteID, citaID);
+  }
+
   async crearCheckoutSession(
     pacienteId: number,
     citaID: number,

@@ -77,6 +77,8 @@ export default function RecepcionLayout(): React.JSX.Element {
       />
       <Tabs.Screen name="registrar-paciente" options={{ href: null }} />
       <Tabs.Screen name="citas/agendar" options={{ href: null }} />
+      <Tabs.Screen name="citas/[id]/index" options={{ href: null }} />
+      <Tabs.Screen name="citas/[id]/llamar" options={{ href: null }} />
       <Tabs.Screen name="citas/pendiente" options={{ href: null }} />
       <Tabs.Screen name="citas/confirmada" options={{ href: null }} />
       <Tabs.Screen name="citas/exito" options={{ href: null }} />

@@ -39,6 +39,8 @@ export type AuthUsuarioResponse =
       rol: 'RECEPCIONISTA';
       staffId: number;
       nombre: string;
+      sucursalId?: number;
+      sucursalNombre?: string;
     }
   | {
       id: string;
@@ -136,6 +138,8 @@ export class AuthService {
       nombre: s.nombre,
       email: s.correo,
       rol: 'RECEPCIONISTA',
+      sucursalId: s.sucursalID ?? undefined,
+      sucursalNombre: s.sucursal?.nombre ?? undefined,
     };
   }
 
@@ -291,7 +295,7 @@ export class AuthService {
     if (kind === 'staff') {
       const staff = await this.cuentaStaffRepository.findOne({
         where: { cuentaStaffID: decoded.sub },
-        relations: ['medico'],
+        relations: ['medico', 'sucursal'],
       });
       if (!staff || staff.rol !== decoded.rol) {
         throw new UnauthorizedException('Sesión no válida');
@@ -370,6 +374,7 @@ export class AuthService {
     return this.cuentaStaffRepository
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.medico', 'medico')
+      .leftJoinAndSelect('s.sucursal', 'sucursal')
       .where('LOWER(TRIM(s.correo)) = :email', { email })
       .getOne();
   }

@@ -71,7 +71,16 @@ export default function RecepcionInicio(): React.JSX.Element {
 
         <Text style={estilos.sec}>PRÓXIMA CITA</Text>
         {proxima && fechaProx ? (
-          <View style={estilos.cardProxima}>
+          <TouchableOpacity
+            style={estilos.cardProxima}
+            activeOpacity={0.85}
+            onPress={() =>
+              router.push({
+                pathname: "/(recepcion)/citas/[id]",
+                params: { id: String(proxima.citaID) },
+              })
+            }
+          >
             <View style={estilos.cardProximaFecha}>
               <Text style={estilos.cardMes}>
                 {fechaProx
@@ -96,7 +105,8 @@ export default function RecepcionInicio(): React.JSX.Element {
                 {proxima.sucursal?.nombre ?? "Sucursal"}
               </Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={22} color={paleta.skyblue} />
+          </TouchableOpacity>
         ) : (
           <View style={estilos.cardVacio}>
             <Text style={estilos.cardVacioTxt}>No hay citas próximas programadas.</Text>

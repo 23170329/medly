@@ -31,6 +31,20 @@ export interface PacienteBusquedaDto {
   telefono?: string | null;
 }
 
+export interface PacientePerfilRecepcionDto {
+  pacienteID: number;
+  nombre: string;
+  apellido_pat: string;
+  apellido_mat?: string | null;
+  curp: string;
+  fechaNacimiento: string;
+  telefono?: string | null;
+}
+
+export interface CitaMostradorRespuesta extends CitaMedicoDto {
+  mensaje?: string;
+}
+
 export function buscarPacientesRecepcion(
   token: string,
   q: string,
@@ -43,11 +57,65 @@ export function fetchCitasRecepcion(token: string): Promise<CitaMedicoDto[]> {
   return recepcionFetch("/recepcion/citas", token);
 }
 
-export function crearCitaMostradorRecepcion(
+export interface CitaRecepcionDetalleDto extends CitaMedicoDto {
+  pagos?: Array<{
+    pagoID: number;
+    monto: string;
+    tipo: string;
+    estado: string;
+  }>;
+}
+
+export function fetchCitaRecepcion(
+  token: string,
+  citaId: number,
+): Promise<CitaRecepcionDetalleDto> {
+  return recepcionFetch(`/recepcion/citas/${citaId}`, token);
+}
+
+export function crearReservaRecepcion(
   token: string,
   pacienteId: number,
   slotID: number,
 ): Promise<CitaMedicoDto> {
+  return recepcionFetch("/recepcion/citas/reserva", token, {
+    method: "POST",
+    body: JSON.stringify({ pacienteId, slotID }),
+  });
+}
+
+export function marcarAnticipoRecepcion(
+  token: string,
+  citaID: number,
+): Promise<{ citaID: number; estado: string }> {
+  return recepcionFetch("/recepcion/pagos/anticipo-realizado", token, {
+    method: "POST",
+    body: JSON.stringify({ citaID }),
+  });
+}
+
+export function crearCheckoutRecepcion(
+  token: string,
+  citaID: number,
+): Promise<{ url: string | null; sessionId: string }> {
+  return recepcionFetch("/recepcion/pagos/checkout-session", token, {
+    method: "POST",
+    body: JSON.stringify({ citaID }),
+  });
+}
+
+export function fetchPacienteRecepcion(
+  token: string,
+  pacienteId: number,
+): Promise<PacientePerfilRecepcionDto> {
+  return recepcionFetch(`/recepcion/pacientes/${pacienteId}`, token);
+}
+
+export function crearCitaMostradorRecepcion(
+  token: string,
+  pacienteId: number,
+  slotID: number,
+): Promise<CitaMostradorRespuesta> {
   return recepcionFetch("/recepcion/citas/mostrador", token, {
     method: "POST",
     body: JSON.stringify({ pacienteId, slotID }),

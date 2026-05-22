@@ -10,7 +10,9 @@ import * as bcrypt from 'bcryptjs';
 import { Paciente } from './entities/paciente.entity';
 import { CuentaUsuario } from './entities/cuenta-usuario.entity';
 import { RegistroDto } from './dto/registro.dto';
+import { RegistroRecepcionDto } from './dto/registro-recepcion.dto';
 import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
+import { validarCoherenciaCurpServidor } from '../common/curp-coherencia';
 
 @Injectable()
 export class UsuariosService {
@@ -68,6 +70,32 @@ export class UsuariosService {
     });
 
     return await this.cuentaRepo.save(nuevaCuenta);
+  }
+
+  /** Registro en mostrador: correo opcional; valida coherencia CURP. */
+  async registrarPacienteRecepcion(datos: RegistroRecepcionDto) {
+    const curpNorm = datos.curp.trim().toUpperCase();
+    const errCurp = validarCoherenciaCurpServidor({
+      curp: curpNorm,
+      nombre: datos.nombre,
+      apellido_pat: datos.apellido_pat,
+      apellido_mat: datos.apellido_mat,
+      fechaNacimiento: datos.fechaNacimiento,
+    });
+    if (errCurp) {
+      throw new BadRequestException(errCurp);
+    }
+
+    const correoIngresado = (datos.correoElectronico ?? '').trim().toLowerCase();
+    const correoNorm =
+      correoIngresado ||
+      `rcp.${curpNorm.toLowerCase()}@sin-correo.paciente`;
+
+    return this.registrarPaciente({
+      ...datos,
+      correoElectronico: correoNorm,
+      curp: curpNorm,
+    });
   }
 
   async obtenerPerfil(pacienteId: number) {

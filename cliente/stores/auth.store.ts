@@ -12,6 +12,8 @@ export interface Usuario {
   apellido: string;
   email: string;
   rol: "PACIENTE" | "MEDICO" | "RECEPCIONISTA" | "ADMIN";
+  sucursalId?: number;
+  sucursalNombre?: string;
 }
 
 interface AuthState {
