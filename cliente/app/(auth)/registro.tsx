@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Modal,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { CalendarioMedly } from "../../componentes/calendario/CalendarioMedly";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Entrada } from "../../componentes/comunes/Entrada";
@@ -60,6 +61,7 @@ export default function RegistroScreen() {
   const [apellidoMaterno, setApellidoMaterno] = useState("");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [fecha, setFecha] = useState(new Date());
+  const [mesNacimiento, setMesNacimiento] = useState(() => new Date());
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [genero, setGenero] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -77,19 +79,14 @@ export default function RegistroScreen() {
     string | null
   >(null);
 
-  const seleccionarFecha = (event: any, fechaSeleccionada?: Date) => {
+  const aplicarFechaNacimiento = (fechaSeleccionada: Date): void => {
+    setFecha(fechaSeleccionada);
+    const dia = fechaSeleccionada.getDate().toString().padStart(2, "0");
+    const mes = (fechaSeleccionada.getMonth() + 1).toString().padStart(2, "0");
+    const anio = fechaSeleccionada.getFullYear();
+    setFechaNacimiento(`${dia}/${mes}/${anio}`);
+    setErroresP1((p) => ({ ...p, fechaNacimiento: null }));
     setMostrarCalendario(false);
-
-    if (fechaSeleccionada) {
-      setFecha(fechaSeleccionada);
-      const dia = fechaSeleccionada.getDate().toString().padStart(2, "0");
-      const mes = (fechaSeleccionada.getMonth() + 1)
-        .toString()
-        .padStart(2, "0");
-      const anio = fechaSeleccionada.getFullYear();
-
-      setFechaNacimiento(`${dia}/${mes}/${anio}`);
-    }
   };
 
   const handleRegistro = async () => {
@@ -346,15 +343,26 @@ export default function RegistroScreen() {
                     />
                   </View>
                 </TouchableOpacity>
-                {mostrarCalendario && (
-                  <DateTimePicker
-                    value={fecha}
-                    mode="date"
-                    display="default"
-                    maximumDate={new Date()}
-                    onChange={seleccionarFecha}
-                  />
-                )}
+                <Modal visible={mostrarCalendario} transparent animationType="fade">
+                  <View style={styles.modalCalOverlay}>
+                    <View style={styles.modalCalCard}>
+                      <CalendarioMedly
+                        mesVisible={mesNacimiento}
+                        onMesVisibleChange={setMesNacimiento}
+                        modo="dia"
+                        fechaSeleccionada={fecha}
+                        onSeleccionDia={aplicarFechaNacimiento}
+                        maxDate={new Date()}
+                      />
+                      <TouchableOpacity
+                        style={styles.modalCalCerrar}
+                        onPress={() => setMostrarCalendario(false)}
+                      >
+                        <Text style={styles.modalCalCerrarTxt}>Cerrar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Modal>
               </View>
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={styles.etiqueta}>GÉNERO</Text>
@@ -754,6 +762,26 @@ const styles = StyleSheet.create({
   btnRegresarTexto: {
     fontSize: 13,
     fontWeight: "600",
+    color: COLORES.texto,
+  },
+  modalCalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalCalCard: {
+    backgroundColor: COLORES.blanco,
+    borderRadius: BORDES.radio,
+    padding: 16,
+  },
+  modalCalCerrar: {
+    marginTop: 12,
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  modalCalCerrarTxt: {
+    fontWeight: "700",
     color: COLORES.texto,
   },
 });

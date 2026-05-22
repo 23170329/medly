@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 import { router } from "expo-router";
+import { EncabezadoPantallaMedico } from "../../componentes/medico/EncabezadoPantallaMedico";
 import { Entrada } from "../../componentes/comunes/Entrada";
 import { Boton } from "../../componentes/comunes/Boton";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
@@ -87,9 +88,7 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
         Alert.alert("Error", Array.isArray(raw) ? raw.join("\n") : String(raw));
         return;
       }
-      Alert.alert("Listo", data.mensaje ?? "Paciente registrado.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      router.replace("/(recepcion)/citas/exito");
     } catch {
       Alert.alert("Error", "No se pudo conectar con el servidor.");
     }
@@ -98,7 +97,11 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
   return (
     <SafeAreaView style={estilos.area}>
       <ScrollView contentContainerStyle={estilos.scroll}>
-        <Text style={estilos.titulo}>Registro de paciente</Text>
+        <EncabezadoPantallaMedico
+          titulo="REGISTRAR PACIENTE"
+          onAtras={() => router.back()}
+        />
+        <Text style={estilos.subtitulo}>ASIGNACIÓN DE DATOS PERSONALES</Text>
         <Entrada etiqueta="NOMBRES" value={nombres} onChangeText={setNombres} />
         <Entrada
           etiqueta="APELLIDO PATERNO"
@@ -166,11 +169,12 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
 const estilos = StyleSheet.create({
   area: { flex: 1, backgroundColor: COLORES.fondo },
   scroll: { padding: 24, paddingBottom: 48 },
-  titulo: {
-    fontSize: 18,
+  subtitulo: {
+    fontSize: 11,
     fontWeight: "800",
-    color: paleta.navy,
-    marginBottom: 20,
+    letterSpacing: 0.6,
+    color: paleta.teal,
+    marginBottom: 16,
   },
   back: { marginTop: 20, alignItems: "center" },
   backTxt: { color: paleta.teal, fontWeight: "600" },
