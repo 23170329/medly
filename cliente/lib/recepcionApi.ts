@@ -31,6 +31,20 @@ export interface PacienteBusquedaDto {
   telefono?: string | null;
 }
 
+export interface PacientePerfilRecepcionDto {
+  pacienteID: number;
+  nombre: string;
+  apellido_pat: string;
+  apellido_mat?: string | null;
+  curp: string;
+  fechaNacimiento: string;
+  telefono?: string | null;
+}
+
+export interface CitaMostradorRespuesta extends CitaMedicoDto {
+  mensaje?: string;
+}
+
 export function buscarPacientesRecepcion(
   token: string,
   q: string,
@@ -43,11 +57,18 @@ export function fetchCitasRecepcion(token: string): Promise<CitaMedicoDto[]> {
   return recepcionFetch("/recepcion/citas", token);
 }
 
+export function fetchPacienteRecepcion(
+  token: string,
+  pacienteId: number,
+): Promise<PacientePerfilRecepcionDto> {
+  return recepcionFetch(`/recepcion/pacientes/${pacienteId}`, token);
+}
+
 export function crearCitaMostradorRecepcion(
   token: string,
   pacienteId: number,
   slotID: number,
-): Promise<CitaMedicoDto> {
+): Promise<CitaMostradorRespuesta> {
   return recepcionFetch("/recepcion/citas/mostrador", token, {
     method: "POST",
     body: JSON.stringify({ pacienteId, slotID }),

@@ -17,7 +17,8 @@ import { API_URL } from "../../constants/api";
 import { useAuthStore } from "../../stores/auth.store";
 import {
   normalizarCurp,
-  validarPasoAcceso,
+  validarCoherenciaCurp,
+  validarPasoAccesoRecepcion,
   validarPasoDatosPersonales,
 } from "../../lib/validacionRegistro";
 
@@ -47,7 +48,18 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
       Alert.alert("Revisa", err1);
       return;
     }
-    const err2 = validarPasoAcceso({
+    const errCurp = validarCoherenciaCurp({
+      curp,
+      nombres,
+      apellidoPaterno,
+      apellidoMaterno,
+      fechaNacimiento: fechaNac,
+    });
+    if (errCurp) {
+      Alert.alert("CURP", errCurp);
+      return;
+    }
+    const err2 = validarPasoAccesoRecepcion({
       telefono,
       correo,
       contrasena,
@@ -74,7 +86,9 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           nombre: nombres.trim(),
           apellido_pat: apellidoPaterno.trim(),
           apellido_mat: apellidoMaterno.trim(),
-          correoElectronico: correo.trim().toLowerCase(),
+          ...(correo.trim()
+            ? { correoElectronico: correo.trim().toLowerCase() }
+            : {}),
           telefono: telefono.replace(/\D/g, ""),
           fechaNacimiento,
           genero: genero.trim().toUpperCase(),
@@ -132,18 +146,27 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           }
         />
         <Entrada
-          etiqueta="CURP"
+          etiqueta="CURP (obligatorio)"
           value={curp}
           onChangeText={(t) =>
             setCurp(t.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 18))
           }
+          autoCapitalize="characters"
         />
-        <Entrada etiqueta="TELÉFONO" value={telefono} onChangeText={setTelefono} />
         <Entrada
-          etiqueta="CORREO"
+          etiqueta="TELÉFONO (obligatorio)"
+          value={telefono}
+          onChangeText={(t) => setTelefono(t.replace(/\D/g, "").slice(0, 10))}
+          keyboardType="phone-pad"
+          inputMode="numeric"
+          maxLength={10}
+        />
+        <Entrada
+          etiqueta="CORREO (opcional)"
           value={correo}
           onChangeText={setCorreo}
           autoCapitalize="none"
+          keyboardType="email-address"
         />
         <Entrada
           etiqueta="CONTRASEÑA INICIAL"

@@ -22,6 +22,8 @@ export default function RecepcionCitaConfirmada(): React.JSX.Element {
     especialidad?: string;
     inicio?: string;
     total?: string;
+    anticipo?: string;
+    mensaje?: string;
     sucursal?: string;
   }>();
 
@@ -55,7 +57,11 @@ export default function RecepcionCitaConfirmada(): React.JSX.Element {
       <ScrollView contentContainerStyle={estilos.scroll}>
         <View style={estilos.banner}>
           <Ionicons name="checkmark-circle" size={56} color={paleta.white} />
-          <Text style={estilos.bannerTit}>Cita confirmada</Text>
+          <Text style={estilos.bannerTit}>Anticipo registrado</Text>
+          <Text style={estilos.bannerSub}>
+            {params.mensaje ??
+              "El anticipo del 50% se registró correctamente en mostrador."}
+          </Text>
         </View>
 
         <View style={estilos.card}>
@@ -64,8 +70,13 @@ export default function RecepcionCitaConfirmada(): React.JSX.Element {
           <Text style={estilos.cardSub}>{fechaTxt}</Text>
           <Text style={estilos.cardSub}>{params.sucursal}</Text>
           <Text style={estilos.cardPac}>{params.paciente}</Text>
+          {params.anticipo != null && (
+            <Text style={estilos.cardAnticipo}>
+              Anticipo pagado: ${params.anticipo} MXN
+            </Text>
+          )}
           {params.total != null && (
-            <Text style={estilos.cardPrecio}>${params.total} MXN</Text>
+            <Text style={estilos.cardPrecio}>Total consulta: ${params.total} MXN</Text>
           )}
         </View>
 
@@ -101,6 +112,14 @@ const estilos = StyleSheet.create({
     color: paleta.white,
     marginTop: 12,
   },
+  bannerSub: {
+    fontSize: 14,
+    color: paleta.white,
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 20,
+    opacity: 0.95,
+  },
   card: {
     backgroundColor: paleta.white,
     borderRadius: BORDES.radio,
@@ -110,7 +129,13 @@ const estilos = StyleSheet.create({
   cardMed: { fontSize: 17, fontWeight: "800", color: paleta.navy },
   cardSub: { fontSize: 13, color: paleta.teal, marginTop: 4 },
   cardPac: { fontSize: 15, fontWeight: "700", color: paleta.navy, marginTop: 12 },
-  cardPrecio: { fontSize: 18, fontWeight: "800", color: paleta.navy, marginTop: 8 },
+  cardAnticipo: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#2E7D32",
+    marginTop: 10,
+  },
+  cardPrecio: { fontSize: 16, fontWeight: "600", color: paleta.teal, marginTop: 4 },
   btnLlamar: {
     flexDirection: "row",
     alignItems: "center",

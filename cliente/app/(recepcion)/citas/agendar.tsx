@@ -32,9 +32,11 @@ import {
 import {
   buscarPacientesRecepcion,
   crearCitaMostradorRecepcion,
+  fetchPacienteRecepcion,
   nombrePacienteRecep,
   type PacienteBusquedaDto,
 } from "../../../lib/recepcionApi";
+import { validarCurpPaciente } from "../../../lib/validacionRegistro";
 import {
   construirRejillaDia,
   esMismoDia,
@@ -196,8 +198,27 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
     return especialidades.filter((e) => e.nombre.toLowerCase().includes(q));
   }, [especialidades, busquedaEsp]);
 
+  const validarPacienteAntesPago = async (): Promise<boolean> => {
+    if (!pacSel || !token) return false;
+    try {
+      const perfil = await fetchPacienteRecepcion(token, pacSel.pacienteID);
+      const err = validarCurpPaciente(perfil);
+      if (err) {
+        Alert.alert("CURP del paciente", err);
+        return false;
+      }
+      return true;
+    } catch {
+      Alert.alert("Error", "No se pudieron verificar los datos del paciente.");
+      return false;
+    }
+  };
+
   const confirmarPago = async (): Promise<void> => {
     if (!pacSel || !slotSel || !metodoPago || !token) return;
+    const okCurp = await validarPacienteAntesPago();
+    if (!okCurp) return;
+
     if (metodoPago === "transferencia") {
       router.push({
         pathname: "/(recepcion)/citas/pendiente",
@@ -231,6 +252,10 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
           especialidad: espSel?.nombre ?? "",
           inicio: cita.inicio,
           total: cita.montoTotal,
+          anticipo: cita.montoAnticipo,
+          mensaje:
+            cita.mensaje ??
+            "Anticipo del 50% registrado correctamente.",
           sucursal: sucSel?.sucursal?.nombre ?? "",
         },
       });
@@ -445,7 +470,7 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
                 onPress={() => setMetodoPago("transferencia")}
               >
                 <Ionicons name="card-outline" size={22} color={paleta.navy} />
-                <Text style={estilos.metodoTxt}>Transferencia</Text>
+                <Text style={estilos.metodoTxt}>Tarjeta / transferencia</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[

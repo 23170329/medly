@@ -86,6 +86,41 @@ export function validarPasoDatosPersonalesDetallado(params: {
   };
 }
 
+/** Registro desde recepción: teléfono obligatorio; correo opcional. */
+export function validarPasoAccesoRecepcion(params: {
+  telefono: string;
+  correo: string;
+  contrasena: string;
+  confirmarContrasena: string;
+}): string | null {
+  const tel = params.telefono.replace(/\D/g, "");
+  if (tel.length !== 10) {
+    return "El teléfono es obligatorio y debe tener 10 dígitos.";
+  }
+  const email = params.correo.trim();
+  if (email) {
+    if (email.length > 150) {
+      return "El correo no puede exceder 150 caracteres.";
+    }
+    if (!REGEX_CORREO.test(email)) {
+      return "El formato del correo electrónico no es válido.";
+    }
+    if (/@medly\./i.test(email)) {
+      return "No se permiten correos con dominio @medly.";
+    }
+  }
+  if (params.contrasena.length < 8 || params.contrasena.length > 72) {
+    return "La contraseña debe tener entre 8 y 72 caracteres.";
+  }
+  if (!/^(?=.*[A-Za-zÁÉÍÓÚÑáéíóúñ])(?=.*\d).{8,}$/.test(params.contrasena)) {
+    return "La contraseña debe incluir al menos una letra y un número.";
+  }
+  if (params.contrasena !== params.confirmarContrasena) {
+    return "Las contraseñas no coinciden.";
+  }
+  return null;
+}
+
 export function validarPasoAcceso(params: {
   telefono: string;
   correo: string;
@@ -198,18 +233,51 @@ export function validarCoherenciaCurp(params: {
     return `La cuarta letra de la CURP debe coincidir con la primera letra del nombre (${letraNombre}).`;
   }
 
-  if (params.fechaNacimiento) {
-    const partes = params.fechaNacimiento.split("/");
-    if (partes.length === 3) {
-      const anio = partes[2].slice(-2);
-      const mes = partes[1].padStart(2, "0");
-      const dia = partes[0].padStart(2, "0");
-      const fechaEsperada = `${anio}${mes}${dia}`;
-      if (curpFecha !== fechaEsperada) {
-        return `Los dígitos 5-10 de la CURP no coinciden con la fecha de nacimiento (${fechaEsperada}).`;
-      }
+  const fechaDdMm = fechaNacimientoADDmmaaaa(params.fechaNacimiento);
+  if (fechaDdMm) {
+    const partes = fechaDdMm.split("/");
+    const anio = partes[2].slice(-2);
+    const mes = partes[1].padStart(2, "0");
+    const dia = partes[0].padStart(2, "0");
+    const fechaEsperada = `${anio}${mes}${dia}`;
+    if (curpFecha !== fechaEsperada) {
+      return `Los dígitos 5-10 de la CURP no coinciden con la fecha de nacimiento (${fechaEsperada}).`;
     }
   }
 
   return null;
+}
+
+/** Convierte DD/MM/AAAA o YYYY-MM-DD a DD/MM/AAAA para validación CURP. */
+export function fechaNacimientoADDmmaaaa(fecha: string): string | null {
+  const t = fecha.trim();
+  if (!t) return null;
+  const slash = t.split("/");
+  if (slash.length === 3) return t;
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  return null;
+}
+
+export interface PacienteCurpValidable {
+  curp: string;
+  nombre: string;
+  apellido_pat: string;
+  apellido_mat?: string | null;
+  fechaNacimiento: string;
+}
+
+export function validarCurpPaciente(p: PacienteCurpValidable): string | null {
+  const curp = normalizarCurp(p.curp);
+  if (!REGEX_CURP.test(curp)) {
+    return "La CURP del paciente no es válida (18 caracteres).";
+  }
+  const fecha = fechaNacimientoADDmmaaaa(String(p.fechaNacimiento).slice(0, 10));
+  return validarCoherenciaCurp({
+    curp,
+    nombres: p.nombre,
+    apellidoPaterno: p.apellido_pat,
+    apellidoMaterno: p.apellido_mat ?? "",
+    fechaNacimiento: fecha ?? "",
+  });
 }

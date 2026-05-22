@@ -285,7 +285,7 @@ export class CitasService {
         slotID: slot.slotID,
         inicio: slot.inicio,
         fin: slot.fin,
-        estado: EstadoCita.CONFIRMADA,
+        estado: EstadoCita.ANTICIPO_REALIZADO,
         montoTotal: total,
         montoAnticipo: anticipo,
       });
