@@ -30,9 +30,11 @@ import {
   type SlotDto,
 } from "../../../lib/medlyApi";
 import {
+  claveDiaLocal,
   construirRejillaDia,
   esMismoDia,
   fechasUnicasDesdeSlots,
+  rangoConsultaSlots,
   HORA_FIN_LABORAL,
   HORA_INICIO_LABORAL,
   INTERVALO_MINUTOS,
@@ -121,9 +123,12 @@ export default function AgendarCitaPantalla() {
     if (!medSel || !sucSel) return;
     setCargando(true);
     try {
+      const { desde, hasta } = rangoConsultaSlots();
       const data = await fetchSlots({
         medicoId: medSel.medicoID,
         sucursalId: sucSel.sucursalID,
+        desde,
+        hasta,
       });
       setSlots(data);
       if (data.length === 0) {
@@ -167,7 +172,7 @@ export default function AgendarCitaPantalla() {
   const diasConCupoSet = useMemo(() => {
     const set = new Set<string>();
     for (const d of diasConCupo) {
-      set.add(normalizarDia(d).toISOString());
+      set.add(claveDiaLocal(d));
     }
     return set;
   }, [diasConCupo]);
@@ -477,9 +482,7 @@ export default function AgendarCitaPantalla() {
                   modo="dia"
                   fechaSeleccionada={fechaSeleccionada}
                   onSeleccionDia={(d) => setFechaSeleccionada(d)}
-                  diaHabilitado={(d) =>
-                    diasConCupoSet.has(normalizarDia(d).toISOString())
-                  }
+                  diaHabilitado={(d) => diasConCupoSet.has(claveDiaLocal(d))}
                   minDate={new Date()}
                 />
 

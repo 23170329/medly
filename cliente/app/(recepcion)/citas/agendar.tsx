@@ -17,7 +17,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { EncabezadoPantallaMedico } from "../../../componentes/medico/EncabezadoPantallaMedico";
 import { IndicadorPasos } from "../../../componentes/comunes/IndicadorPasos";
 import { CalendarioMedly } from "../../../componentes/calendario/CalendarioMedly";
-import { normalizarDia } from "../../../componentes/calendario/calendarioUtils";
+import {
+  claveDiaLocal,
+  rangoConsultaSlots,
+} from "../../../lib/agendaPickerUtils";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import { useAuthStore } from "../../../stores/auth.store";
 import {
@@ -164,11 +167,26 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
     if (!medSel || !sucSel) return;
     setCargando(true);
     try {
+      const { desde, hasta } = rangoConsultaSlots();
       const data = await fetchSlots({
         medicoId: medSel.medicoID,
         sucursalId: sucSel.sucursalID,
+        desde,
+        hasta,
       });
       setSlots(data);
+      if (data.length === 0) {
+        Alert.alert(
+          "Sin horarios",
+          "No hay cupos libres en slot_agenda para este médico en la sucursal elegida.",
+        );
+      } else if (data.length > 0) {
+        const fechas = fechasUnicasDesdeSlots(data);
+        const primera = fechas[0];
+        if (primera) {
+          setMesAgenda(new Date(primera.getFullYear(), primera.getMonth(), 1));
+        }
+      }
     } catch {
       Alert.alert("Error", "No se pudieron cargar horarios.");
     } finally {
@@ -185,7 +203,11 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
     const fechas = fechasUnicasDesdeSlots(slots);
     setFechaSeleccionada((prev) => {
       if (prev != null && fechas.some((d) => esMismoDia(d, prev))) return prev;
-      return fechas[0] ?? null;
+      const primera = fechas[0] ?? null;
+      if (primera) {
+        setMesAgenda(new Date(primera.getFullYear(), primera.getMonth(), 1));
+      }
+      return primera;
     });
   }, [paso, slots]);
 
@@ -202,7 +224,7 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
   const diasConCupoSet = useMemo(() => {
     const set = new Set<string>();
     for (const d of diasConCupo) {
-      set.add(normalizarDia(d).toISOString());
+      set.add(claveDiaLocal(d));
     }
     return set;
   }, [diasConCupo]);
@@ -489,9 +511,7 @@ export default function RecepcionAgendarCita(): React.JSX.Element {
                   modo="dia"
                   fechaSeleccionada={fechaSeleccionada}
                   onSeleccionDia={setFechaSeleccionada}
-                  diaHabilitado={(d) =>
-                    diasConCupoSet.has(normalizarDia(d).toISOString())
-                  }
+                  diaHabilitado={(d) => diasConCupoSet.has(claveDiaLocal(d))}
                 />
                 <Text style={estilos.horasTit}>HORARIOS DISPONIBLES</Text>
                 <View style={estilos.rejillaHoras}>

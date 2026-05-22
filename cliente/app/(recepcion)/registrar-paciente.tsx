@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  View,
   Text,
   StyleSheet,
   SafeAreaView,
@@ -11,6 +10,7 @@ import {
 import { router } from "expo-router";
 import { EncabezadoPantallaMedico } from "../../componentes/medico/EncabezadoPantallaMedico";
 import { Entrada } from "../../componentes/comunes/Entrada";
+import { SelectorFechaNacimiento } from "../../componentes/comunes/SelectorFechaNacimiento";
 import { Boton } from "../../componentes/comunes/Boton";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
 import { API_URL } from "../../constants/api";
@@ -127,10 +127,10 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           value={apellidoMaterno}
           onChangeText={setApellidoMaterno}
         />
-        <Entrada
-          etiqueta="NACIMIENTO (DD/MM/AAAA)"
+        <SelectorFechaNacimiento
+          etiqueta="NACIMIENTO (obligatorio)"
           value={fechaNac}
-          onChangeText={setFechaNac}
+          onChange={setFechaNac}
         />
         <Entrada
           etiqueta="GÉNERO (H o M)"
