@@ -34,6 +34,11 @@ export class RecepcionController {
     };
   }
 
+  @Get('citas')
+  listarCitas() {
+    return this.citasService.listarCitasRecepcion();
+  }
+
   @Post('citas/mostrador')
   crearCitaMostrador(@Body() dto: CrearCitaMostradorDto) {
     return this.citasService.crearCitaMostrador(dto.pacienteId, dto.slotID);

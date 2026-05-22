@@ -303,6 +303,27 @@ export class CitasService {
     });
   }
 
+  /** Agenda de recepción: citas futuras confirmadas o en proceso de pago. */
+  async listarCitasRecepcion(limite = 80): Promise<Cita[]> {
+    return this.citaRepo
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.paciente', 'p')
+      .leftJoinAndSelect('c.medico', 'm')
+      .leftJoinAndSelect('m.especialidad', 'e')
+      .leftJoinAndSelect('c.sucursal', 's')
+      .where('c.inicio >= :ahora', { ahora: new Date() })
+      .andWhere('c.estado IN (:...estados)', {
+        estados: [
+          EstadoCita.CONFIRMADA,
+          EstadoCita.PENDIENTE_PAGO,
+          EstadoCita.ANTICIPO_REALIZADO,
+        ],
+      })
+      .orderBy('c.inicio', 'ASC')
+      .take(limite)
+      .getMany();
+  }
+
   async listarCitasMedico(medicoId: number): Promise<Cita[]> {
     return this.citaRepo.find({
       where: { medicoID: medicoId },

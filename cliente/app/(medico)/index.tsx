@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -10,47 +10,40 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { EncabezadoPaciente } from "../../componentes/layout/EncabezadoPaciente";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
-import { API_URL } from "../../constants/api";
 import { useAuthStore } from "../../stores/auth.store";
-
-interface CitaRes {
-  citaID: number;
-  inicio: string;
-  paciente?: { nombre: string; apellido_pat: string };
-}
-
-interface ConsultaRes {
-  consultaID: number;
-  fechaRegistro: string;
-  diagnosticos?: string | null;
-}
+import {
+  fetchCitasPendientesMedico,
+  nombrePaciente,
+  type CitaMedicoDto,
+} from "../../lib/medicoApi";
 
 export default function MedicoInicio(): React.JSX.Element {
+  const usuario = useAuthStore((s) => s.usuario);
   const token = useAuthStore((s) => s.accessToken);
-  const cerrarSesion = useAuthStore((s) => s.cerrarSesion);
-  const [pend, setPend] = useState<CitaRes[]>([]);
-  const [cons, setCons] = useState<ConsultaRes[]>([]);
+  const [citas, setCitas] = useState<CitaMedicoDto[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const nombreCorto = usuario?.nombre?.split(" ")[0] ?? "Doctor";
+  const inicial = (usuario?.nombre?.[0] ?? "D").toUpperCase();
+
+  const proxima = useMemo(() => {
+    const orden = [...citas].sort(
+      (a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime(),
+    );
+    return orden[0] ?? null;
+  }, [citas]);
+
   const cargar = useCallback(async () => {
+    if (!token) return;
     setLoading(true);
     try {
-      const [r1, r2] = await Promise.all([
-        fetch(`${API_URL}/medico/citas/pendientes-atencion`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${API_URL}/medico/consultas`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
-      const d1 = r1.ok ? ((await r1.json()) as CitaRes[]) : [];
-      const d2 = r2.ok ? ((await r2.json()) as ConsultaRes[]) : [];
-      setPend(Array.isArray(d1) ? d1 : []);
-      setCons(Array.isArray(d2) ? d2 : []);
+      const data = await fetchCitasPendientesMedico(token);
+      setCitas(Array.isArray(data) ? data : []);
     } catch {
-      setPend([]);
-      setCons([]);
+      setCitas([]);
     } finally {
       setLoading(false);
     }
@@ -65,75 +58,66 @@ export default function MedicoInicio(): React.JSX.Element {
   return (
     <SafeAreaView style={estilos.area}>
       <ScrollView
+        contentContainerStyle={estilos.scroll}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={() => void cargar()} />
         }
-        contentContainerStyle={estilos.scroll}
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={estilos.titulo}>Panel médico</Text>
-        <Text style={estilos.sub}>
-          Cuenta demo: doctor@medly.d / DoctorMedly1!
-        </Text>
+        <EncabezadoPaciente
+          nombreCorto={nombreCorto}
+          inicial={inicial}
+          onPerfil={() => router.push("/(medico)/perfil")}
+        />
 
-        <Text style={estilos.sec}>Citas pendientes por atender</Text>
-        {pend.length === 0 ? (
-          <Text style={estilos.vacio}>Sin citas próximas confirmadas.</Text>
-        ) : (
-          pend.map((c) => (
-            <View key={c.citaID} style={estilos.card}>
-              <Text style={estilos.cardTit}>
-                {c.paciente
-                  ? `${c.paciente.nombre} ${c.paciente.apellido_pat}`
-                  : `Paciente`}
+        <Text style={estilos.sec}>PRÓXIMA CITA</Text>
+        {proxima ? (
+          <TouchableOpacity
+            style={estilos.cardCita}
+            onPress={() =>
+              router.push({
+                pathname: "/(medico)/citas/[id]",
+                params: { id: String(proxima.citaID) },
+              })
+            }
+          >
+            <View style={estilos.cardCitaIcono}>
+              <Ionicons name="medkit-outline" size={22} color={paleta.teal} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={estilos.cardCitaNombre}>
+                {nombrePaciente(proxima.paciente)}
               </Text>
-              <Text style={estilos.cardSub}>
-                {new Date(c.inicio).toLocaleString("es-MX")}
+              <Text style={estilos.cardCitaSub}>
+                {proxima.medico?.especialidad?.nombre ?? "Consulta"} ·{" "}
+                {new Date(proxima.inicio).toLocaleTimeString("es-MX", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </Text>
             </View>
-          ))
-        )}
-
-        <Text style={[estilos.sec, { marginTop: 24 }]}>
-          Histórico de consultas (solo las tuyas)
-        </Text>
-        {cons.length === 0 ? (
-          <Text style={estilos.vacio}>Aún no hay consultas registradas.</Text>
+            <Ionicons name="chevron-forward" size={20} color={paleta.teal} />
+          </TouchableOpacity>
         ) : (
-          cons.slice(0, 15).map((x) => (
-            <View key={x.consultaID} style={estilos.card}>
-              <Text style={estilos.cardTit}>
-                Consulta #{x.consultaID} —{" "}
-                {new Date(x.fechaRegistro).toLocaleDateString("es-MX")}
-              </Text>
-              <Text style={estilos.cardSub} numberOfLines={2}>
-                {x.diagnosticos ?? "(sin diagnóstico capturado)"}
-              </Text>
-            </View>
-          ))
+          <View style={estilos.cardVacio}>
+            <Text style={estilos.cardVacioTxt}>Sin citas pendientes por atender.</Text>
+          </View>
         )}
 
         <TouchableOpacity
-          style={estilos.btn}
-          onPress={() => router.push("/(medico)/consulta-nueva")}
+          style={estilos.btnAccion}
+          onPress={() => router.push("/(medico)/expedientes")}
         >
-          <Text style={estilos.btnTxt}>Nueva consulta (nota clínica)</Text>
+          <Ionicons name="folder-open-outline" size={22} color={paleta.white} />
+          <Text style={estilos.btnAccionTxt}>EXPEDIENTES</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={estilos.btn}
+          style={estilos.btnAccion}
           onPress={() => router.push("/(medico)/bloqueos")}
         >
-          <Text style={estilos.btnTxt}>Bloqueos de agenda</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={estilos.btnSec}
-          onPress={async () => {
-            await cerrarSesion();
-            router.replace("/(auth)/iniciar-sesion");
-          }}
-        >
-          <Text style={estilos.btnSecTxt}>Cerrar sesión</Text>
+          <Ionicons name="calendar-outline" size={22} color={paleta.white} />
+          <Text style={estilos.btnAccionTxt}>BLOQUEAR AGENDA</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -142,42 +126,58 @@ export default function MedicoInicio(): React.JSX.Element {
 
 const estilos = StyleSheet.create({
   area: { flex: 1, backgroundColor: COLORES.fondo },
-  scroll: { padding: 24, paddingBottom: 48 },
-  titulo: { fontSize: 22, fontWeight: "800", color: paleta.navy },
-  sub: { fontSize: 13, color: paleta.teal, marginTop: 6, marginBottom: 20 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 32 },
   sec: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: paleta.teal,
+    fontSize: 11,
+    fontWeight: "800",
     letterSpacing: 0.8,
+    color: paleta.teal,
     marginBottom: 10,
   },
-  vacio: { fontSize: 14, color: paleta.navy, opacity: 0.6 },
-  card: {
+  cardCita: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: paleta.white,
     borderRadius: BORDES.radio,
     padding: 14,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: paleta.teal,
+    marginBottom: 20,
+    gap: 12,
+    shadowColor: paleta.navy,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  cardTit: { fontWeight: "700", color: paleta.navy },
-  cardSub: { fontSize: 13, color: paleta.teal, marginTop: 4 },
-  btn: {
-    marginTop: 16,
+  cardCitaIcono: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: paleta.skyblue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardCitaNombre: { fontSize: 16, fontWeight: "700", color: paleta.navy },
+  cardCitaSub: { fontSize: 13, color: paleta.teal, marginTop: 4 },
+  cardVacio: {
+    backgroundColor: paleta.white,
+    borderRadius: BORDES.radio,
+    padding: 16,
+    marginBottom: 20,
+  },
+  cardVacioTxt: { color: paleta.teal, fontSize: 14 },
+  btnAccion: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
     backgroundColor: paleta.navy,
     borderRadius: BORDES.radioPill,
-    paddingVertical: 14,
-    alignItems: "center",
+    paddingVertical: 16,
+    marginBottom: 12,
   },
-  btnTxt: { color: paleta.white, fontWeight: "700" },
-  btnSec: {
-    marginTop: 20,
-    borderWidth: 1.5,
-    borderColor: paleta.teal,
-    borderRadius: BORDES.radioPill,
-    paddingVertical: 12,
-    alignItems: "center",
+  btnAccionTxt: {
+    color: paleta.white,
+    fontWeight: "800",
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
-  btnSecTxt: { color: paleta.teal, fontWeight: "700" },
 });

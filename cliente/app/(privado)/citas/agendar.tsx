@@ -36,8 +36,9 @@ import {
   HORA_FIN_LABORAL,
   HORA_INICIO_LABORAL,
   INTERVALO_MINUTOS,
-  normalizarFechaLocal,
 } from "../../../lib/agendaPickerUtils";
+import { CalendarioMedly } from "../../../componentes/calendario/CalendarioMedly";
+import { normalizarDia } from "../../../componentes/calendario/calendarioUtils";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -62,7 +63,7 @@ export default function AgendarCitaPantalla() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState<Date | null>(null);
   /** Hora elegida "HH:mm" local; debe coincidir con un slot disponible. */
   const [horaSeleccionada, setHoraSeleccionada] = useState<string | null>(null);
-
+  const [mesAgenda, setMesAgenda] = useState(() => new Date());
 
   useEffect(() => {
     let cancel = false;
@@ -162,6 +163,14 @@ export default function AgendarCitaPantalla() {
     () => (paso === 3 ? fechasUnicasDesdeSlots(slots) : []),
     [paso, slots],
   );
+
+  const diasConCupoSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of diasConCupo) {
+      set.add(normalizarDia(d).toISOString());
+    }
+    return set;
+  }, [diasConCupo]);
 
   const rejillaHorarios = useMemo(() => {
     if (fechaSeleccionada == null) return [];
@@ -462,57 +471,17 @@ export default function AgendarCitaPantalla() {
               </Text>
             ) : (
               <>
-                {fechaSeleccionada != null && (
-                  <Text style={estilos.mesTituloAgenda}>
-                    {fechaSeleccionada.toLocaleDateString("es-MX", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </Text>
-                )}
-
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  nestedScrollEnabled
-                  contentContainerStyle={estilos.filaDiasScroll}
-                >
-                  {diasConCupo.map((d) => {
-                    const sel =
-                      fechaSeleccionada != null && esMismoDia(d, fechaSeleccionada);
-                    return (
-                      <Pressable
-                        key={normalizarFechaLocal(d)}
-                        onPress={() => setFechaSeleccionada(d)}
-                        style={({ pressed }) => [
-                          estilos.diaChip,
-                          sel && estilos.diaChipSel,
-                          pressed && !sel && estilos.diaChipPressed,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            estilos.diaChipSem,
-                            sel && estilos.diaChipSemSel,
-                          ]}
-                        >
-                          {d
-                            .toLocaleDateString("es-MX", { weekday: "short" })
-                            .replace(".", "")
-                            .toUpperCase()}
-                        </Text>
-                        <Text
-                          style={[
-                            estilos.diaChipNum,
-                            sel && estilos.diaChipNumSel,
-                          ]}
-                        >
-                          {d.getDate()}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
+                <CalendarioMedly
+                  mesVisible={mesAgenda}
+                  onMesVisibleChange={setMesAgenda}
+                  modo="dia"
+                  fechaSeleccionada={fechaSeleccionada}
+                  onSeleccionDia={(d) => setFechaSeleccionada(d)}
+                  diaHabilitado={(d) =>
+                    diasConCupoSet.has(normalizarDia(d).toISOString())
+                  }
+                  minDate={new Date()}
+                />
 
                 <View style={estilos.leyendaFila}>
                   <View style={estilos.leyendaItem}>
