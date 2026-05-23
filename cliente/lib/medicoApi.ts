@@ -188,3 +188,34 @@ export function nombrePaciente(
   const am = p.apellido_mat ? ` ${p.apellido_mat}` : "";
   return `${p.nombre} ${p.apellido_pat}${am}`.trim();
 }
+
+export interface NotificacionMedicoDto {
+  notificacionID: number;
+  medicoID: number;
+  titulo: string;
+  mensaje: string;
+  leida: boolean;
+  tipo?: string | null;
+  citaID?: number | null;
+  permiteReagendar?: boolean;
+  fechaCreacion: string;
+}
+
+export function fetchNotificacionesMedico(
+  token: string,
+): Promise<NotificacionMedicoDto[]> {
+  return medicoFetch("/medico/notificaciones", token);
+}
+
+export function fetchNotificacionesNoLeidasMedico(token: string): Promise<number> {
+  return medicoFetch("/medico/notificaciones/no-leidas", token);
+}
+
+export function marcarNotificacionLeidaMedico(
+  token: string,
+  id: number,
+): Promise<NotificacionMedicoDto> {
+  return medicoFetch(`/medico/notificaciones/${id}/leida`, token, {
+    method: "PATCH",
+  });
+}

@@ -25,6 +25,7 @@ import { CrearConsultaDto } from '../consultas/dto/crear-consulta.dto';
 import { ActualizarConsultaDto } from '../consultas/dto/actualizar-consulta.dto';
 import { CancelarCitaMedicoDto } from './dto/cancelar-cita-medico.dto';
 import { GuardarExpedienteDto } from '../consultas/dto/guardar-expediente.dto';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @ApiTags('medico')
 @Controller('medico')
@@ -37,6 +38,7 @@ export class MedicoPanelController {
     private readonly bloqueosService: BloqueosService,
     private readonly consultasService: ConsultasService,
     private readonly auditoriaService: AuditoriaService,
+    private readonly notificacionesService: NotificacionesService,
   ) {}
 
   private medicoId(u: JwtPayload): number {
@@ -154,5 +156,23 @@ export class MedicoPanelController {
     @Body() dto: ActualizarConsultaDto,
   ) {
     return this.consultasService.actualizar(this.medicoId(u), id, dto);
+  }
+
+  @Get('notificaciones')
+  listarNotificaciones(@CurrentUser() u: JwtPayload) {
+    return this.notificacionesService.listarPorMedico(this.medicoId(u));
+  }
+
+  @Get('notificaciones/no-leidas')
+  contarNotificacionesNoLeidas(@CurrentUser() u: JwtPayload) {
+    return this.notificacionesService.contarNoLeidasMedico(this.medicoId(u));
+  }
+
+  @Patch('notificaciones/:id/leida')
+  marcarNotificacionLeida(
+    @CurrentUser() u: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.notificacionesService.marcarLeidaMedico(this.medicoId(u), id);
   }
 }

@@ -22,6 +22,7 @@ import {
 type EstadoCita =
   | "CONFIRMADA"
   | "PENDIENTE"
+  | "ANTICIPO"
   | "CANCELADA"
   | "COMPLETADA";
 
@@ -29,7 +30,7 @@ type FiltroValor = EstadoCita | "TODAS";
 
 function mapEstadoApi(a: EstadoCitaApi): EstadoCita {
   if (a === "PENDIENTE_PAGO") return "PENDIENTE";
-  if (a === "ANTICIPO_REALIZADO") return "CONFIRMADA";
+  if (a === "ANTICIPO_REALIZADO") return "ANTICIPO";
   if (a === "CONFIRMADA") return "CONFIRMADA";
   if (a === "CANCELADA") return "CANCELADA";
   return "COMPLETADA";
@@ -75,6 +76,12 @@ const CONFIG_ESTADO: Readonly<Record<EstadoCita, ConfigEstado>> = {
     fondo: "#FEF3C7",
     icono: "time-outline",
     etiqueta: "Pendiente",
+  },
+  ANTICIPO: {
+    color: paleta.green,
+    fondo: "#DCF0E4",
+    icono: "cash-outline",
+    etiqueta: "Anticipo realizado",
   },
   COMPLETADA: {
     color: paleta.teal,
@@ -187,7 +194,7 @@ function TarjetaCita({ cita }: TarjetaCitaProps): React.JSX.Element {
             </View>
           </View>
 
-          {cita.anticipoPagado && (
+          {cita.anticipoPagado && cita.estado !== "ANTICIPO" && (
             <View
               style={[
                 estilos.badge,
@@ -266,12 +273,18 @@ export default function AgendaPantalla(): React.JSX.Element {
     }, [cargar]),
   );
 
-  const citasFiltradas = citas.filter((c) =>
-    filtroActivo === "TODAS" ? true : c.estado === filtroActivo,
-  );
+  const citasFiltradas = citas.filter((c) => {
+    if (filtroActivo === "TODAS") return true;
+    if (filtroActivo === "CONFIRMADA") {
+      return c.estado === "CONFIRMADA" || c.estado === "ANTICIPO";
+    }
+    return c.estado === filtroActivo;
+  });
 
   const conteo = {
-    proximas: citas.filter((c) => c.estado === "CONFIRMADA").length,
+    proximas: citas.filter(
+      (c) => c.estado === "CONFIRMADA" || c.estado === "ANTICIPO",
+    ).length,
     pendientes: citas.filter((c) => c.estado === "PENDIENTE").length,
     total: citas.length,
   };

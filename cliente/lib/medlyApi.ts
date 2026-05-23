@@ -170,6 +170,9 @@ export interface NotificacionDto {
   titulo: string;
   mensaje: string;
   leida: boolean;
+  tipo?: string | null;
+  citaID?: number | null;
+  permiteReagendar?: boolean;
   fechaCreacion: string;
 }
 

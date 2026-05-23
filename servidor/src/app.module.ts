@@ -31,6 +31,7 @@ import { CuentaStaff } from './staff/entities/cuenta-staff.entity';
 import { BloqueoAgenda } from './horarios/entities/bloqueo-agenda.entity';
 import { ConsultaClinica } from './consultas/entities/consulta-clinica.entity';
 import { Notificacion } from './notificaciones/entities/notificacion.entity';
+import { NotificacionMedico } from './notificaciones/entities/notificacion-medico.entity';
 import { Auditoria } from './auditoria/entities/auditoria.entity';
 import { RecepcionModule } from './recepcion/recepcion.module';
 import { MedicoPanelModule } from './medico-panel/medico-panel.module';
@@ -54,6 +55,7 @@ const entities = [
   Pago,
   ConsultaClinica,
   Notificacion,
+  NotificacionMedico,
   Auditoria,
 ];
 

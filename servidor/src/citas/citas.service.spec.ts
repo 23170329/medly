@@ -95,7 +95,7 @@ describe('CitasService', () => {
         },
         {
           provide: NotificacionesService,
-          useValue: { crear: jest.fn() },
+          useValue: { crear: jest.fn(), crearParaMedico: jest.fn() },
         },
         {
           provide: AuditoriaService,
@@ -580,6 +580,13 @@ describe('CitasService', () => {
         expect.objectContaining({
           pacienteID: 1,
           titulo: 'Cita cancelada por el médico',
+          permiteReagendar: true,
+        }),
+      );
+      expect(mockNotificacionesService.crearParaMedico).toHaveBeenCalledWith(
+        expect.objectContaining({
+          medicoID: 10,
+          titulo: 'Cita cancelada',
         }),
       );
       expect(result).toEqual({
