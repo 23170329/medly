@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
@@ -19,6 +19,7 @@ import {
   crearCita,
   marcarAnticipoRealizado,
   fetchEspecialidades,
+  fetchMedico,
   fetchMedicoSucursales,
   fetchMedicos,
   fetchSlots,
@@ -34,7 +35,13 @@ import { SeleccionFechaHoraAgenda } from "../../../componentes/citas/SeleccionFe
 WebBrowser.maybeCompleteAuthSession();
 
 export default function AgendarCitaPantalla() {
-  const [paso, setPaso] = useState(1);
+  const params = useLocalSearchParams<{
+    reagendar?: string;
+    medicoId?: string;
+    sucursalId?: string;
+  }>();
+  const esReagendar = params.reagendar === "1" && params.medicoId;
+  const [paso, setPaso] = useState(esReagendar ? 3 : 1);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +77,52 @@ export default function AgendarCitaPantalla() {
       cancel = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!esReagendar || !params.medicoId) return;
+    let cancel = false;
+    (async () => {
+      setCargando(true);
+      try {
+        const med = await fetchMedico(parseInt(params.medicoId!, 10));
+        if (cancel) return;
+        setMedSel(med);
+        const esp = especialidades.find(
+          (e) => e.especialidadID === med.especialidadID,
+        );
+        if (esp) setEspSel(esp);
+        else if (med.especialidad) {
+          setEspSel({
+            especialidadID: med.especialidadID,
+            nombre: med.especialidad.nombre,
+            icono: null,
+          });
+        }
+        const ms = await fetchMedicoSucursales(med.medicoID);
+        if (cancel) return;
+        setSucursalesMed(ms);
+        const sid = params.sucursalId
+          ? parseInt(params.sucursalId, 10)
+          : NaN;
+        const suc =
+          ms.find((s) => s.sucursalID === sid) ?? ms[0] ?? null;
+        setSucSel(suc);
+      } catch {
+        if (!cancel) {
+          Alert.alert(
+            "Reagendar",
+            "No se pudo cargar el médico. Elige especialidad y médico manualmente.",
+          );
+          setPaso(1);
+        }
+      } finally {
+        if (!cancel) setCargando(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [esReagendar, params.medicoId, params.sucursalId, especialidades]);
 
   useEffect(() => {
     if (paso !== 2 || !espSel) return;

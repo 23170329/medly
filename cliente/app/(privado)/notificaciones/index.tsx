@@ -16,6 +16,7 @@ import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import {
   fetchNotificaciones,
   marcarNotificacionLeida,
+  eliminarNotificacion,
   type NotificacionDto,
 } from "../../../lib/medlyApi";
 
@@ -52,6 +53,29 @@ export default function NotificacionesPantalla(): React.JSX.Element {
     } catch {
       /* ignore */
     }
+  };
+
+  const handleReagendar = async (n: NotificacionDto): Promise<void> => {
+    try {
+      await eliminarNotificacion(n.notificacionID);
+      setLista((prev) =>
+        prev.filter((x) => x.notificacionID !== n.notificacionID),
+      );
+    } catch {
+      void handleMarcarLeida(n.notificacionID);
+    }
+    if (n.medicoID) {
+      router.push({
+        pathname: "/(privado)/citas/agendar",
+        params: {
+          reagendar: "1",
+          medicoId: String(n.medicoID),
+          sucursalId: n.sucursalID ? String(n.sucursalID) : "",
+        },
+      });
+      return;
+    }
+    router.push("/(privado)/citas/agendar");
   };
 
   return (
@@ -122,10 +146,7 @@ export default function NotificacionesPantalla(): React.JSX.Element {
               {n.permiteReagendar && n.tipo === "CITA_CANCELADA" ? (
                 <TouchableOpacity
                   style={estilos.btnReagendar}
-                  onPress={() => {
-                    void handleMarcarLeida(n.notificacionID);
-                    router.push("/(privado)/citas/agendar");
-                  }}
+                  onPress={() => void handleReagendar(n)}
                   accessibilityRole="button"
                 >
                   <Ionicons name="calendar-outline" size={16} color={paleta.white} />

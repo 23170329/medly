@@ -48,15 +48,13 @@ const ACCESOS: readonly AccesoRapido[] = [
     id: "3",
     icono: "pulse-outline",
     label: "Diagnóstico",
-    onPress: () =>
-      Alert.alert("Diagnóstico", "Próximamente enlazaremos resultados y notas."),
+    onPress: () => router.push("/(privado)/diagnostico"),
   },
   {
     id: "4",
     icono: "flask-outline",
     label: "Laboratorio",
-    onPress: () =>
-      Alert.alert("Laboratorio", "Próximamente verás estudios y resultados."),
+    onPress: () => router.push("/(privado)/laboratorio"),
   },
 ] as const;
 

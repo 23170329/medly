@@ -70,6 +70,46 @@ export class ConsultasService {
     return qb.getMany();
   }
 
+  async listarResultadosPaciente(
+    pacienteId: number,
+    tipo: 'diagnostico' | 'laboratorio',
+  ): Promise<ConsultaClinica[]> {
+    const qb = this.repo
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.medico', 'm')
+      .leftJoin('m.especialidad', 'e')
+      .addSelect(['e.especialidadID', 'e.nombre'])
+      .where('c.pacienteID = :pid', { pid: pacienteId })
+      .orderBy('c.fechaRegistro', 'DESC');
+
+    if (tipo === 'diagnostico') {
+      qb.andWhere('c.diagnosticos IS NOT NULL AND c.diagnosticos <> :vacio', {
+        vacio: '',
+      });
+    } else {
+      qb.andWhere(
+        'c.estudiosLaboratorio IS NOT NULL AND c.estudiosLaboratorio <> :vacio',
+        { vacio: '' },
+      );
+    }
+
+    return qb.getMany();
+  }
+
+  async obtenerResultadoPaciente(
+    pacienteId: number,
+    consultaId: number,
+  ): Promise<ConsultaClinica> {
+    const row = await this.repo.findOne({
+      where: { consultaID: consultaId, paciente: { pacienteID: pacienteId } },
+      relations: ['medico', 'medico.especialidad'],
+    });
+    if (!row) {
+      throw new NotFoundException('Registro no encontrado');
+    }
+    return row;
+  }
+
   async obtener(
     medicoId: number,
     consultaId: number,
@@ -180,6 +220,7 @@ export class ConsultasService {
       exploracionFisica: dto.exploracionFisica ?? null,
       diagnosticos: dto.diagnosticos ?? null,
       tratamiento: dto.tratamiento ?? null,
+      estudiosLaboratorio: dto.estudiosLaboratorio ?? null,
       evolucion: dto.evolucion ?? null,
       pronostico: dto.pronostico ?? null,
       notasConfidenciales: dto.notasConfidenciales ?? null,

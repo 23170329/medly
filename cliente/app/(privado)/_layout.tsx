@@ -101,6 +101,8 @@ export default function PrivadoLayout(): React.JSX.Element {
       <Tabs.Screen name="citas/[id]" options={{ href: null }} />
       <Tabs.Screen name="citas/agendar" options={{ href: null }} />
       <Tabs.Screen name="notificaciones/index" options={{ href: null }} />
+      <Tabs.Screen name="diagnostico/index" options={{ href: null }} />
+      <Tabs.Screen name="laboratorio/index" options={{ href: null }} />
     </Tabs>
   );
 }

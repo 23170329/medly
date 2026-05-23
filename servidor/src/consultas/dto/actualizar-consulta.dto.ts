@@ -29,6 +29,11 @@ export class ActualizarConsultaDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(8000)
+  estudiosLaboratorio?: string;
+
+  @IsOptional()
+  @IsString()
   evolucion?: string;
 
   @IsOptional()

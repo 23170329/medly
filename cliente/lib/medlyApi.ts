@@ -99,6 +99,11 @@ export async function fetchMedicoSucursales(
   return data;
 }
 
+export async function fetchMedico(medicoId: number): Promise<MedicoDto> {
+  const { data } = await api.get<MedicoDto>(`/medicos/${medicoId}`);
+  return data;
+}
+
 export async function fetchSlots(params: {
   medicoId: number;
   sucursalId: number;
@@ -172,8 +177,23 @@ export interface NotificacionDto {
   leida: boolean;
   tipo?: string | null;
   citaID?: number | null;
+  medicoID?: number | null;
+  sucursalID?: number | null;
   permiteReagendar?: boolean;
   fechaCreacion: string;
+}
+
+export interface ResultadoClinicoDto {
+  consultaID: number;
+  fechaRegistro: string;
+  diagnosticos?: string | null;
+  estudiosLaboratorio?: string | null;
+  tratamiento?: string | null;
+  medico?: {
+    nombre: string;
+    apellidoPat: string;
+    especialidad?: { nombre: string };
+  };
 }
 
 export async function fetchNotificaciones(): Promise<NotificacionDto[]> {
@@ -191,6 +211,20 @@ export async function marcarNotificacionLeida(
 ): Promise<NotificacionDto> {
   const { data } = await api.patch<NotificacionDto>(
     `/notificaciones/${id}/leida`,
+  );
+  return data;
+}
+
+export async function eliminarNotificacion(id: number): Promise<void> {
+  await api.delete(`/notificaciones/${id}`);
+}
+
+export async function fetchResultadosPaciente(
+  tipo: "diagnostico" | "laboratorio",
+): Promise<ResultadoClinicoDto[]> {
+  const { data } = await api.get<ResultadoClinicoDto[]>(
+    "/paciente/resultados",
+    { params: { tipo } },
   );
   return data;
 }
