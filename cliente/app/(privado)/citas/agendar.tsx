@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Pressable,
 } from "react-native";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
@@ -17,7 +16,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import {
   crearCheckoutSession,
-  marcarAnticipoRealizado,
   crearCita,
   fetchEspecialidades,
   fetchMedicoSucursales,
@@ -29,18 +27,8 @@ import {
   type MedicoSucursalDto,
   type SlotDto,
 } from "../../../lib/medlyApi";
-import {
-  claveDiaLocal,
-  construirRejillaDia,
-  esMismoDia,
-  fechasUnicasDesdeSlots,
-  rangoConsultaSlots,
-  HORA_FIN_LABORAL,
-  HORA_INICIO_LABORAL,
-  INTERVALO_MINUTOS,
-} from "../../../lib/agendaPickerUtils";
-import { CalendarioMedly } from "../../../componentes/calendario/CalendarioMedly";
-import { normalizarDia } from "../../../componentes/calendario/calendarioUtils";
+import { esMismoDia, fechasUnicasDesdeSlots, rangoConsultaSlots } from "../../../lib/agendaPickerUtils";
+import { SeleccionFechaHoraAgenda } from "../../../componentes/citas/SeleccionFechaHoraAgenda";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -164,24 +152,6 @@ export default function AgendarCitaPantalla() {
     setHoraSeleccionada(null);
   }, [fechaSeleccionada]);
 
-  const diasConCupo = useMemo(
-    () => (paso === 3 ? fechasUnicasDesdeSlots(slots) : []),
-    [paso, slots],
-  );
-
-  const diasConCupoSet = useMemo(() => {
-    const set = new Set<string>();
-    for (const d of diasConCupo) {
-      set.add(claveDiaLocal(d));
-    }
-    return set;
-  }, [diasConCupo]);
-
-  const rejillaHorarios = useMemo(() => {
-    if (fechaSeleccionada == null) return [];
-    return construirRejillaDia(fechaSeleccionada, slots);
-  }, [fechaSeleccionada, slots]);
-
   const puedeContinuarPaso3 =
     fechaSeleccionada != null &&
     horaSeleccionada != null &&
@@ -210,7 +180,6 @@ export default function AgendarCitaPantalla() {
     setCargando(true);
     try {
       const cita = await crearCita(slotSel.slotID);
-      await marcarAnticipoRealizado(cita.citaID);
       const { url } = await crearCheckoutSession(cita.citaID);
       if (!url) {
         Alert.alert("Pagos", "No se pudo iniciar el checkout de Stripe.");
@@ -459,113 +428,19 @@ export default function AgendarCitaPantalla() {
 
         {paso === 3 && (
           <View>
-            <Text style={estilos.subtitulo}>SELECCIONA FECHA Y HORA</Text>
-            <Text style={estilos.ayudaAgenda}>
-              Horario de {HORA_INICIO_LABORAL}:00 a {HORA_FIN_LABORAL}:00 · cada{" "}
-              {INTERVALO_MINUTOS} min
-            </Text>
-
-            {cargando ? (
-              <ActivityIndicator
-                style={{ marginVertical: 24 }}
-                color={paleta.navy}
-              />
-            ) : slots.length === 0 || diasConCupo.length === 0 ? (
-              <Text style={estilos.sinHorariosTxt}>
-                No hay fechas disponibles. Prueba otro médico o sucursal.
-              </Text>
-            ) : (
-              <>
-                <CalendarioMedly
-                  mesVisible={mesAgenda}
-                  onMesVisibleChange={setMesAgenda}
-                  modo="dia"
-                  fechaSeleccionada={fechaSeleccionada}
-                  onSeleccionDia={(d) => setFechaSeleccionada(d)}
-                  diaHabilitado={(d) => diasConCupoSet.has(claveDiaLocal(d))}
-                  minDate={new Date()}
-                />
-
-                <View style={estilos.leyendaFila}>
-                  <View style={estilos.leyendaItem}>
-                    <View
-                      style={[estilos.leyendaDot, { backgroundColor: paleta.teal }]}
-                    />
-                    <Text style={estilos.leyendaTxt}>Disponible</Text>
-                  </View>
-                  <View style={estilos.leyendaItem}>
-                    <View
-                      style={[
-                        estilos.leyendaDot,
-                        { backgroundColor: COLORES.peligro },
-                      ]}
-                    />
-                    <Text style={estilos.leyendaTxt}>Ocupado</Text>
-                  </View>
-                </View>
-
-                <Text style={estilos.subtituloHoras}>HORARIOS</Text>
-                <View style={estilos.rejillaHoras}>
-                  {rejillaHorarios.map((celda) => {
-                    const sel =
-                      celda.disponible &&
-                      celda.slot != null &&
-                      slotSel?.slotID === celda.slot.slotID;
-                    if (!celda.disponible) {
-                      return (
-                        <View
-                          key={celda.hora}
-                          style={[estilos.celdaHora, estilos.celdaHoraOcupada]}
-                          accessibilityState={{ disabled: true }}
-                        >
-                          <Text style={estilos.celdaHoraTxtOcupada}>
-                            {celda.etiqueta}
-                          </Text>
-                          <Text style={estilos.celdaHoraSubOcupada}>
-                            No disponible
-                          </Text>
-                        </View>
-                      );
-                    }
-                    return (
-                      <Pressable
-                        key={celda.hora}
-                        onPress={() => {
-                          if (celda.slot != null) {
-                            setSlotSel(celda.slot);
-                            setHoraSeleccionada(celda.hora);
-                          }
-                        }}
-                        style={({ pressed }) => [
-                          estilos.celdaHora,
-                          estilos.celdaHoraLibre,
-                          sel && estilos.celdaHoraSel,
-                          pressed && !sel && estilos.celdaHoraPressed,
-                        ]}
-                      >
-                        <View style={estilos.celdaHoraInterior}>
-                          <Text
-                            style={[
-                              estilos.celdaHoraTxt,
-                              sel && estilos.celdaHoraTxtSel,
-                            ]}
-                          >
-                            {celda.etiqueta}
-                          </Text>
-                          {sel ? (
-                            <Ionicons
-                              name="checkmark-circle"
-                              size={20}
-                              color={paleta.white}
-                            />
-                          ) : null}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </>
-            )}
+            <SeleccionFechaHoraAgenda
+              cargando={cargando}
+              slots={slots}
+              mesAgenda={mesAgenda}
+              onMesAgendaChange={setMesAgenda}
+              fechaSeleccionada={fechaSeleccionada}
+              onFechaSeleccionada={setFechaSeleccionada}
+              slotSeleccionado={slotSel}
+              onSlotSeleccionado={(slot, hora) => {
+                setSlotSel(slot);
+                setHoraSeleccionada(hora);
+              }}
+            />
 
             <TouchableOpacity
               style={[

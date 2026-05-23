@@ -563,15 +563,23 @@ describe('CitasService', () => {
       mockPagosService.reembolsarAnticipoSiAplica.mockResolvedValue(true);
       mockNotificacionesService.crear.mockResolvedValue(undefined);
 
-      const result = await service.cancelarPorMedico(10, 1);
+      const cancelacion = {
+        causa: 'EMERGENCIA_MEDICA' as const,
+        motivo: 'El médico tuvo una urgencia hospitalaria.',
+      };
+      const result = await service.cancelarPorMedico(10, 1, cancelacion);
 
       expect(mockCitaRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ estado: EstadoCita.CANCELADA }),
+        expect.objectContaining({
+          estado: EstadoCita.CANCELADA,
+          causaCancelacion: 'EMERGENCIA_MEDICA',
+          motivoCancelacion: cancelacion.motivo,
+        }),
       );
       expect(mockNotificacionesService.crear).toHaveBeenCalledWith(
         expect.objectContaining({
           pacienteID: 1,
-          titulo: 'Cita cancelada',
+          titulo: 'Cita cancelada por el médico',
         }),
       );
       expect(result).toEqual({
@@ -596,7 +604,10 @@ describe('CitasService', () => {
         new Error('Network error'),
       );
 
-      const result = await service.cancelarPorMedico(10, 1);
+      const result = await service.cancelarPorMedico(10, 1, {
+        causa: 'OTRO',
+        motivo: 'Motivo de prueba para cancelación.',
+      });
 
       expect(mockCitaRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ estado: EstadoCita.CANCELADA }),

@@ -137,7 +137,9 @@ export default function RegistroScreen() {
           nombre: nombres.trim(),
           apellido_pat: apellidoPaterno.trim(),
           apellido_mat: apellidoMaterno.trim(),
-          correoElectronico: correo.trim().toLowerCase(),
+          ...(correo.trim()
+            ? { correoElectronico: correo.trim().toLowerCase() }
+            : {}),
           telefono: telefono.replace(/\D/g, ""),
           fechaNacimiento: fechaNac,
           genero: genero.trim().toUpperCase(),
@@ -359,8 +361,8 @@ export default function RegistroScreen() {
               mensajeError={erroresP2.telefono ?? undefined}
             />
             <Entrada
-              etiqueta="CORREO ELECTRÓNICO"
-              placeholder="ejemplo@email.com"
+              etiqueta="CORREO ELECTRÓNICO (opcional)"
+              placeholder="ejemplo@email.com (opcional)"
               icono="mail-outline"
               keyboardType="email-address"
               autoCapitalize="none"

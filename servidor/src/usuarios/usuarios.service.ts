@@ -24,23 +24,28 @@ export class UsuariosService {
   ) {}
 
   async registrarPaciente(datos: RegistroDto) {
-    const correoNorm = datos.correoElectronico.trim().toLowerCase();
-    if (/@medly\./i.test(correoNorm)) {
+    const curpNorm = datos.curp.trim().toUpperCase();
+    const correoIngresado = (datos.correoElectronico ?? '').trim().toLowerCase();
+    const correoNorm =
+      correoIngresado ||
+      `pac.${curpNorm.toLowerCase()}@sin-correo.paciente`;
+
+    if (correoIngresado && /@medly\./i.test(correoIngresado)) {
       throw new BadRequestException(
         'No se permiten correos con dominio @medly',
       );
     }
-    const duplicado = await this.pacienteRepo
-      .createQueryBuilder('p')
-      .where('LOWER(TRIM(p.correoElectronico)) = :correo', {
-        correo: correoNorm,
-      })
-      .getCount();
-    if (duplicado > 0) {
-      throw new ConflictException('El correo ya está registrado');
+    if (correoIngresado) {
+      const duplicado = await this.pacienteRepo
+        .createQueryBuilder('p')
+        .where('LOWER(TRIM(p.correoElectronico)) = :correo', {
+          correo: correoIngresado,
+        })
+        .getCount();
+      if (duplicado > 0) {
+        throw new ConflictException('El correo ya está registrado');
+      }
     }
-
-    const curpNorm = datos.curp.trim().toUpperCase();
     const telefonoNorm = datos.telefono.replace(/\D/g, '');
     const curpDup = await this.pacienteRepo.exist({
       where: { curp: curpNorm },
@@ -86,14 +91,8 @@ export class UsuariosService {
       throw new BadRequestException(errCurp);
     }
 
-    const correoIngresado = (datos.correoElectronico ?? '').trim().toLowerCase();
-    const correoNorm =
-      correoIngresado ||
-      `rcp.${curpNorm.toLowerCase()}@sin-correo.paciente`;
-
     return this.registrarPaciente({
       ...datos,
-      correoElectronico: correoNorm,
       curp: curpNorm,
     });
   }

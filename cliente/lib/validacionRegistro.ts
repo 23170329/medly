@@ -121,36 +121,14 @@ export function validarPasoAccesoRecepcion(params: {
   return null;
 }
 
+/** Registro paciente: teléfono obligatorio; correo opcional. */
 export function validarPasoAcceso(params: {
   telefono: string;
   correo: string;
   contrasena: string;
   confirmarContrasena: string;
 }): string | null {
-  const tel = params.telefono.replace(/\D/g, "");
-  if (tel.length !== 10) {
-    return "El teléfono debe tener 10 dígitos.";
-  }
-  const email = params.correo.trim();
-  if (!email || email.length > 150) {
-    return "Indica un correo electrónico válido.";
-  }
-  if (!REGEX_CORREO.test(email)) {
-    return "El formato del correo electrónico no es válido.";
-  }
-  if (/@medly\./i.test(email)) {
-    return "No se permiten correos con dominio @medly.";
-  }
-  if (params.contrasena.length < 8 || params.contrasena.length > 72) {
-    return "La contraseña debe tener entre 8 y 72 caracteres.";
-  }
-  if (!/^(?=.*[A-Za-zÁÉÍÓÚÑáéíóúñ])(?=.*\d).{8,}$/.test(params.contrasena)) {
-    return "La contraseña debe incluir al menos una letra y un número.";
-  }
-  if (params.contrasena !== params.confirmarContrasena) {
-    return "Las contraseñas no coinciden.";
-  }
-  return null;
+  return validarPasoAccesoRecepcion(params);
 }
 
 export function validarPasoAccesoDetallado(params: {
@@ -162,15 +140,19 @@ export function validarPasoAccesoDetallado(params: {
   const tel = params.telefono.replace(/\D/g, "");
   const email = params.correo.trim();
   return {
-    telefono: tel.length !== 10 ? "El teléfono debe tener 10 dígitos." : null,
-    correo:
-      !email || email.length > 150
-        ? "Indica un correo electrónico válido."
+    telefono:
+      tel.length !== 10
+        ? "El teléfono es obligatorio y debe tener 10 dígitos."
+        : null,
+    correo: email
+      ? email.length > 150
+        ? "El correo no puede exceder 150 caracteres."
         : !REGEX_CORREO.test(email)
           ? "El formato del correo electrónico no es válido."
           : /@medly\./i.test(email)
             ? "No se permiten correos con dominio @medly."
-            : null,
+            : null
+      : null,
     contrasena:
       params.contrasena.length < 8 || params.contrasena.length > 72
         ? "La contraseña debe tener entre 8 y 72 caracteres."

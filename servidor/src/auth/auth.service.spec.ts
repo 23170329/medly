@@ -209,8 +209,8 @@ describe('AuthService', () => {
         'c',
       );
       expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-        'LOWER(TRIM("p"."correoElectronico")) = :email',
-        { email: 'test@example.com' },
+        'UPPER(TRIM(p.curp)) = :curp',
+        { curp: 'CURP12345678901234' },
       );
       expect(mockQueryBuilder.getOne).toHaveBeenCalled();
 
@@ -497,7 +497,7 @@ describe('AuthService', () => {
 
       expect(mockCuentaStaffRepo.findOne).toHaveBeenCalledWith({
         where: { cuentaStaffID: 2 },
-        relations: ['medico'],
+        relations: ['medico', 'sucursal'],
       });
       expect(result.mensaje).toBe('Sesión renovada');
       expect(result.usuario).toEqual(

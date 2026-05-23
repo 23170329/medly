@@ -245,21 +245,21 @@ export class AuthService {
     req?: Request,
   ): Promise<AuthTokensResponse> {
     await this.usuariosService.registrarPaciente(dto);
-    const correoNorm = dto.correoElectronico.trim().toLowerCase();
+    const curpNorm = dto.curp.trim().toUpperCase();
     const paciente = await this.cuentaUsuarioRepository.manager
       .createQueryBuilder(Paciente, 'p')
       .innerJoinAndSelect('p.cuenta', 'c')
-      .where('LOWER(TRIM("p"."correoElectronico")) = :email', {
-        email: correoNorm,
-      })
+      .where('UPPER(TRIM(p.curp)) = :curp', { curp: curpNorm })
       .getOne();
     if (!paciente?.cuenta) {
       throw new BadRequestException('No se pudo completar el registro');
     }
 
+    const correoAud =
+      (dto.correoElectronico ?? '').trim().toLowerCase() || `CURP ${curpNorm}`;
     await this.auditoriaService.registrar({
       tipo: 'REGISTRO_USUARIO',
-      descripcion: `Registro de ${correoNorm}`,
+      descripcion: `Registro de ${correoAud}`,
       usuarioID: paciente.pacienteID,
       req,
     });

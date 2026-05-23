@@ -1,10 +1,12 @@
 import {
   IsEmail,
   IsIn,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -33,15 +35,18 @@ export class RegistroDto {
   @MaxLength(15)
   apellido_mat!: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim().toLowerCase() : value,
-  )
+  @Transform(({ value }) => {
+    if (value == null || value === '') return '';
+    return typeof value === 'string' ? value.trim().toLowerCase() : value;
+  })
+  @IsOptional()
+  @ValidateIf((o: RegistroDto) => Boolean(o.correoElectronico?.trim()))
   @IsEmail({}, { message: 'Correo electrónico inválido' })
   @MaxLength(150)
   @Matches(/^(?!.*@medly\.).*$/i, {
     message: 'No se permiten correos con dominio @medly',
   })
-  correoElectronico!: string;
+  correoElectronico?: string;
 
   @Transform(({ value }) =>
     typeof value === 'string' ? value.replace(/\D/g, '').slice(0, 15) : value,
