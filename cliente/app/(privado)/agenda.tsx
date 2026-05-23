@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -16,8 +15,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
 import {
   fetchMisCitas,
-  cancelarCita,
-  abandonarReserva,
   type CitaDto,
   type EstadoCitaApi,
 } from "../../lib/medlyApi";
@@ -146,44 +143,13 @@ function toUi(d: CitaDto): CitaUi {
 
 interface TarjetaCitaProps {
   readonly cita: CitaUi;
-  readonly onActualizar: () => void;
 }
 
-function TarjetaCita({ cita, onActualizar }: TarjetaCitaProps): React.JSX.Element {
+function TarjetaCita({ cita }: TarjetaCitaProps): React.JSX.Element {
   const cfg = CONFIG_ESTADO[cita.estado];
 
   const handleVerDetalle = (): void => {
     router.push(`/(privado)/citas/${cita.id}`);
-  };
-
-  const cancelar = (): void => {
-    Alert.alert(
-      "Cancelar cita",
-      "¿Seguro que deseas cancelar esta cita?",
-      [
-        { text: "No", style: "cancel" },
-        {
-          text: "Sí, cancelar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              if (
-                cita.raw.estado === "PENDIENTE_PAGO" ||
-                cita.raw.estado === "ANTICIPO_REALIZADO"
-              ) {
-                await abandonarReserva(cita.raw.citaID);
-              } else {
-                await cancelarCita(cita.raw.citaID);
-              }
-              onActualizar();
-              Alert.alert("Listo", "La cita se actualizó.");
-            } catch {
-              Alert.alert("Error", "No se pudo cancelar.");
-            }
-          },
-        },
-      ],
-    );
   };
 
   return (
@@ -203,7 +169,7 @@ function TarjetaCita({ cita, onActualizar }: TarjetaCitaProps): React.JSX.Elemen
         >
           <View style={estilos.tarjetaHeader}>
             <View style={estilos.medicoIcono}>
-              <Ionicons name="person-outline" size={20} color={paleta.navy} />
+              <Ionicons name="person-outline" size={16} color={paleta.navy} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={estilos.medicoNombre} numberOfLines={1}>
@@ -214,7 +180,7 @@ function TarjetaCita({ cita, onActualizar }: TarjetaCitaProps): React.JSX.Elemen
               </Text>
             </View>
             <View style={[estilos.badge, { backgroundColor: cfg.fondo }]}>
-              <Ionicons name={cfg.icono} size={11} color={cfg.color} />
+              <Ionicons name={cfg.icono} size={10} color={cfg.color} />
               <Text style={[estilos.badgeTexto, { color: cfg.color }]}>
                 {cfg.etiqueta}
               </Text>
@@ -228,13 +194,13 @@ function TarjetaCita({ cita, onActualizar }: TarjetaCitaProps): React.JSX.Elemen
                 {
                   backgroundColor: "#DCF0E4",
                   alignSelf: "flex-start",
-                  marginBottom: 8,
+                  marginBottom: 6,
                 },
               ]}
             >
               <Ionicons
                 name="cash-outline"
-                size={11}
+                size={10}
                 color={paleta.green}
               />
               <Text style={[estilos.badgeTexto, { color: paleta.green }]}>
@@ -243,46 +209,34 @@ function TarjetaCita({ cita, onActualizar }: TarjetaCitaProps): React.JSX.Elemen
             </View>
           )}
 
-          <View style={estilos.divider} />
-
-          <View style={estilos.detallesFila}>
-            <View style={estilos.detalleItem}>
-              <Ionicons name="time-outline" size={15} color={paleta.teal} />
-              <Text style={estilos.detalleTexto}>{cita.hora}</Text>
-            </View>
-            <View style={[estilos.detalleItem, { flex: 1, minWidth: 0 }]}>
-              <Ionicons name="location-outline" size={15} color={paleta.teal} />
-              <Text style={estilos.detalleTexto} numberOfLines={1}>
-                {cita.sucursal}
-              </Text>
-            </View>
+          <View style={estilos.precioBloque}>
+            <Text style={estilos.precioEtiqueta}>Total consulta</Text>
+            <Text style={estilos.monto}>${cita.monto} MXN</Text>
           </View>
         </TouchableOpacity>
 
         <View style={estilos.tarjetaPie}>
-          <Text style={estilos.monto}>${cita.monto} MXN</Text>
-          <View style={estilos.acciones}>
-            {(cita.estado === "CONFIRMADA" ||
-              cita.estado === "PENDIENTE") && (
-              <TouchableOpacity
-                style={estilos.btnCancelar}
-                onPress={cancelar}
-                accessibilityLabel="Cancelar esta cita"
-                accessibilityRole="button"
-              >
-                <Text style={estilos.btnCancelarTexto}>Cancelar</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={estilos.btnDetalle}
-              onPress={handleVerDetalle}
-              accessibilityLabel="Ver detalle completo"
-              accessibilityRole="button"
-            >
-              <Text style={estilos.btnDetalleTexto}>Detalle</Text>
-              <Ionicons name="arrow-forward" size={13} color={paleta.navy} />
-            </TouchableOpacity>
+          <View style={estilos.detalleItem}>
+            <Ionicons name="time-outline" size={13} color={paleta.teal} />
+            <Text style={estilos.detalleTexto} numberOfLines={1}>
+              {cita.hora}
+            </Text>
           </View>
+          <View style={[estilos.detalleItem, estilos.detalleItemSucursal]}>
+            <Ionicons name="location-outline" size={13} color={paleta.teal} />
+            <Text style={estilos.detalleTexto} numberOfLines={1}>
+              {cita.sucursal}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={estilos.btnDetalle}
+            onPress={handleVerDetalle}
+            accessibilityLabel="Ver detalle completo"
+            accessibilityRole="button"
+          >
+            <Text style={estilos.btnDetalleTexto}>Detalle</Text>
+            <Ionicons name="arrow-forward" size={12} color={paleta.navy} />
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -369,12 +323,7 @@ export default function AgendaPantalla(): React.JSX.Element {
         ))}
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={estilos.filtrosWrap}
-        contentContainerStyle={estilos.filtrosContent}
-      >
+      <View style={estilos.filtrosFila}>
         {FILTROS.map((f) => {
           const activo = filtroActivo === f.valor;
           return (
@@ -391,13 +340,16 @@ export default function AgendaPantalla(): React.JSX.Element {
                   estilos.filtroTexto,
                   activo && estilos.filtroTextoActivo,
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
               >
                 {f.label}
               </Text>
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
 
       <ScrollView
         contentContainerStyle={estilos.lista}
@@ -428,7 +380,7 @@ export default function AgendaPantalla(): React.JSX.Element {
           </View>
         ) : (
           citasFiltradas.map((cita) => (
-            <TarjetaCita key={cita.id} cita={cita} onActualizar={cargar} />
+            <TarjetaCita key={cita.id} cita={cita} />
           ))
         )}
       </ScrollView>
@@ -483,18 +435,32 @@ const estilos = StyleSheet.create({
     marginTop: 2,
   },
 
-  filtrosWrap: { maxHeight: 48, marginBottom: 8 },
-  filtrosContent: { paddingHorizontal: 24, gap: 8, alignItems: "center" },
-  filtroBtn: {
+  filtrosFila: {
+    flexDirection: "row",
+    alignItems: "stretch",
     paddingHorizontal: 16,
+    gap: 6,
+    marginBottom: 12,
+  },
+  filtroBtn: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 36,
+    paddingHorizontal: 4,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 18,
     backgroundColor: paleta.white,
     borderWidth: 1,
     borderColor: paleta.skyblue,
   },
   filtroBtnActivo: { backgroundColor: paleta.navy, borderColor: paleta.navy },
-  filtroTexto: { fontSize: 13, fontWeight: "500", color: paleta.navy },
+  filtroTexto: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: paleta.navy,
+    textAlign: "center",
+  },
   filtroTextoActivo: { color: paleta.white, fontWeight: "700" },
 
   lista: { paddingHorizontal: 24, paddingBottom: 40, paddingTop: 8 },
@@ -502,111 +468,112 @@ const estilos = StyleSheet.create({
   tarjeta: {
     flexDirection: "row",
     backgroundColor: paleta.white,
-    borderRadius: BORDES.radio + 4,
-    marginBottom: 14,
+    borderRadius: BORDES.radio,
+    marginBottom: 10,
     overflow: "hidden",
-    elevation: 2,
+    elevation: 1,
     shadowColor: paleta.navy,
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
   },
   cajaFecha: {
-    width: 76,
+    width: 48,
     backgroundColor: paleta.headerBar,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 3,
     justifyContent: "center",
     alignItems: "center",
   },
   cajaFechaSem: {
-    fontSize: 11,
+    fontSize: 8,
     fontWeight: "600",
     color: "rgba(255,255,255,0.85)",
     textTransform: "capitalize",
   },
   cajaFechaNum: {
-    fontSize: 26,
+    fontSize: 17,
     fontWeight: "800",
     color: paleta.white,
-    lineHeight: 30,
-    marginVertical: 2,
+    lineHeight: 20,
+    marginVertical: 1,
   },
   cajaFechaMes: {
-    fontSize: 11,
+    fontSize: 8,
     fontWeight: "600",
     color: "rgba(255,255,255,0.9)",
     textTransform: "capitalize",
   },
-  tarjetaBody: { flex: 1, padding: 14 },
+  tarjetaBody: { flex: 1, padding: 10, minWidth: 0 },
   tarjetaHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 6,
   },
   medicoIcono: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: paleta.skyblue,
     justifyContent: "center",
     alignItems: "center",
   },
-  medicoNombre: { fontSize: 14, fontWeight: "700", color: paleta.navy },
-  medicoEsp: { fontSize: 12, color: paleta.teal, marginTop: 1 },
+  medicoNombre: { fontSize: 13, fontWeight: "700", color: paleta.navy },
+  medicoEsp: { fontSize: 11, color: paleta.teal, marginTop: 1 },
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  badgeTexto: { fontSize: 10, fontWeight: "600" },
-  divider: {
-    height: 1,
-    backgroundColor: paleta.skyblue,
-    opacity: 0.5,
-    marginBottom: 10,
-  },
+  badgeTexto: { fontSize: 9, fontWeight: "600" },
 
-  detallesFila: {
+  precioBloque: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 12,
-    alignItems: "center",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: 6,
+    marginTop: 2,
   },
-  detalleItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  detalleTexto: { fontSize: 13, color: paleta.navy, opacity: 0.8 },
+  precioEtiqueta: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: paleta.teal,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  monto: { fontSize: 14, fontWeight: "800", color: paleta.navy },
 
   tarjetaPie: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 8,
+    marginTop: 8,
   },
-  monto: { fontSize: 15, fontWeight: "700", color: paleta.navy },
-  acciones: { flexDirection: "row", gap: 8 },
-  btnCancelar: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: BORDES.radio,
-    borderWidth: 1,
-    borderColor: paleta.red,
+  detalleItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 1,
   },
-  btnCancelarTexto: { fontSize: 12, fontWeight: "600", color: paleta.red },
+  detalleItemSucursal: { flex: 1, minWidth: 0 },
+  detalleTexto: { fontSize: 11, color: paleta.navy, opacity: 0.85 },
   btnDetalle: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
+    flexShrink: 0,
+    marginLeft: "auto",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: BORDES.radio,
     borderWidth: 1,
     borderColor: paleta.navy,
   },
-  btnDetalleTexto: { fontSize: 12, fontWeight: "600", color: paleta.navy },
+  btnDetalleTexto: { fontSize: 11, fontWeight: "600", color: paleta.navy },
 
   vacio: { alignItems: "center", paddingTop: 60 },
   vacioTitulo: {
