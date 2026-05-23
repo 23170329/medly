@@ -30,6 +30,12 @@ export class Paciente {
   @Column({ type: 'varchar', length: 18, unique: true })
   curp!: string;
 
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  pesoKg!: number | null;
+
+  @Column({ type: 'decimal', precision: 4, scale: 2, nullable: true })
+  alturaM!: number | null;
+
   @OneToOne(() => CuentaUsuario, (cuenta) => cuenta.paciente)
   cuenta!: CuentaUsuario;
 }

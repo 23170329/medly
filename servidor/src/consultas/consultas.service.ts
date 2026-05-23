@@ -2,12 +2,14 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConsultaClinica } from './entities/consulta-clinica.entity';
 import { CrearConsultaDto } from './dto/crear-consulta.dto';
 import { ActualizarConsultaDto } from './dto/actualizar-consulta.dto';
+import { GuardarExpedienteDto } from './dto/guardar-expediente.dto';
 import { Cita } from '../citas/entities/cita.entity';
 import { Paciente } from '../usuarios/entities/paciente.entity';
 import { Medico } from '../medicos/entities/medico.entity';
@@ -19,7 +21,39 @@ export class ConsultasService {
     private readonly repo: Repository<ConsultaClinica>,
     @InjectRepository(Cita)
     private readonly citaRepo: Repository<Cita>,
+    @InjectRepository(Paciente)
+    private readonly pacienteRepo: Repository<Paciente>,
   ) {}
+
+  private async sincronizarAntropometriaPaciente(
+    pacienteId: number,
+    pesoKg?: number,
+    alturaM?: number,
+  ): Promise<void> {
+    if (pesoKg == null && alturaM == null) return;
+    const paciente = await this.pacienteRepo.findOne({
+      where: { pacienteID: pacienteId },
+    });
+    if (!paciente) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+    if (pesoKg != null) paciente.pesoKg = pesoKg;
+    if (alturaM != null) paciente.alturaM = alturaM;
+    await this.pacienteRepo.save(paciente);
+  }
+
+  async obtenerPacienteParaMedico(
+    _medicoId: number,
+    pacienteId: number,
+  ): Promise<Paciente> {
+    const paciente = await this.pacienteRepo.findOne({
+      where: { pacienteID: pacienteId },
+    });
+    if (!paciente) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+    return paciente;
+  }
 
   async listarPorMedico(
     medicoId: number,
@@ -53,6 +87,58 @@ export class ConsultasService {
     return row;
   }
 
+  async guardarExpediente(
+    medicoId: number,
+    pacienteId: number,
+    dto: GuardarExpedienteDto,
+  ): Promise<{ paciente: Paciente; consulta: ConsultaClinica }> {
+    await this.obtenerPacienteParaMedico(medicoId, pacienteId);
+    await this.sincronizarAntropometriaPaciente(
+      pacienteId,
+      dto.pesoKg,
+      dto.alturaM,
+    );
+
+    let consulta = await this.repo.findOne({
+      where: {
+        paciente: { pacienteID: pacienteId },
+        medico: { medicoID: medicoId },
+      },
+      order: { fechaRegistro: 'DESC' },
+    });
+
+    if (!consulta) {
+      consulta = this.repo.create({
+        paciente: { pacienteID: pacienteId } as Paciente,
+        medico: { medicoID: medicoId } as Medico,
+        cita: null,
+        identificacion: dto.identificacion?.trim() || null,
+        antecedentes: dto.antecedentes?.trim() || null,
+        tratamiento: dto.tratamiento?.trim() || null,
+        pesoKg: dto.pesoKg,
+        alturaM: dto.alturaM,
+      });
+    } else {
+      if (dto.identificacion !== undefined) {
+        consulta.identificacion = dto.identificacion.trim() || null;
+      }
+      if (dto.antecedentes !== undefined) {
+        consulta.antecedentes = dto.antecedentes.trim() || null;
+      }
+      if (dto.tratamiento !== undefined) {
+        consulta.tratamiento = dto.tratamiento.trim() || null;
+      }
+      consulta.pesoKg = dto.pesoKg;
+      consulta.alturaM = dto.alturaM;
+    }
+
+    const consultaGuardada = await this.repo.save(consulta);
+    const paciente = await this.pacienteRepo.findOneOrFail({
+      where: { pacienteID: pacienteId },
+    });
+    return { paciente, consulta: consultaGuardada };
+  }
+
   async crear(
     medicoId: number,
     dto: CrearConsultaDto,
@@ -72,6 +158,18 @@ export class ConsultasService {
       }
     }
 
+    if (dto.pesoKg == null || dto.alturaM == null) {
+      throw new BadRequestException(
+        'Peso y altura son obligatorios al registrar la consulta',
+      );
+    }
+
+    await this.sincronizarAntropometriaPaciente(
+      dto.pacienteID,
+      dto.pesoKg,
+      dto.alturaM,
+    );
+
     const row = this.repo.create({
       paciente: { pacienteID: dto.pacienteID } as Paciente,
       medico: { medicoID: medicoId } as Medico,
@@ -85,6 +183,8 @@ export class ConsultasService {
       evolucion: dto.evolucion ?? null,
       pronostico: dto.pronostico ?? null,
       notasConfidenciales: dto.notasConfidenciales ?? null,
+      pesoKg: dto.pesoKg,
+      alturaM: dto.alturaM,
     });
     return this.repo.save(row);
   }
@@ -95,6 +195,13 @@ export class ConsultasService {
     dto: ActualizarConsultaDto,
   ): Promise<ConsultaClinica> {
     const row = await this.obtener(medicoId, consultaId);
+    if (dto.pesoKg != null || dto.alturaM != null) {
+      await this.sincronizarAntropometriaPaciente(
+        row.paciente.pacienteID,
+        dto.pesoKg ?? undefined,
+        dto.alturaM ?? undefined,
+      );
+    }
     Object.assign(row, dto);
     return this.repo.save(row);
   }

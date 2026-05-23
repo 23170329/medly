@@ -13,27 +13,30 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
+import { useAuthStore } from "../../../stores/auth.store";
 import {
-  fetchNotificaciones,
-  marcarNotificacionLeida,
-  type NotificacionDto,
-} from "../../../lib/medlyApi";
+  fetchNotificacionesMedico,
+  marcarNotificacionLeidaMedico,
+  type NotificacionMedicoDto,
+} from "../../../lib/medicoApi";
 
-export default function NotificacionesPantalla(): React.JSX.Element {
-  const [lista, setLista] = useState<NotificacionDto[]>([]);
+export default function NotificacionesMedicoPantalla(): React.JSX.Element {
+  const token = useAuthStore((s) => s.accessToken);
+  const [lista, setLista] = useState<NotificacionMedicoDto[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const cargar = useCallback(async () => {
+    if (!token) return;
     setCargando(true);
     try {
-      const data = await fetchNotificaciones();
+      const data = await fetchNotificacionesMedico(token);
       setLista(data);
     } catch {
       setLista([]);
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [token]);
 
   useFocusEffect(
     useCallback(() => {
@@ -42,8 +45,9 @@ export default function NotificacionesPantalla(): React.JSX.Element {
   );
 
   const handleMarcarLeida = async (id: number): Promise<void> => {
+    if (!token) return;
     try {
-      await marcarNotificacionLeida(id);
+      await marcarNotificacionLeidaMedico(token, id);
       setLista((prev) =>
         prev.map((n) =>
           n.notificacionID === id ? { ...n, leida: true } : n,
@@ -52,6 +56,11 @@ export default function NotificacionesPantalla(): React.JSX.Element {
     } catch {
       /* ignore */
     }
+  };
+
+  const handleReagendar = (n: NotificacionMedicoDto): void => {
+    void handleMarcarLeida(n.notificacionID);
+    router.push("/(medico)/agenda");
   };
 
   return (
@@ -122,14 +131,11 @@ export default function NotificacionesPantalla(): React.JSX.Element {
               {n.permiteReagendar && n.tipo === "CITA_CANCELADA" ? (
                 <TouchableOpacity
                   style={estilos.btnReagendar}
-                  onPress={() => {
-                    void handleMarcarLeida(n.notificacionID);
-                    router.push("/(privado)/citas/agendar");
-                  }}
+                  onPress={() => handleReagendar(n)}
                   accessibilityRole="button"
                 >
                   <Ionicons name="calendar-outline" size={16} color={paleta.white} />
-                  <Text style={estilos.btnReagendarTxt}>Reagendar cita</Text>
+                  <Text style={estilos.btnReagendarTxt}>Ver agenda</Text>
                 </TouchableOpacity>
               ) : null}
             </View>

@@ -6,15 +6,15 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Paciente } from '../../usuarios/entities/paciente.entity';
+import { Medico } from '../../medicos/entities/medico.entity';
 
-@Entity('notificacion')
-export class Notificacion {
+@Entity('notificacion_medico')
+export class NotificacionMedico {
   @PrimaryGeneratedColumn()
   notificacionID!: number;
 
   @Column({ type: 'int' })
-  pacienteID!: number;
+  medicoID!: number;
 
   @Column({ type: 'varchar', length: 100 })
   titulo!: string;
@@ -37,7 +37,7 @@ export class Notificacion {
   @CreateDateColumn()
   fechaCreacion!: Date;
 
-  @ManyToOne(() => Paciente, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'pacienteID' })
-  paciente!: Paciente;
+  @ManyToOne(() => Medico, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'medicoID' })
+  medico!: Medico;
 }

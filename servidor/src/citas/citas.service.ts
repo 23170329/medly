@@ -175,7 +175,7 @@ export class CitasService {
   }> {
     const cita = await this.citaRepo.findOne({
       where: { citaID: citaId, pacienteID: pacienteId },
-      relations: ['pagos', 'slot'],
+      relations: ['pagos', 'slot', 'medico', 'paciente'],
     });
     if (!cita) {
       throw new NotFoundException('Cita no encontrada');
@@ -194,6 +194,7 @@ export class CitasService {
       cita.estado === EstadoCita.PENDIENTE_PAGO ||
       cita.estado === EstadoCita.ANTICIPO_REALIZADO
     ) {
+      await this.notificarCancelacionReserva(cita, 'paciente');
       await this.abandonarPago(pacienteId, citaId);
       return {
         mensaje: 'Reserva cancelada. El horario quedó liberado.',
@@ -222,6 +223,12 @@ export class CitasService {
       slot.estado = EstadoSlot.LIBRE;
       await this.slotRepo.save(slot);
     }
+
+    await this.notificarCancelacionPorPaciente(
+      cita,
+      puedeReembolso,
+      reembolsoProcesado,
+    );
 
     return {
       mensaje: puedeReembolso
@@ -391,36 +398,168 @@ export class CitasService {
       .createQueryBuilder('c')
       .leftJoinAndSelect('c.paciente', 'p')
       .leftJoinAndSelect('c.sucursal', 's')
+      .leftJoinAndSelect('c.medico', 'm')
+      .leftJoinAndSelect('m.especialidad', 'e')
       .where('c.medicoID = :mid', { mid: medicoId })
-      .andWhere('c.estado = :est', { est: EstadoCita.CONFIRMADA })
+      .andWhere('c.estado IN (:...estados)', {
+        estados: [
+          EstadoCita.CONFIRMADA,
+          EstadoCita.ANTICIPO_REALIZADO,
+          EstadoCita.PENDIENTE_PAGO,
+        ],
+      })
       .andWhere('c.inicio >= :ahora', { ahora: new Date() })
       .orderBy('c.inicio', 'ASC')
       .getMany();
   }
 
+  private formatearFechaCita(inicio: Date): string {
+    return new Date(inicio).toLocaleDateString('es-MX', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  private nombreMedico(cita: Cita): string {
+    return cita.medico
+      ? `${cita.medico.nombre} ${cita.medico.apellidoPat}`
+      : 'Médico';
+  }
+
+  private nombrePaciente(cita: Cita): string {
+    if (!cita.paciente) return 'Paciente';
+    const p = cita.paciente;
+    const apMat = p.apellido_mat ? ` ${p.apellido_mat}` : '';
+    return `${p.nombre} ${p.apellido_pat}${apMat}`.trim();
+  }
+
+  private async notificarCancelacionReserva(
+    cita: Cita,
+    quien: 'paciente' | 'medico',
+  ): Promise<void> {
+    const fechaStr = this.formatearFechaCita(cita.inicio);
+    const nombreMed = this.nombreMedico(cita);
+    const nombrePac = this.nombrePaciente(cita);
+
+    try {
+      if (quien === 'paciente') {
+        await this.notificacionesService.crear({
+          pacienteID: cita.pacienteID,
+          titulo: 'Reserva cancelada',
+          mensaje: `Cancelaste tu reserva con ${nombreMed} del ${fechaStr}. Puedes agendar una nueva cita cuando quieras.`,
+          tipo: 'CITA_CANCELADA',
+          citaID: cita.citaID,
+          permiteReagendar: true,
+        });
+        await this.notificacionesService.crearParaMedico({
+          medicoID: cita.medicoID,
+          titulo: 'Reserva cancelada por el paciente',
+          mensaje: `${nombrePac} canceló la reserva del ${fechaStr} antes de completar el pago.`,
+          tipo: 'CITA_CANCELADA',
+          citaID: cita.citaID,
+          permiteReagendar: true,
+        });
+      } else {
+        await this.notificacionesService.crear({
+          pacienteID: cita.pacienteID,
+          titulo: 'Reserva cancelada por el médico',
+          mensaje: `${nombreMed} canceló tu reserva del ${fechaStr}. Puedes agendar otra cita.`,
+          tipo: 'CITA_CANCELADA',
+          citaID: cita.citaID,
+          permiteReagendar: true,
+        });
+        await this.notificacionesService.crearParaMedico({
+          medicoID: cita.medicoID,
+          titulo: 'Reserva cancelada',
+          mensaje: `Cancelaste la reserva de ${nombrePac} del ${fechaStr}.`,
+          tipo: 'CITA_CANCELADA',
+          citaID: cita.citaID,
+          permiteReagendar: true,
+        });
+      }
+    } catch {
+      this.logger.warn('No se pudieron crear notificaciones de reserva cancelada');
+    }
+  }
+
+  private async notificarCancelacionPorPaciente(
+    cita: Cita,
+    puedeReembolso: boolean,
+    reembolsoProcesado: boolean,
+  ): Promise<void> {
+    const fechaStr = this.formatearFechaCita(cita.inicio);
+    const nombreMed = this.nombreMedico(cita);
+    const nombrePac = this.nombrePaciente(cita);
+
+    const msgReembolsoPac = puedeReembolso
+      ? reembolsoProcesado
+        ? ' El anticipo será reembolsado según tu banco.'
+        : ' Hubo un problema al procesar el reembolso; contacta soporte.'
+      : ' No aplica reembolso por cancelar con menos de 24 horas de anticipación.';
+
+    const msgReembolsoMed = puedeReembolso
+      ? reembolsoProcesado
+        ? ' Se procesará el reembolso del anticipo al paciente.'
+        : ' Revisa el reembolso del anticipo con administración.'
+      : ' No aplica reembolso (menos de 24 h).';
+
+    try {
+      await this.notificacionesService.crear({
+        pacienteID: cita.pacienteID,
+        titulo: 'Cita cancelada',
+        mensaje: `Cancelaste tu cita con ${nombreMed} del ${fechaStr}.${msgReembolsoPac} Puedes reagendar cuando quieras.`,
+        tipo: 'CITA_CANCELADA',
+        citaID: cita.citaID,
+        permiteReagendar: true,
+      });
+      await this.notificacionesService.crearParaMedico({
+        medicoID: cita.medicoID,
+        titulo: 'Cita cancelada por el paciente',
+        mensaje: `${nombrePac} canceló la cita del ${fechaStr}.${msgReembolsoMed}`,
+        tipo: 'CITA_CANCELADA',
+        citaID: cita.citaID,
+        permiteReagendar: true,
+      });
+    } catch {
+      this.logger.warn('No se pudieron crear notificaciones de cancelación');
+    }
+  }
+
   private async notificarCancelacionPorMedico(
     cita: Cita,
     cancelacion: CancelarCitaMedicoDto,
+    reembolsoProcesado: boolean,
   ): Promise<void> {
+    const fechaStr = this.formatearFechaCita(cita.inicio);
+    const nombreMed = this.nombreMedico(cita);
+    const nombrePac = this.nombrePaciente(cita);
+    const causa = etiquetaCausaCancelacion(cancelacion.causa);
+
+    const msgReembolso =
+      reembolsoProcesado
+        ? ' El anticipo será reembolsado según tu banco.'
+        : ' Revisa el reembolso del anticipo con administración si aplicaba pago.';
+
     try {
-      const nombreMedico = cita.medico
-        ? `${cita.medico.nombre} ${cita.medico.apellidoPat}`
-        : 'Médico';
-      const fechaStr = cita.inicio
-        ? new Date(cita.inicio).toLocaleDateString('es-MX', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-        : '';
-      const causa = etiquetaCausaCancelacion(cancelacion.causa);
       await this.notificacionesService.crear({
         pacienteID: cita.pacienteID,
         titulo: 'Cita cancelada por el médico',
-        mensaje: `Tu cita con ${nombreMedico} del ${fechaStr} fue cancelada. Causa: ${causa}. Motivo: ${cancelacion.motivo}`,
+        mensaje: `Tu cita con ${nombreMed} del ${fechaStr} fue cancelada. Causa: ${causa}. Motivo: ${cancelacion.motivo}.${msgReembolso} Puedes reagendar otra cita.`,
+        tipo: 'CITA_CANCELADA',
+        citaID: cita.citaID,
+        permiteReagendar: true,
+      });
+      await this.notificacionesService.crearParaMedico({
+        medicoID: cita.medicoID,
+        titulo: 'Cita cancelada',
+        mensaje: `Cancelaste la cita de ${nombrePac} del ${fechaStr}. Causa: ${causa}. Motivo: ${cancelacion.motivo}.`,
+        tipo: 'CITA_CANCELADA',
+        citaID: cita.citaID,
+        permiteReagendar: true,
       });
     } catch {
       this.logger.warn('No se pudo crear notificación de cancelación');
@@ -453,7 +592,7 @@ export class CitasService {
       cita.estado === EstadoCita.PENDIENTE_PAGO ||
       cita.estado === EstadoCita.ANTICIPO_REALIZADO
     ) {
-      await this.notificarCancelacionPorMedico(cita, cancelacion);
+      await this.notificarCancelacionReserva(cita, 'medico');
       await this.abandonarPago(cita.pacienteID, citaId);
       return {
         mensaje: 'Reserva cancelada por el médico. El horario quedó liberado.',
@@ -461,16 +600,8 @@ export class CitasService {
       };
     }
 
-    const inicio = new Date(cita.inicio);
-    const limite = new Date(inicio.getTime() - 24 * 60 * 60 * 1000);
-    const ahora = new Date();
-    const puedeReembolso = ahora < limite;
-
-    let reembolsoProcesado = false;
-    if (puedeReembolso) {
-      reembolsoProcesado =
-        await this.pagosService.reembolsarAnticipoSiAplica(cita);
-    }
+    const reembolsoProcesado =
+      await this.pagosService.reembolsarAnticipoSiAplica(cita);
 
     cita.estado = EstadoCita.CANCELADA;
     cita.causaCancelacion = cancelacion.causa;
@@ -485,14 +616,16 @@ export class CitasService {
       await this.slotRepo.save(slot);
     }
 
-    await this.notificarCancelacionPorMedico(cita, cancelacion);
+    await this.notificarCancelacionPorMedico(
+      cita,
+      cancelacion,
+      reembolsoProcesado,
+    );
 
     return {
-      mensaje: puedeReembolso
-        ? reembolsoProcesado
-          ? 'Cita cancelada. Reembolso de anticipo en proceso si aplica.'
-          : 'Cita cancelada. Revisa el reembolso del anticipo con administración.'
-        : 'Cita cancelada. No aplica reembolso por política de menos de 24 horas.',
+      mensaje: reembolsoProcesado
+        ? 'Cita cancelada. Reembolso de anticipo en proceso si aplica.'
+        : 'Cita cancelada. Revisa el reembolso del anticipo con administración.',
       reembolsoProcesado,
     };
   }

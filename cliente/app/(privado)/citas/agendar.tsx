@@ -17,6 +17,7 @@ import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import {
   crearCheckoutSession,
   crearCita,
+  marcarAnticipoRealizado,
   fetchEspecialidades,
   fetchMedicoSucursales,
   fetchMedicos,
@@ -180,6 +181,7 @@ export default function AgendarCitaPantalla() {
     setCargando(true);
     try {
       const cita = await crearCita(slotSel.slotID);
+      await marcarAnticipoRealizado(cita.citaID);
       const { url } = await crearCheckoutSession(cita.citaID);
       if (!url) {
         Alert.alert("Pagos", "No se pudo iniciar el checkout de Stripe.");

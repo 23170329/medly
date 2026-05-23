@@ -16,15 +16,18 @@ import { COLORES, paleta, BORDES } from "../../constants/theme";
 import { useAuthStore } from "../../stores/auth.store";
 import {
   fetchCitasPendientesMedico,
+  fetchNotificacionesNoLeidasMedico,
   nombrePaciente,
   type CitaMedicoDto,
 } from "../../lib/medicoApi";
+import { badgeEstadoCitaMedico } from "../../lib/estadoCitaMedico";
 
 export default function MedicoInicio(): React.JSX.Element {
   const usuario = useAuthStore((s) => s.usuario);
   const token = useAuthStore((s) => s.accessToken);
   const [citas, setCitas] = useState<CitaMedicoDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notifNoLeidas, setNotifNoLeidas] = useState(0);
 
   const nombreCorto = usuario?.nombre?.split(" ")[0] ?? "Doctor";
   const inicial = (usuario?.nombre?.[0] ?? "D").toUpperCase();
@@ -40,10 +43,15 @@ export default function MedicoInicio(): React.JSX.Element {
     if (!token) return;
     setLoading(true);
     try {
-      const data = await fetchCitasPendientesMedico(token);
+      const [data, noLeidas] = await Promise.all([
+        fetchCitasPendientesMedico(token),
+        fetchNotificacionesNoLeidasMedico(token),
+      ]);
       setCitas(Array.isArray(data) ? data : []);
+      setNotifNoLeidas(typeof noLeidas === "number" ? noLeidas : 0);
     } catch {
       setCitas([]);
+      setNotifNoLeidas(0);
     } finally {
       setLoading(false);
     }
@@ -68,39 +76,19 @@ export default function MedicoInicio(): React.JSX.Element {
           nombreCorto={nombreCorto}
           inicial={inicial}
           onPerfil={() => router.push("/(medico)/perfil")}
+          onNotificaciones={() => router.push("/(medico)/notificaciones")}
+          notificacionesNoLeidas={notifNoLeidas}
         />
 
         <Text style={estilos.sec}>PRÓXIMA CITA</Text>
         {proxima ? (
-          <TouchableOpacity
-            style={estilos.cardCita}
-            onPress={() =>
-              router.push({
-                pathname: "/(medico)/citas/[id]",
-                params: { id: String(proxima.citaID) },
-              })
-            }
-          >
-            <View style={estilos.cardCitaIcono}>
-              <Ionicons name="medkit-outline" size={22} color={paleta.teal} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={estilos.cardCitaNombre}>
-                {nombrePaciente(proxima.paciente)}
-              </Text>
-              <Text style={estilos.cardCitaSub}>
-                {proxima.medico?.especialidad?.nombre ?? "Consulta"} ·{" "}
-                {new Date(proxima.inicio).toLocaleTimeString("es-MX", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={paleta.teal} />
-          </TouchableOpacity>
+          <TarjetaProximaCita cita={proxima} />
         ) : (
           <View style={estilos.cardVacio}>
-            <Text style={estilos.cardVacioTxt}>Sin citas pendientes por atender.</Text>
+            <Ionicons name="calendar-outline" size={32} color={paleta.skyblue} />
+            <Text style={estilos.cardVacioTxt}>
+              Sin citas pendientes por atender.
+            </Text>
           </View>
         )}
 
@@ -117,10 +105,97 @@ export default function MedicoInicio(): React.JSX.Element {
           onPress={() => router.push("/(medico)/bloqueos")}
         >
           <Ionicons name="calendar-outline" size={22} color={paleta.white} />
-          <Text style={estilos.btnAccionTxt}>BLOQUEAR AGENDA</Text>
+          <Text style={estilos.btnAccionTxt}>GESTIONAR AGENDA</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function TarjetaProximaCita({
+  cita,
+}: {
+  cita: CitaMedicoDto;
+}): React.JSX.Element {
+  const ini = new Date(cita.inicio);
+  const badge = badgeEstadoCitaMedico(cita.estado);
+  const esp = cita.medico?.especialidad?.nombre ?? "Consulta médica";
+  const monto = Math.round(parseFloat(cita.montoTotal));
+
+  return (
+    <TouchableOpacity
+      style={estilos.cardCita}
+      onPress={() =>
+        router.push({
+          pathname: "/(medico)/citas/[id]",
+          params: { id: String(cita.citaID) },
+        })
+      }
+      accessibilityRole="button"
+    >
+      <View style={estilos.fechaFranja}>
+        <Text style={estilos.fechaSem}>
+          {ini.toLocaleDateString("es-MX", { weekday: "short" }).replace(".", "")}
+        </Text>
+        <Text style={estilos.fechaNum}>
+          {ini.toLocaleDateString("es-MX", { day: "numeric" })}
+        </Text>
+        <Text style={estilos.fechaMes}>
+          {ini.toLocaleDateString("es-MX", { month: "short" }).replace(".", "")}
+        </Text>
+      </View>
+
+      <View style={estilos.cardCitaBody}>
+        <View style={estilos.cardCitaTop}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={estilos.cardCitaNombre} numberOfLines={1}>
+              {nombrePaciente(cita.paciente)}
+            </Text>
+            <Text style={estilos.cardCitaSub} numberOfLines={1}>
+              {esp}
+            </Text>
+          </View>
+          <View style={[estilos.badge, { backgroundColor: badge.fondo }]}>
+            <Ionicons name={badge.icono} size={11} color={badge.color} />
+            <Text style={[estilos.badgeTxt, { color: badge.color }]}>
+              {badge.etiqueta}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={estilos.montoLabel}>TOTAL CONSULTA</Text>
+        <Text style={estilos.monto}>${monto} MXN</Text>
+
+        <View style={estilos.detallesFila}>
+          <View style={estilos.detalleItem}>
+            <Ionicons name="time-outline" size={14} color={paleta.teal} />
+            <Text style={estilos.detalleTxt}>
+              {ini.toLocaleTimeString("es-MX", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Text>
+          </View>
+          <View style={estilos.detalleItem}>
+            <Ionicons name="location-outline" size={14} color={paleta.teal} />
+            <Text style={estilos.detalleTxt} numberOfLines={1}>
+              {cita.sucursal?.nombre ?? "—"}
+            </Text>
+          </View>
+        </View>
+
+        {cita.sucursal?.direccion ? (
+          <Text style={estilos.direccion} numberOfLines={2}>
+            {cita.sucursal.direccion}
+          </Text>
+        ) : null}
+
+        <View style={estilos.verDetalle}>
+          <Text style={estilos.verDetalleTxt}>Ver detalle</Text>
+          <Ionicons name="arrow-forward" size={14} color={paleta.navy} />
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -136,34 +211,104 @@ const estilos = StyleSheet.create({
   },
   cardCita: {
     flexDirection: "row",
-    alignItems: "center",
     backgroundColor: paleta.white,
     borderRadius: BORDES.radio,
-    padding: 14,
     marginBottom: 20,
-    gap: 12,
+    overflow: "hidden",
     shadowColor: paleta.navy,
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  cardCitaIcono: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: paleta.skyblue,
+  fechaFranja: {
+    backgroundColor: paleta.navy,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",
+    minWidth: 58,
   },
-  cardCitaNombre: { fontSize: 16, fontWeight: "700", color: paleta.navy },
-  cardCitaSub: { fontSize: 13, color: paleta.teal, marginTop: 4 },
+  fechaSem: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: paleta.skyblue,
+    textTransform: "capitalize",
+  },
+  fechaNum: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: paleta.white,
+    marginVertical: 2,
+  },
+  fechaMes: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: paleta.skyblue,
+    textTransform: "capitalize",
+  },
+  cardCitaBody: { flex: 1, padding: 14 },
+  cardCitaTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    marginBottom: 8,
+  },
+  cardCitaNombre: { fontSize: 16, fontWeight: "800", color: paleta.navy },
+  cardCitaSub: { fontSize: 12, color: paleta.teal, marginTop: 2 },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    maxWidth: 130,
+  },
+  badgeTxt: { fontSize: 9, fontWeight: "700" },
+  montoLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: paleta.teal,
+    letterSpacing: 0.5,
+  },
+  monto: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: paleta.navy,
+    marginBottom: 8,
+  },
+  detallesFila: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 4,
+  },
+  detalleItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  detalleTxt: { fontSize: 12, color: paleta.teal, fontWeight: "600" },
+  direccion: {
+    fontSize: 11,
+    color: paleta.teal,
+    opacity: 0.85,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  verDetalle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-end",
+    marginTop: 4,
+  },
+  verDetalleTxt: { fontSize: 12, fontWeight: "700", color: paleta.navy },
   cardVacio: {
     backgroundColor: paleta.white,
     borderRadius: BORDES.radio,
-    padding: 16,
+    padding: 24,
     marginBottom: 20,
+    alignItems: "center",
+    gap: 8,
   },
-  cardVacioTxt: { color: paleta.teal, fontSize: 14 },
+  cardVacioTxt: { color: paleta.teal, fontSize: 14, textAlign: "center" },
   btnAccion: {
     flexDirection: "row",
     alignItems: "center",

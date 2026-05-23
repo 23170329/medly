@@ -43,6 +43,15 @@ export interface CitaMedicoDto {
   };
 }
 
+export interface PacienteMedicoDto {
+  pacienteID: number;
+  nombre: string;
+  apellido_pat: string;
+  apellido_mat?: string | null;
+  pesoKg?: number | string | null;
+  alturaM?: number | string | null;
+}
+
 export interface ConsultaMedicoDto {
   consultaID: number;
   fechaRegistro: string;
@@ -54,6 +63,8 @@ export interface ConsultaMedicoDto {
   exploracionFisica?: string | null;
   diagnosticos?: string | null;
   tratamiento?: string | null;
+  pesoKg?: number | string | null;
+  alturaM?: number | string | null;
   paciente?: {
     pacienteID: number;
     nombre: string;
@@ -94,6 +105,39 @@ export function crearBloqueoMedico(
 ): Promise<BloqueoDto> {
   return medicoFetch("/medico/bloqueos", token, {
     method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function eliminarBloqueoMedico(
+  token: string,
+  bloqueoId: number,
+): Promise<{ ok: boolean }> {
+  return medicoFetch(`/medico/bloqueos/${bloqueoId}`, token, {
+    method: "DELETE",
+  });
+}
+
+export function fetchPacienteMedico(
+  token: string,
+  pacienteId: number,
+): Promise<PacienteMedicoDto> {
+  return medicoFetch(`/medico/pacientes/${pacienteId}`, token);
+}
+
+export function guardarExpedienteMedico(
+  token: string,
+  pacienteId: number,
+  body: {
+    identificacion?: string;
+    antecedentes?: string;
+    tratamiento?: string;
+    pesoKg: number;
+    alturaM: number;
+  },
+): Promise<{ paciente: PacienteMedicoDto; consulta: ConsultaMedicoDto }> {
+  return medicoFetch(`/medico/pacientes/${pacienteId}/expediente`, token, {
+    method: "PATCH",
     body: JSON.stringify(body),
   });
 }
@@ -143,4 +187,35 @@ export function nombrePaciente(
   if (!p) return "Paciente";
   const am = p.apellido_mat ? ` ${p.apellido_mat}` : "";
   return `${p.nombre} ${p.apellido_pat}${am}`.trim();
+}
+
+export interface NotificacionMedicoDto {
+  notificacionID: number;
+  medicoID: number;
+  titulo: string;
+  mensaje: string;
+  leida: boolean;
+  tipo?: string | null;
+  citaID?: number | null;
+  permiteReagendar?: boolean;
+  fechaCreacion: string;
+}
+
+export function fetchNotificacionesMedico(
+  token: string,
+): Promise<NotificacionMedicoDto[]> {
+  return medicoFetch("/medico/notificaciones", token);
+}
+
+export function fetchNotificacionesNoLeidasMedico(token: string): Promise<number> {
+  return medicoFetch("/medico/notificaciones/no-leidas", token);
+}
+
+export function marcarNotificacionLeidaMedico(
+  token: string,
+  id: number,
+): Promise<NotificacionMedicoDto> {
+  return medicoFetch(`/medico/notificaciones/${id}/leida`, token, {
+    method: "PATCH",
+  });
 }
