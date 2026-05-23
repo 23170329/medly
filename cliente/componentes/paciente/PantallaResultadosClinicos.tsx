@@ -12,11 +12,11 @@ import {
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { COLORES, paleta, BORDES } from "../../../constants/theme";
+import { COLORES, paleta, BORDES } from "../../constants/theme";
 import {
   fetchResultadosPaciente,
   type ResultadoClinicoDto,
-} from "../../../lib/medlyApi";
+} from "../../lib/medlyApi";
 
 interface Props {
   readonly titulo: string;
