@@ -69,7 +69,8 @@ export default function ExpedienteDetalle(): React.JSX.Element {
           }),
         );
         if (!vitales.peso && ult.pesoKg != null) setPeso(String(ult.pesoKg));
-        if (!vitales.altura && ult.alturaM != null) setAltura(String(ult.alturaM));
+        if (!vitales.altura && ult.alturaM != null)
+          setAltura(String(ult.alturaM));
       }
     } catch {
       /* vacío */
@@ -164,7 +165,7 @@ export default function ExpedienteDetalle(): React.JSX.Element {
                 />
               </Seccion>
 
-              <Seccion titulo="Signos vitales" icono="fitness-outline">
+              <Seccion titulo="Datos físicos" icono="fitness-outline">
                 <VitalesPesoAltura
                   pesoKg={peso}
                   alturaM={altura}
