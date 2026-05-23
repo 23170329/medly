@@ -10,6 +10,7 @@ import { EstadoCita, EstadoPago, EstadoSlot, TipoPago } from '../common/enums';
 import { PagosService } from '../pagos/pagos.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
+import { BloqueosService } from '../horarios/bloqueos.service';
 
 describe('CitasService', () => {
   let service: CitasService;
@@ -100,6 +101,10 @@ describe('CitasService', () => {
         {
           provide: AuditoriaService,
           useValue: { registrar: jest.fn() },
+        },
+        {
+          provide: BloqueosService,
+          useValue: { crear: jest.fn().mockResolvedValue({}) },
         },
       ],
     }).compile();

@@ -9,6 +9,8 @@ export interface CrearNotificacionParams {
   mensaje: string;
   tipo?: string;
   citaID?: number;
+  medicoID?: number;
+  sucursalID?: number;
   permiteReagendar?: boolean;
 }
 
@@ -30,6 +32,8 @@ export class NotificacionesService {
       mensaje: params.mensaje,
       tipo: params.tipo ?? null,
       citaID: params.citaID ?? null,
+      medicoID: params.medicoID ?? null,
+      sucursalID: params.sucursalID ?? null,
       permiteReagendar: params.permiteReagendar ?? false,
     });
     return this.notifRepo.save(notif);
@@ -103,5 +107,12 @@ export class NotificacionesService {
     return this.notifMedicoRepo.count({
       where: { medicoID, leida: false },
     });
+  }
+
+  async eliminar(pacienteID: number, notificacionID: number): Promise<void> {
+    const r = await this.notifRepo.delete({ notificacionID, pacienteID });
+    if (!r.affected) {
+      throw new NotFoundException('Notificación no encontrada');
+    }
   }
 }

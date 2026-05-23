@@ -25,6 +25,7 @@ import { SucursalLatLng1747150000000 } from './src/migrations/1747150000000-Sucu
 import { NormalizarTelefonoPaciente1747160000000 } from './src/migrations/1747160000000-NormalizarTelefonoPaciente';
 import { PacientePesoAltura1747200000000 } from './src/migrations/1747200000000-PacientePesoAltura';
 import { NotificacionCancelacion1747210000000 } from './src/migrations/1747210000000-NotificacionCancelacion';
+import { ConsultaLabNotifReagendar1747220000000 } from './src/migrations/1747220000000-ConsultaLabNotifReagendar';
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
@@ -84,6 +85,7 @@ export default new DataSource({
     NormalizarTelefonoPaciente1747160000000,
     PacientePesoAltura1747200000000,
     NotificacionCancelacion1747210000000,
+    ConsultaLabNotifReagendar1747220000000,
   ],
   synchronize: false,
   logging: process.env.TYPEORM_LOGGING === 'true',

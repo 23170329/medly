@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -38,5 +39,15 @@ export class NotificacionesController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.notificacionesService.marcarLeida(u.sub, id);
+  }
+
+  @Delete(':id')
+  eliminar(
+    @CurrentUser() u: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.notificacionesService.eliminar(u.sub, id).then(() => ({
+      ok: true,
+    }));
   }
 }

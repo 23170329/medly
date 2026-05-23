@@ -31,6 +31,12 @@ export class Notificacion {
   @Column({ type: 'int', nullable: true })
   citaID!: number | null;
 
+  @Column({ type: 'int', nullable: true })
+  medicoID!: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  sucursalID!: number | null;
+
   @Column({ type: 'boolean', default: false })
   permiteReagendar!: boolean;
 

@@ -55,6 +55,9 @@ export class ConsultaClinica {
   tratamiento!: string | null;
 
   @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
+  estudiosLaboratorio!: string | null;
+
+  @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   evolucion!: string | null;
 
   @Column({ type: 'text', nullable: true, transformer: CifrarColumna })

@@ -37,6 +37,7 @@ import { RecepcionModule } from './recepcion/recepcion.module';
 import { MedicoPanelModule } from './medico-panel/medico-panel.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
+import { ConsultasModule } from './consultas/consultas.module';
 
 const entities = [
   Paciente,
@@ -119,6 +120,7 @@ const entities = [
     PagosModule,
     RecepcionModule,
     MedicoPanelModule,
+    ConsultasModule,
     NotificacionesModule,
     AuditoriaModule,
   ],

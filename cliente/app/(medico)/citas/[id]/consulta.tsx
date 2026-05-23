@@ -6,18 +6,24 @@ import {
   SafeAreaView,
   ScrollView,
   TextInput,
-  TouchableOpacity,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { EncabezadoPantallaMedico } from "../../../../componentes/medico/EncabezadoPantallaMedico";
 import { VitalesPesoAltura } from "../../../../componentes/medico/VitalesPesoAltura";
+import { SeccionFormulario } from "../../../../componentes/comunes/SeccionFormulario";
 import { COLORES, paleta, BORDES } from "../../../../constants/theme";
 import { useAuthStore } from "../../../../stores/auth.store";
 import {
   crearConsultaMedico,
   fetchPacienteMedico,
+  nombrePaciente,
 } from "../../../../lib/medicoApi";
 import {
   pesoAlturaDesdePaciente,
@@ -30,35 +36,41 @@ export default function GestionarConsultaMedico(): React.JSX.Element {
     pacienteId: string;
   }>();
   const token = useAuthStore((s) => s.accessToken);
-  const [paso, setPaso] = useState(1);
+  const [nombrePac, setNombrePac] = useState("");
   const [peso, setPeso] = useState("");
   const [altura, setAltura] = useState("");
   const [presion, setPresion] = useState("");
   const [temperatura, setTemperatura] = useState("");
   const [motivo, setMotivo] = useState("");
   const [diagnostico, setDiagnostico] = useState("");
+  const [laboratorio, setLaboratorio] = useState("");
   const [receta, setReceta] = useState("");
   const [errPeso, setErrPeso] = useState<string | undefined>();
   const [errAltura, setErrAltura] = useState<string | undefined>();
   const [enviando, setEnviando] = useState(false);
+  const [cargando, setCargando] = useState(true);
 
-  const cargarVitales = useCallback(async () => {
+  const cargar = useCallback(async () => {
     const pid = parseInt(pacienteId ?? "0", 10);
     if (!token || !pid) return;
+    setCargando(true);
     try {
       const pac = await fetchPacienteMedico(token, pid);
+      setNombrePac(nombrePaciente(pac));
       const v = pesoAlturaDesdePaciente(pac);
       setPeso(v.peso);
       setAltura(v.altura);
     } catch {
       /* sin datos previos */
+    } finally {
+      setCargando(false);
     }
   }, [token, pacienteId]);
 
   useFocusEffect(
     useCallback(() => {
-      void cargarVitales();
-    }, [cargarVitales]),
+      void cargar();
+    }, [cargar]),
   );
 
   const finalizar = async (): Promise<void> => {
@@ -71,11 +83,7 @@ export default function GestionarConsultaMedico(): React.JSX.Element {
     setErrPeso(v.errorPeso ?? undefined);
     setErrAltura(v.errorAltura ?? undefined);
     if (v.pesoKg == null || v.alturaM == null) {
-      Alert.alert(
-        "Revisa",
-        "Indica peso y altura del paciente al finalizar la consulta.",
-      );
-      setPaso(1);
+      Alert.alert("Revisa", "Peso y altura son obligatorios.");
       return;
     }
     setEnviando(true);
@@ -85,15 +93,16 @@ export default function GestionarConsultaMedico(): React.JSX.Element {
         citaID: parseInt(id ?? "0", 10) || undefined,
         pesoKg: v.pesoKg,
         alturaM: v.alturaM,
-        interrogatorio: motivo || undefined,
+        interrogatorio: motivo.trim() || undefined,
         exploracionFisica: [
           presion ? `PA: ${presion}` : "",
           temperatura ? `Temp: ${temperatura}°C` : "",
         ]
           .filter(Boolean)
           .join(" · "),
-        diagnosticos: diagnostico || undefined,
-        tratamiento: receta || undefined,
+        diagnosticos: diagnostico.trim() || undefined,
+        estudiosLaboratorio: laboratorio.trim() || undefined,
+        tratamiento: receta.trim() || undefined,
       });
       router.replace("/(medico)/citas/exito");
     } catch (e: unknown) {
@@ -103,92 +112,122 @@ export default function GestionarConsultaMedico(): React.JSX.Element {
     }
   };
 
-  const avanzarPaso1 = (): void => {
-    const v = validarPesoAltura(peso, altura);
-    setErrPeso(v.errorPeso ?? undefined);
-    setErrAltura(v.errorAltura ?? undefined);
-    if (v.pesoKg == null || v.alturaM == null) {
-      Alert.alert("Revisa", "Peso y altura son obligatorios.");
-      return;
-    }
-    setPaso(2);
-  };
-
   return (
     <SafeAreaView style={estilos.area}>
-      <ScrollView contentContainerStyle={estilos.scroll}>
-        <EncabezadoPantallaMedico
-          titulo="GESTIONAR CONSULTA"
-          onAtras={() => (paso === 1 ? router.back() : setPaso(1))}
-        />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={estilos.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <EncabezadoPantallaMedico
+            titulo="GESTIONAR CONSULTA"
+            onAtras={() => router.back()}
+          />
 
-        {paso === 1 ? (
-          <>
-            <Text style={estilos.notaVitales}>
-              Actualiza peso y altura del paciente (quedan en su expediente).
-            </Text>
-            <VitalesPesoAltura
-              pesoKg={peso}
-              alturaM={altura}
-              onPesoChange={(t) => {
-                setPeso(t);
-                setErrPeso(undefined);
-              }}
-              onAlturaChange={(t) => {
-                setAltura(t);
-                setErrAltura(undefined);
-              }}
-              errorPeso={errPeso}
-              errorAltura={errAltura}
-            />
-            <Campo label="PRESIÓN ARTERIAL" value={presion} onChange={setPresion} />
-            <Campo
-              label="TEMPERATURA (°C)"
-              value={temperatura}
-              onChange={setTemperatura}
-            />
-            <Campo
-              label="MOTIVO DE CONSULTA"
-              value={motivo}
-              onChange={setMotivo}
-              multiline
-            />
-            <Campo
-              label="DIAGNÓSTICO MÉDICO"
-              value={diagnostico}
-              onChange={setDiagnostico}
-              multiline
-            />
-            <TouchableOpacity style={estilos.btn} onPress={avanzarPaso1}>
-              <Text style={estilos.btnTxt}>SIGUIENTE →</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <Text style={estilos.notaVitales}>
-              Peso: {peso} kg · Altura: {altura} m
-            </Text>
-            <Text style={estilos.labelReceta}>RECETA</Text>
-            <TextInput
-              style={estilos.receta}
-              value={receta}
-              onChangeText={setReceta}
-              multiline
-              placeholder="Indicaciones y medicamentos…"
-              placeholderTextColor={COLORES.textoPlaceholder}
-            />
-            <TouchableOpacity
-              style={[estilos.btn, enviando && { opacity: 0.7 }]}
-              onPress={() => void finalizar()}
-              disabled={enviando}
-            >
-              <Text style={estilos.btnTxt}>
-                {enviando ? "GUARDANDO…" : "FINALIZAR"}
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </ScrollView>
+          {cargando ? (
+            <ActivityIndicator color={paleta.navy} style={{ marginTop: 24 }} />
+          ) : (
+            <>
+              <View style={estilos.pacienteCard}>
+                <View style={estilos.pacienteAvatar}>
+                  <Text style={estilos.pacienteInicial}>
+                    {(nombrePac[0] ?? "P").toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={estilos.pacienteNombre}>
+                    {nombrePac || "Paciente"}
+                  </Text>
+                  <Text style={estilos.pacienteSub}>Consulta en curso</Text>
+                </View>
+              </View>
+
+              <SeccionFormulario titulo="Signos vitales" icono="fitness-outline">
+                <VitalesPesoAltura
+                  pesoKg={peso}
+                  alturaM={altura}
+                  onPesoChange={(t) => {
+                    setPeso(t);
+                    setErrPeso(undefined);
+                  }}
+                  onAlturaChange={(t) => {
+                    setAltura(t);
+                    setErrAltura(undefined);
+                  }}
+                  errorPeso={errPeso}
+                  errorAltura={errAltura}
+                />
+                <Campo label="PRESIÓN ARTERIAL" value={presion} onChange={setPresion} placeholder="120/80" />
+                <Campo
+                  label="TEMPERATURA (°C)"
+                  value={temperatura}
+                  onChange={setTemperatura}
+                  placeholder="36.5"
+                />
+              </SeccionFormulario>
+
+              <SeccionFormulario titulo="Consulta" icono="clipboard-outline">
+                <Campo
+                  label="MOTIVO DE CONSULTA"
+                  value={motivo}
+                  onChange={setMotivo}
+                  multiline
+                  placeholder="Síntomas, motivo de visita…"
+                />
+                <Campo
+                  label="DIAGNÓSTICO MÉDICO"
+                  value={diagnostico}
+                  onChange={setDiagnostico}
+                  multiline
+                  placeholder="Diagnóstico clínico…"
+                />
+              </SeccionFormulario>
+
+              <SeccionFormulario titulo="Laboratorio" icono="flask-outline">
+                <Campo
+                  label="ESTUDIOS Y RESULTADOS"
+                  value={laboratorio}
+                  onChange={setLaboratorio}
+                  multiline
+                  placeholder="Biometría, química sanguínea, etc."
+                />
+              </SeccionFormulario>
+
+              <SeccionFormulario titulo="Tratamiento" icono="bandage-outline">
+                <Campo
+                  label="RECETA / INDICACIONES"
+                  value={receta}
+                  onChange={setReceta}
+                  multiline
+                  placeholder="Medicamentos e indicaciones…"
+                />
+              </SeccionFormulario>
+            </>
+          )}
+        </ScrollView>
+
+        <View style={estilos.pie}>
+          <TouchableOpacity
+            style={[estilos.btnGuardar, (enviando || cargando) && estilos.disabled]}
+            onPress={() => void finalizar()}
+            disabled={enviando || cargando}
+            accessibilityRole="button"
+          >
+            {enviando ? (
+              <ActivityIndicator color={paleta.white} />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={20} color={paleta.white} />
+                <Text style={estilos.btnTxt}>FINALIZAR CONSULTA</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -198,20 +237,23 @@ function Campo({
   value,
   onChange,
   multiline,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (t: string) => void;
   multiline?: boolean;
+  placeholder?: string;
 }): React.JSX.Element {
   return (
     <View style={estilos.campo}>
-      <Text style={estilos.label}>{label}</Text>
+      <Text style={estilos.campoLabel}>{label}</Text>
       <TextInput
-        style={[estilos.input, multiline && estilos.multiline]}
+        style={[estilos.campoInput, multiline && estilos.multiline]}
         value={value}
         onChangeText={onChange}
         multiline={multiline}
+        placeholder={placeholder}
         placeholderTextColor={COLORES.textoPlaceholder}
       />
     </View>
@@ -220,55 +262,75 @@ function Campo({
 
 const estilos = StyleSheet.create({
   area: { flex: 1, backgroundColor: COLORES.fondo },
-  scroll: { padding: 20, paddingBottom: 40 },
-  notaVitales: {
-    fontSize: 12,
-    color: paleta.teal,
-    marginBottom: 12,
-    lineHeight: 18,
+  scroll: { padding: 20, paddingBottom: 100 },
+  pacienteCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: paleta.white,
+    borderRadius: BORDES.radio,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: paleta.teal,
   },
-  campo: { marginBottom: 14 },
-  label: {
-    fontSize: 11,
+  pacienteAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: paleta.skyblue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pacienteInicial: { fontSize: 20, fontWeight: "800", color: paleta.navy },
+  pacienteNombre: { fontSize: 17, fontWeight: "800", color: paleta.navy },
+  pacienteSub: { fontSize: 12, color: paleta.teal, marginTop: 2 },
+  campo: { marginBottom: 12 },
+  campoLabel: {
+    fontSize: 10,
     fontWeight: "800",
     color: paleta.teal,
     marginBottom: 6,
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
-  input: {
-    backgroundColor: paleta.white,
+  campoInput: {
+    backgroundColor: paleta.beige,
     borderRadius: BORDES.radio,
     borderWidth: 1,
     borderColor: paleta.skyblue,
-    padding: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 15,
     color: paleta.navy,
   },
   multiline: { minHeight: 88, textAlignVertical: "top" },
-  labelReceta: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: paleta.teal,
-    marginBottom: 8,
-  },
-  receta: {
+  pie: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    paddingBottom: Platform.OS === "ios" ? 24 : 14,
     backgroundColor: paleta.white,
-    borderRadius: BORDES.radio,
-    borderWidth: 1,
-    borderColor: paleta.skyblue,
-    minHeight: 200,
-    padding: 14,
-    fontSize: 15,
-    color: paleta.navy,
-    textAlignVertical: "top",
-    marginBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: paleta.skyblue,
+    elevation: 8,
   },
-  btn: {
+  btnGuardar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     backgroundColor: paleta.navy,
     borderRadius: BORDES.radioPill,
     paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 8,
   },
-  btnTxt: { color: paleta.white, fontWeight: "800", fontSize: 14 },
+  disabled: { opacity: 0.55 },
+  btnTxt: {
+    color: paleta.white,
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
 });
