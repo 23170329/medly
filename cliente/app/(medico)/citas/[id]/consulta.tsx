@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -10,10 +10,19 @@ import {
   Alert,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { EncabezadoPantallaMedico } from "../../../../componentes/medico/EncabezadoPantallaMedico";
+import { VitalesPesoAltura } from "../../../../componentes/medico/VitalesPesoAltura";
 import { COLORES, paleta, BORDES } from "../../../../constants/theme";
 import { useAuthStore } from "../../../../stores/auth.store";
-import { crearConsultaMedico } from "../../../../lib/medicoApi";
+import {
+  crearConsultaMedico,
+  fetchPacienteMedico,
+} from "../../../../lib/medicoApi";
+import {
+  pesoAlturaDesdePaciente,
+  validarPesoAltura,
+} from "../../../../lib/vitalesPaciente";
 
 export default function GestionarConsultaMedico(): React.JSX.Element {
   const { id, pacienteId } = useLocalSearchParams<{
@@ -22,12 +31,35 @@ export default function GestionarConsultaMedico(): React.JSX.Element {
   }>();
   const token = useAuthStore((s) => s.accessToken);
   const [paso, setPaso] = useState(1);
+  const [peso, setPeso] = useState("");
+  const [altura, setAltura] = useState("");
   const [presion, setPresion] = useState("");
   const [temperatura, setTemperatura] = useState("");
   const [motivo, setMotivo] = useState("");
   const [diagnostico, setDiagnostico] = useState("");
   const [receta, setReceta] = useState("");
+  const [errPeso, setErrPeso] = useState<string | undefined>();
+  const [errAltura, setErrAltura] = useState<string | undefined>();
   const [enviando, setEnviando] = useState(false);
+
+  const cargarVitales = useCallback(async () => {
+    const pid = parseInt(pacienteId ?? "0", 10);
+    if (!token || !pid) return;
+    try {
+      const pac = await fetchPacienteMedico(token, pid);
+      const v = pesoAlturaDesdePaciente(pac);
+      setPeso(v.peso);
+      setAltura(v.altura);
+    } catch {
+      /* sin datos previos */
+    }
+  }, [token, pacienteId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void cargarVitales();
+    }, [cargarVitales]),
+  );
 
   const finalizar = async (): Promise<void> => {
     const pid = parseInt(pacienteId ?? "0", 10);
@@ -35,11 +67,24 @@ export default function GestionarConsultaMedico(): React.JSX.Element {
       Alert.alert("Error", "Paciente no identificado.");
       return;
     }
+    const v = validarPesoAltura(peso, altura);
+    setErrPeso(v.errorPeso ?? undefined);
+    setErrAltura(v.errorAltura ?? undefined);
+    if (v.pesoKg == null || v.alturaM == null) {
+      Alert.alert(
+        "Revisa",
+        "Indica peso y altura del paciente al finalizar la consulta.",
+      );
+      setPaso(1);
+      return;
+    }
     setEnviando(true);
     try {
       await crearConsultaMedico(token, {
         pacienteID: pid,
         citaID: parseInt(id ?? "0", 10) || undefined,
+        pesoKg: v.pesoKg,
+        alturaM: v.alturaM,
         interrogatorio: motivo || undefined,
         exploracionFisica: [
           presion ? `PA: ${presion}` : "",
@@ -58,6 +103,17 @@ export default function GestionarConsultaMedico(): React.JSX.Element {
     }
   };
 
+  const avanzarPaso1 = (): void => {
+    const v = validarPesoAltura(peso, altura);
+    setErrPeso(v.errorPeso ?? undefined);
+    setErrAltura(v.errorAltura ?? undefined);
+    if (v.pesoKg == null || v.alturaM == null) {
+      Alert.alert("Revisa", "Peso y altura son obligatorios.");
+      return;
+    }
+    setPaso(2);
+  };
+
   return (
     <SafeAreaView style={estilos.area}>
       <ScrollView contentContainerStyle={estilos.scroll}>
@@ -68,6 +124,23 @@ export default function GestionarConsultaMedico(): React.JSX.Element {
 
         {paso === 1 ? (
           <>
+            <Text style={estilos.notaVitales}>
+              Actualiza peso y altura del paciente (quedan en su expediente).
+            </Text>
+            <VitalesPesoAltura
+              pesoKg={peso}
+              alturaM={altura}
+              onPesoChange={(t) => {
+                setPeso(t);
+                setErrPeso(undefined);
+              }}
+              onAlturaChange={(t) => {
+                setAltura(t);
+                setErrAltura(undefined);
+              }}
+              errorPeso={errPeso}
+              errorAltura={errAltura}
+            />
             <Campo label="PRESIÓN ARTERIAL" value={presion} onChange={setPresion} />
             <Campo
               label="TEMPERATURA (°C)"
@@ -86,15 +159,15 @@ export default function GestionarConsultaMedico(): React.JSX.Element {
               onChange={setDiagnostico}
               multiline
             />
-            <TouchableOpacity
-              style={estilos.btn}
-              onPress={() => setPaso(2)}
-            >
+            <TouchableOpacity style={estilos.btn} onPress={avanzarPaso1}>
               <Text style={estilos.btnTxt}>SIGUIENTE →</Text>
             </TouchableOpacity>
           </>
         ) : (
           <>
+            <Text style={estilos.notaVitales}>
+              Peso: {peso} kg · Altura: {altura} m
+            </Text>
             <Text style={estilos.labelReceta}>RECETA</Text>
             <TextInput
               style={estilos.receta}
@@ -148,6 +221,12 @@ function Campo({
 const estilos = StyleSheet.create({
   area: { flex: 1, backgroundColor: COLORES.fondo },
   scroll: { padding: 20, paddingBottom: 40 },
+  notaVitales: {
+    fontSize: 12,
+    color: paleta.teal,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
   campo: { marginBottom: 14 },
   label: {
     fontSize: 11,

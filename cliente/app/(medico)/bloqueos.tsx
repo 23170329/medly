@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,26 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  TouchableOpacity,
 } from "react-native";
 import { router } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { EncabezadoPantallaMedico } from "../../componentes/medico/EncabezadoPantallaMedico";
 import { CalendarioMedly } from "../../componentes/calendario/CalendarioMedly";
 import { normalizarDia } from "../../componentes/calendario/calendarioUtils";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
 import { useAuthStore } from "../../stores/auth.store";
-import { crearBloqueoMedico } from "../../lib/medicoApi";
+import {
+  crearBloqueoMedico,
+  eliminarBloqueoMedico,
+  fetchBloqueosMedico,
+  type BloqueoDto,
+} from "../../lib/medicoApi";
 
 const HORAS = [
+  "08:00",
+  "09:00",
   "10:00",
   "11:00",
   "12:00",
@@ -27,13 +37,44 @@ const HORAS = [
   "17:00",
 ];
 
+function formatearRangoBloqueo(inicio: string, fin: string): string {
+  const a = new Date(inicio);
+  const b = new Date(fin);
+  const f = (d: Date) =>
+    d.toLocaleString("es-MX", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  return `${f(a)} → ${f(b)}`;
+}
+
 export default function MedicoBloqueos(): React.JSX.Element {
   const token = useAuthStore((s) => s.accessToken);
   const [mesVisible, setMesVisible] = useState(() => new Date());
   const [rangoInicio, setRangoInicio] = useState<Date | null>(null);
   const [rangoFin, setRangoFin] = useState<Date | null>(null);
   const [horasSel, setHorasSel] = useState<string[]>([]);
+  const [bloqueos, setBloqueos] = useState<BloqueoDto[]>([]);
   const [enviando, setEnviando] = useState(false);
+
+  const cargarBloqueos = useCallback(async () => {
+    if (!token) return;
+    try {
+      const lista = await fetchBloqueosMedico(token);
+      setBloqueos(lista);
+    } catch {
+      setBloqueos([]);
+    }
+  }, [token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void cargarBloqueos();
+    }, [cargarBloqueos]),
+  );
 
   const toggleHora = (h: string): void => {
     setHorasSel((prev) =>
@@ -42,6 +83,12 @@ export default function MedicoBloqueos(): React.JSX.Element {
   };
 
   const diaRef = useMemo(() => rangoInicio ?? rangoFin, [rangoInicio, rangoFin]);
+
+  const bloqueosFuturos = useMemo(
+    () =>
+      bloqueos.filter((b) => new Date(b.fin).getTime() >= Date.now()),
+    [bloqueos],
+  );
 
   const bloquear = async (): Promise<void> => {
     if (!token || !diaRef || horasSel.length === 0) {
@@ -67,9 +114,9 @@ export default function MedicoBloqueos(): React.JSX.Element {
         inicio: inicio.toISOString(),
         fin: fin.toISOString(),
       });
-      Alert.alert("Listo", "Horario bloqueado correctamente.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      setHorasSel([]);
+      await cargarBloqueos();
+      Alert.alert("Listo", "Horario bloqueado correctamente.");
     } catch (e: unknown) {
       Alert.alert("Error", e instanceof Error ? e.message : "No se pudo bloquear.");
     } finally {
@@ -77,17 +124,78 @@ export default function MedicoBloqueos(): React.JSX.Element {
     }
   };
 
+  const desbloquear = (b: BloqueoDto): void => {
+    Alert.alert(
+      "Desbloquear agenda",
+      `¿Quitar el bloqueo del ${formatearRangoBloqueo(b.inicio, b.fin)}? Se regenerarán los cupos libres en ese periodo.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Desbloquear",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              if (!token) return;
+              setEnviando(true);
+              try {
+                await eliminarBloqueoMedico(token, b.bloqueoID);
+                await cargarBloqueos();
+                Alert.alert("Listo", "Bloqueo eliminado. La agenda quedó disponible.");
+              } catch (e: unknown) {
+                Alert.alert(
+                  "Error",
+                  e instanceof Error ? e.message : "No se pudo desbloquear.",
+                );
+              } finally {
+                setEnviando(false);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView style={estilos.area}>
       <ScrollView contentContainerStyle={estilos.scroll}>
         <EncabezadoPantallaMedico
-          titulo="BLOQUEAR AGENDA"
+          titulo="GESTIONAR AGENDA"
           onAtras={() => router.back()}
         />
 
         <Text style={estilos.instruccion}>
-          SELECCIONA FECHAS U HORAS PARA BLOQUEAR
+          BLOQUEAR: selecciona fechas y horarios. DESBLOQUEAR: quita un bloqueo
+          activo si te equivocaste o ya podrás atender.
         </Text>
+
+        {bloqueosFuturos.length > 0 && (
+          <View style={estilos.seccionLista}>
+            <Text style={estilos.subTituloSeccion}>BLOQUEOS ACTIVOS</Text>
+            {bloqueosFuturos.map((b) => (
+              <View key={b.bloqueoID} style={estilos.itemBloqueo}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={estilos.itemBloqueoTxt} numberOfLines={2}>
+                    {formatearRangoBloqueo(b.inicio, b.fin)}
+                  </Text>
+                  {b.motivo ? (
+                    <Text style={estilos.itemMotivo}>{b.motivo}</Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity
+                  style={estilos.btnDesbloquear}
+                  onPress={() => desbloquear(b)}
+                  accessibilityLabel="Desbloquear este periodo"
+                >
+                  <Ionicons name="lock-open-outline" size={16} color={paleta.red} />
+                  <Text style={estilos.btnDesbloquearTxt}>Desbloquear</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <Text style={estilos.subTituloSeccion}>NUEVO BLOQUEO</Text>
 
         <CalendarioMedly
           mesVisible={mesVisible}
@@ -139,13 +247,56 @@ const estilos = StyleSheet.create({
   scroll: { padding: 20, paddingBottom: 40 },
   instruccion: {
     fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.5,
+    fontWeight: "600",
+    letterSpacing: 0.3,
     color: paleta.teal,
-    marginBottom: 12,
+    marginBottom: 16,
+    lineHeight: 17,
+  },
+  seccionLista: { marginBottom: 20 },
+  subTituloSeccion: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: paleta.teal,
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  itemBloqueo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: paleta.white,
+    borderRadius: BORDES.radio,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: paleta.skyblue,
+  },
+  itemBloqueoTxt: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: paleta.navy,
+    lineHeight: 17,
+  },
+  itemMotivo: { fontSize: 11, color: paleta.teal, marginTop: 4 },
+  btnDesbloquear: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: BORDES.radio,
+    borderWidth: 1,
+    borderColor: paleta.red,
+    flexShrink: 0,
+  },
+  btnDesbloquearTxt: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: paleta.red,
   },
   subHoras: {
-    marginTop: 20,
+    marginTop: 8,
     marginBottom: 10,
     fontSize: 11,
     fontWeight: "800",
@@ -155,12 +306,12 @@ const estilos = StyleSheet.create({
   rejillaHoras: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 8,
     marginBottom: 28,
   },
   horaBtn: {
-    width: "47%",
-    paddingVertical: 14,
+    width: "31%",
+    paddingVertical: 12,
     borderRadius: BORDES.radio,
     borderWidth: 1.5,
     borderColor: paleta.skyblue,
@@ -171,7 +322,7 @@ const estilos = StyleSheet.create({
     backgroundColor: paleta.navy,
     borderColor: paleta.navy,
   },
-  horaTxt: { fontSize: 15, fontWeight: "700", color: paleta.navy },
+  horaTxt: { fontSize: 14, fontWeight: "700", color: paleta.navy },
   horaTxtSel: { color: paleta.white },
   btnPrimario: {
     backgroundColor: paleta.navy,

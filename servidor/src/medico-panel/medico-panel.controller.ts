@@ -24,6 +24,7 @@ import { ConsultasService } from '../consultas/consultas.service';
 import { CrearConsultaDto } from '../consultas/dto/crear-consulta.dto';
 import { ActualizarConsultaDto } from '../consultas/dto/actualizar-consulta.dto';
 import { CancelarCitaMedicoDto } from './dto/cancelar-cita-medico.dto';
+import { GuardarExpedienteDto } from '../consultas/dto/guardar-expediente.dto';
 
 @ApiTags('medico')
 @Controller('medico')
@@ -92,6 +93,30 @@ export class MedicoPanelController {
     return this.bloqueosService
       .eliminar(this.medicoId(u), id)
       .then(() => ({ ok: true }));
+  }
+
+  @Get('pacientes/:pacienteId')
+  obtenerPaciente(
+    @CurrentUser() u: JwtPayload,
+    @Param('pacienteId', ParseIntPipe) pacienteId: number,
+  ) {
+    return this.consultasService.obtenerPacienteParaMedico(
+      this.medicoId(u),
+      pacienteId,
+    );
+  }
+
+  @Patch('pacientes/:pacienteId/expediente')
+  guardarExpediente(
+    @CurrentUser() u: JwtPayload,
+    @Param('pacienteId', ParseIntPipe) pacienteId: number,
+    @Body() dto: GuardarExpedienteDto,
+  ) {
+    return this.consultasService.guardarExpediente(
+      this.medicoId(u),
+      pacienteId,
+      dto,
+    );
   }
 
   @Get('consultas')

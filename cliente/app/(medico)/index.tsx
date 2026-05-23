@@ -117,7 +117,7 @@ export default function MedicoInicio(): React.JSX.Element {
           onPress={() => router.push("/(medico)/bloqueos")}
         >
           <Ionicons name="calendar-outline" size={22} color={paleta.white} />
-          <Text style={estilos.btnAccionTxt}>BLOQUEAR AGENDA</Text>
+          <Text style={estilos.btnAccionTxt}>GESTIONAR AGENDA</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

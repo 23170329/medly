@@ -1,10 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { ConsultasService } from './consultas.service';
 import { ConsultaClinica } from './entities/consulta-clinica.entity';
 import { Cita } from '../citas/entities/cita.entity';
+import { Paciente } from '../usuarios/entities/paciente.entity';
 import { CrearConsultaDto } from './dto/crear-consulta.dto';
 import { ActualizarConsultaDto } from './dto/actualizar-consulta.dto';
 
@@ -12,6 +17,7 @@ describe('ConsultasService', () => {
   let service: ConsultasService;
   let repo: jest.Mocked<Repository<ConsultaClinica>>;
   let citaRepo: jest.Mocked<Repository<Cita>>;
+  let pacienteRepo: jest.Mocked<Repository<Paciente>>;
 
   const mockQueryBuilder = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -38,6 +44,15 @@ describe('ConsultasService', () => {
           provide: getRepositoryToken(Cita),
           useValue: {
             findOne: jest.fn(),
+            exist: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Paciente),
+          useValue: {
+            findOne: jest.fn(),
+            findOneOrFail: jest.fn(),
+            save: jest.fn(),
           },
         },
       ],
@@ -46,6 +61,7 @@ describe('ConsultasService', () => {
     service = module.get<ConsultasService>(ConsultasService);
     repo = module.get(getRepositoryToken(ConsultaClinica));
     citaRepo = module.get(getRepositoryToken(Cita));
+    pacienteRepo = module.get(getRepositoryToken(Paciente));
   });
 
   afterEach(() => {
@@ -125,6 +141,8 @@ describe('ConsultasService', () => {
     const medicoId = 1;
     const baseDto: CrearConsultaDto = {
       pacienteID: 100,
+      pesoKg: 70,
+      alturaM: 1.75,
       identificacion: 'ID-001',
       antecedentes: 'Antecedentes...',
       interrogatorio: 'Interrogatorio...',
@@ -138,31 +156,34 @@ describe('ConsultasService', () => {
 
     it('creates consulta with all clinical fields', async () => {
       const created = { ...baseDto } as unknown as ConsultaClinica;
+      pacienteRepo.findOne.mockResolvedValue({
+        pacienteID: 100,
+      } as Paciente);
+      pacienteRepo.save.mockResolvedValue({} as Paciente);
       repo.create.mockReturnValue(created);
       repo.save.mockResolvedValue(created);
 
       const result = await service.crear(medicoId, baseDto);
 
-      expect(repo.create).toHaveBeenCalledWith({
-        paciente: { pacienteID: baseDto.pacienteID },
-        medico: { medicoID: medicoId },
-        cita: null,
-        identificacion: baseDto.identificacion,
-        antecedentes: baseDto.antecedentes,
-        interrogatorio: baseDto.interrogatorio,
-        exploracionFisica: baseDto.exploracionFisica,
-        diagnosticos: baseDto.diagnosticos,
-        tratamiento: baseDto.tratamiento,
-        evolucion: baseDto.evolucion,
-        pronostico: baseDto.pronostico,
-        notasConfidenciales: baseDto.notasConfidenciales,
-      });
+      expect(pacienteRepo.save).toHaveBeenCalled();
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paciente: { pacienteID: baseDto.pacienteID },
+          medico: { medicoID: medicoId },
+          cita: null,
+          pesoKg: 70,
+          alturaM: 1.75,
+          identificacion: baseDto.identificacion,
+        }),
+      );
       expect(result).toBe(created);
     });
 
     it('when citaID provided, validates cita matches both doctor and patient', async () => {
       const dto = { ...baseDto, citaID: 50 };
       citaRepo.findOne.mockResolvedValue({ citaID: 50 } as Cita);
+      pacienteRepo.findOne.mockResolvedValue({ pacienteID: 100 } as Paciente);
+      pacienteRepo.save.mockResolvedValue({} as Paciente);
       const created = { ...dto } as unknown as ConsultaClinica;
       repo.create.mockReturnValue(created);
       repo.save.mockResolvedValue(created);
@@ -193,34 +214,23 @@ describe('ConsultasService', () => {
       expect(repo.create).not.toHaveBeenCalled();
     });
 
-    it('sets null for missing clinical fields', async () => {
+    it('throws when peso and altura are missing', async () => {
       const dto: CrearConsultaDto = { pacienteID: 100 };
-      const created = { pacienteID: 100 } as unknown as ConsultaClinica;
-      repo.create.mockReturnValue(created);
-      repo.save.mockResolvedValue(created);
-
-      await service.crear(medicoId, dto);
-
-      expect(repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          identificacion: null,
-          antecedentes: null,
-          interrogatorio: null,
-          exploracionFisica: null,
-          diagnosticos: null,
-          tratamiento: null,
-          evolucion: null,
-          pronostico: null,
-          notasConfidenciales: null,
-        }),
+      await expect(service.crear(medicoId, dto)).rejects.toThrow(
+        BadRequestException,
       );
+      expect(repo.create).not.toHaveBeenCalled();
     });
 
     it('works without citaID', async () => {
       const dto: CrearConsultaDto = {
         pacienteID: 100,
+        pesoKg: 68,
+        alturaM: 1.7,
         diagnosticos: 'Dx',
       };
+      pacienteRepo.findOne.mockResolvedValue({ pacienteID: 100 } as Paciente);
+      pacienteRepo.save.mockResolvedValue({} as Paciente);
       const created = { ...dto } as unknown as ConsultaClinica;
       repo.create.mockReturnValue(created);
       repo.save.mockResolvedValue(created);

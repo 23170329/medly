@@ -6,14 +6,24 @@ import {
   SafeAreaView,
   ScrollView,
   TextInput,
+  Alert,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { EncabezadoPantallaMedico } from "../../../componentes/medico/EncabezadoPantallaMedico";
-import { Entrada } from "../../../componentes/comunes/Entrada";
+import { Boton } from "../../../componentes/comunes/Boton";
+import { VitalesPesoAltura } from "../../../componentes/medico/VitalesPesoAltura";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import { useAuthStore } from "../../../stores/auth.store";
-import { fetchConsultasMedico } from "../../../lib/medicoApi";
+import {
+  fetchConsultasMedico,
+  fetchPacienteMedico,
+  guardarExpedienteMedico,
+} from "../../../lib/medicoApi";
+import {
+  pesoAlturaDesdePaciente,
+  validarPesoAltura,
+} from "../../../lib/vitalesPaciente";
 
 export default function ExpedienteDetalle(): React.JSX.Element {
   const { pacienteId } = useLocalSearchParams<{ pacienteId: string }>();
@@ -23,13 +33,21 @@ export default function ExpedienteDetalle(): React.JSX.Element {
   const [alergias, setAlergias] = useState("");
   const [historia, setHistoria] = useState("");
   const [peso, setPeso] = useState("");
-  const [talla, setTalla] = useState("");
+  const [altura, setAltura] = useState("");
   const [tratamiento, setTratamiento] = useState("");
   const [ultima, setUltima] = useState("");
+  const [errPeso, setErrPeso] = useState<string | undefined>();
+  const [errAltura, setErrAltura] = useState<string | undefined>();
+  const [guardando, setGuardando] = useState(false);
 
   const cargar = useCallback(async () => {
     if (!token || !pid) return;
     try {
+      const pac = await fetchPacienteMedico(token, pid);
+      const vitales = pesoAlturaDesdePaciente(pac);
+      setPeso(vitales.peso);
+      setAltura(vitales.altura);
+
       const cons = await fetchConsultasMedico(token, pid);
       const ult = cons[0];
       if (ult) {
@@ -41,11 +59,8 @@ export default function ExpedienteDetalle(): React.JSX.Element {
             dateStyle: "medium",
           }),
         );
-        const ex = ult.exploracionFisica ?? "";
-        const mPeso = ex.match(/peso[:\s]*([\d.]+)/i);
-        const mTalla = ex.match(/talla[:\s]*([\d.]+)/i);
-        if (mPeso) setPeso(mPeso[1]);
-        if (mTalla) setTalla(mTalla[1]);
+        if (!vitales.peso && ult.pesoKg != null) setPeso(String(ult.pesoKg));
+        if (!vitales.altura && ult.alturaM != null) setAltura(String(ult.alturaM));
       }
     } catch {
       /* vacío */
@@ -57,6 +72,35 @@ export default function ExpedienteDetalle(): React.JSX.Element {
       void cargar();
     }, [cargar]),
   );
+
+  const guardar = async (): Promise<void> => {
+    if (!token || !pid) return;
+    const v = validarPesoAltura(peso, altura);
+    setErrPeso(v.errorPeso ?? undefined);
+    setErrAltura(v.errorAltura ?? undefined);
+    if (v.pesoKg == null || v.alturaM == null) {
+      Alert.alert("Revisa", "Peso y altura son obligatorios en el expediente.");
+      return;
+    }
+    setGuardando(true);
+    try {
+      await guardarExpedienteMedico(token, pid, {
+        identificacion: alergias.trim() || undefined,
+        antecedentes: historia.trim() || undefined,
+        tratamiento: tratamiento.trim() || undefined,
+        pesoKg: v.pesoKg,
+        alturaM: v.alturaM,
+      });
+      setUltima(
+        new Date().toLocaleDateString("es-MX", { dateStyle: "medium" }),
+      );
+      Alert.alert("Guardado", "Expediente actualizado correctamente.");
+    } catch (e: unknown) {
+      Alert.alert("Error", e instanceof Error ? e.message : "No se guardó.");
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   return (
     <SafeAreaView style={estilos.area}>
@@ -73,21 +117,36 @@ export default function ExpedienteDetalle(): React.JSX.Element {
           onChange={setHistoria}
           multiline
         />
-        <View style={estilos.fila}>
-          <View style={estilos.mitad}>
-            <Entrada etiqueta="PESO (KG)" value={peso} onChangeText={setPeso} />
-          </View>
-          <View style={estilos.mitad}>
-            <Entrada etiqueta="TALLA (CM)" value={talla} onChangeText={setTalla} />
-          </View>
-        </View>
+        <VitalesPesoAltura
+          pesoKg={peso}
+          alturaM={altura}
+          onPesoChange={(t) => {
+            setPeso(t);
+            setErrPeso(undefined);
+          }}
+          onAlturaChange={(t) => {
+            setAltura(t);
+            setErrAltura(undefined);
+          }}
+          errorPeso={errPeso}
+          errorAltura={errAltura}
+        />
         <Campo
           label="TRATAMIENTO ACTUAL"
           value={tratamiento}
           onChange={setTratamiento}
           multiline
         />
-        <Campo label="ÚLTIMA ACTUALIZACIÓN" value={ultima} onChange={setUltima} />
+        <Campo
+          label="ÚLTIMA ACTUALIZACIÓN"
+          value={ultima}
+          onChange={setUltima}
+          editable={false}
+        />
+        <Boton
+          titulo={guardando ? "GUARDANDO…" : "GUARDAR EXPEDIENTE"}
+          alPresionar={() => void guardar()}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -98,11 +157,13 @@ function Campo({
   value,
   onChange,
   multiline,
+  editable = true,
 }: {
   label: string;
   value: string;
   onChange: (t: string) => void;
   multiline?: boolean;
+  editable?: boolean;
 }): React.JSX.Element {
   return (
     <View style={estilos.campo}>
@@ -112,6 +173,7 @@ function Campo({
         value={value}
         onChangeText={onChange}
         multiline={multiline}
+        editable={editable}
         placeholderTextColor={COLORES.textoPlaceholder}
       />
     </View>
@@ -140,6 +202,4 @@ const estilos = StyleSheet.create({
     color: paleta.navy,
   },
   multiline: { minHeight: 80, textAlignVertical: "top" },
-  fila: { flexDirection: "row", gap: 12 },
-  mitad: { flex: 1 },
 });

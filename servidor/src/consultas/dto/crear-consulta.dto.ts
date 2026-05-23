@@ -1,4 +1,12 @@
-import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CrearConsultaDto {
@@ -48,4 +56,18 @@ export class CrearConsultaDto {
   @IsString()
   @MaxLength(5000)
   notasConfidenciales?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(1)
+  @Max(500)
+  pesoKg?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.5)
+  @Max(2.5)
+  alturaM?: number;
 }

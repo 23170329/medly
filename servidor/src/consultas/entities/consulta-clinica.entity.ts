@@ -62,4 +62,10 @@ export class ConsultaClinica {
 
   @Column({ type: 'text', nullable: true, transformer: CifrarColumna })
   notasConfidenciales!: string | null;
+
+  @Column({ type: 'decimal', precision: 6, scale: 2, nullable: true })
+  pesoKg!: number | null;
+
+  @Column({ type: 'decimal', precision: 4, scale: 2, nullable: true })
+  alturaM!: number | null;
 }
