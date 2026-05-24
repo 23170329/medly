@@ -31,19 +31,7 @@ interface AccesoRapido {
   readonly onPress: () => void;
 }
 
-const ACCESOS: readonly AccesoRapido[] = [
-  {
-    id: "1",
-    icono: "calendar-outline",
-    label: "Agendar cita",
-    onPress: () => router.push("/(privado)/citas/agendar"),
-  },
-  {
-    id: "2",
-    icono: "business-outline",
-    label: "Sucursales",
-    onPress: () => router.push("/(privado)/sucursales"),
-  },
+const ACCESOS_SECUNDARIOS: readonly AccesoRapido[] = [
   {
     id: "3",
     icono: "pulse-outline",
@@ -51,10 +39,10 @@ const ACCESOS: readonly AccesoRapido[] = [
     onPress: () => router.push("/(privado)/diagnostico"),
   },
   {
-    id: "4",
-    icono: "flask-outline",
-    label: "Laboratorio",
-    onPress: () => router.push("/(privado)/laboratorio"),
+    id: "2",
+    icono: "business-outline",
+    label: "Sucursales",
+    onPress: () => router.push("/(privado)/sucursales"),
   },
 ] as const;
 
@@ -217,7 +205,18 @@ export default function InicioPantalla(): React.JSX.Element {
 
         <Text style={estilos.seccionTitulo}>ACCESOS RÁPIDOS</Text>
         <View style={estilos.gridAccesos}>
-          {ACCESOS.map((item) => (
+          <TouchableOpacity
+            style={estilos.accesoAnchoCompleto}
+            onPress={() => router.push("/(privado)/citas/agendar")}
+            accessibilityLabel="Agendar cita"
+            accessibilityRole="button"
+          >
+            <View style={estilos.accesoIconoGrande}>
+              <Ionicons name="calendar-outline" size={32} color={paleta.white} />
+            </View>
+            <Text style={estilos.accesoLabelGrande}>Agendar cita</Text>
+          </TouchableOpacity>
+          {ACCESOS_SECUNDARIOS.map((item) => (
             <TouchableOpacity
               key={item.id}
               style={estilos.accesoCard}
@@ -265,13 +264,13 @@ export default function InicioPantalla(): React.JSX.Element {
         </View>
 
         <TouchableOpacity
-          style={estilos.btnAgendar}
-          onPress={() => router.push("/(privado)/citas/agendar")}
-          accessibilityLabel="Agendar nueva cita médica"
+          style={estilos.btnHistorial}
+          onPress={() => router.push("/(privado)/historial")}
+          accessibilityLabel="Ver historial de citas"
           accessibilityRole="button"
         >
-          <Ionicons name="add-circle-outline" size={22} color={paleta.white} />
-          <Text style={estilos.btnAgendarTexto}>AGENDAR NUEVA CITA</Text>
+          <Ionicons name="archive-outline" size={20} color={paleta.navy} />
+          <Text style={estilos.btnHistorialTxt}>HISTORIAL DE CITAS</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -368,8 +367,37 @@ const estilos = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 14,
-    marginBottom: 28,
+    marginBottom: 16,
     justifyContent: "space-between",
+  },
+  accesoAnchoCompleto: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    backgroundColor: paleta.navy,
+    borderRadius: BORDES.radio + 2,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    marginBottom: 2,
+    shadowColor: paleta.navy,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  accesoIconoGrande: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  accesoLabelGrande: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: paleta.white,
+    letterSpacing: 0.3,
   },
   accesoCard: {
     width: "47%",
@@ -417,19 +445,22 @@ const estilos = StyleSheet.create({
     textAlign: "center",
   },
 
-  btnAgendar: {
-    backgroundColor: paleta.navy,
-    borderRadius: BORDES.radio,
-    paddingVertical: 16,
+  btnHistorial: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
+    backgroundColor: paleta.white,
+    borderRadius: BORDES.radio,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: paleta.skyblue,
+    marginBottom: 28,
   },
-  btnAgendarTexto: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: paleta.white,
-    letterSpacing: 0.5,
+  btnHistorialTxt: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: paleta.navy,
+    letterSpacing: 0.4,
   },
 });

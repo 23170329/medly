@@ -79,6 +79,17 @@ export interface BloqueoDto {
   motivo?: string | null;
 }
 
+export function fetchHistorialMedico(token: string): Promise<CitaMedicoDto[]> {
+  return medicoFetch("/medico/citas/historial", token);
+}
+
+export function fetchHistorialDetalleMedico(
+  token: string,
+  citaId: number,
+): Promise<{ cita: CitaMedicoDto; consulta: ConsultaMedicoDto | null }> {
+  return medicoFetch(`/medico/citas/historial/${citaId}`, token);
+}
+
 export function fetchCitasMedico(token: string): Promise<CitaMedicoDto[]> {
   return medicoFetch("/medico/citas", token);
 }

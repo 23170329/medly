@@ -229,6 +229,19 @@ export async function fetchResultadosPaciente(
   return data;
 }
 
+export async function fetchHistorialPaciente(): Promise<CitaDto[]> {
+  const { data } = await api.get<CitaDto[]>("/citas/historial");
+  return data;
+}
+
+export async function fetchHistorialDetallePaciente(id: number): Promise<{
+  cita: CitaDto;
+  consulta: Record<string, unknown> | null;
+}> {
+  const { data } = await api.get(`/citas/historial/${id}`);
+  return data;
+}
+
 export async function fetchSucursales(): Promise<SucursalDto[]> {
   const rutas = ["/sucursal", "/sucursales"];
   for (const ruta of rutas) {

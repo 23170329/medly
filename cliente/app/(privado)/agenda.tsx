@@ -156,6 +156,10 @@ function TarjetaCita({ cita }: TarjetaCitaProps): React.JSX.Element {
   const cfg = CONFIG_ESTADO[cita.estado];
 
   const handleVerDetalle = (): void => {
+    if (cita.estado === "COMPLETADA") {
+      router.push(`/(privado)/historial/${cita.citaID}`);
+      return;
+    }
     router.push(`/(privado)/citas/${cita.id}`);
   };
 

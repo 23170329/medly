@@ -11,6 +11,7 @@ import { SlotAgenda } from '../horarios/entities/slot-agenda.entity';
 import { Medico } from '../medicos/entities/medico.entity';
 import { Pago } from '../pagos/entities/pago.entity';
 import { EstadoCita, EstadoPago, EstadoSlot, TipoPago } from '../common/enums';
+import { ConsultaClinica } from '../consultas/entities/consulta-clinica.entity';
 import { PagosService } from '../pagos/pagos.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
@@ -31,6 +32,8 @@ export class CitasService {
     private readonly slotRepo: Repository<SlotAgenda>,
     @InjectRepository(Pago)
     private readonly pagoRepo: Repository<Pago>,
+    @InjectRepository(ConsultaClinica)
+    private readonly consultaRepo: Repository<ConsultaClinica>,
     private readonly ds: DataSource,
     private readonly pagosService: PagosService,
     private readonly notificacionesService: NotificacionesService,
@@ -393,6 +396,65 @@ export class CitasService {
       ],
       order: { inicio: 'DESC' },
     });
+  }
+
+  async listarHistorialPaciente(pacienteId: number): Promise<Cita[]> {
+    return this.citaRepo.find({
+      where: { pacienteID: pacienteId, estado: EstadoCita.COMPLETADA },
+      relations: ['medico', 'medico.especialidad', 'sucursal', 'pagos'],
+      order: { inicio: 'DESC' },
+    });
+  }
+
+  async listarHistorialMedico(medicoId: number): Promise<Cita[]> {
+    return this.citaRepo.find({
+      where: { medicoID: medicoId, estado: EstadoCita.COMPLETADA },
+      relations: ['paciente', 'sucursal', 'medico', 'medico.especialidad', 'pagos'],
+      order: { inicio: 'DESC' },
+    });
+  }
+
+  async detalleHistorialPaciente(
+    pacienteId: number,
+    citaId: number,
+  ): Promise<{ cita: Cita; consulta: ConsultaClinica | null }> {
+    const cita = await this.citaRepo.findOne({
+      where: {
+        citaID: citaId,
+        pacienteID: pacienteId,
+        estado: EstadoCita.COMPLETADA,
+      },
+      relations: ['medico', 'medico.especialidad', 'sucursal', 'pagos'],
+    });
+    if (!cita) {
+      throw new NotFoundException('Cita completada no encontrada');
+    }
+    const consulta = await this.consultaRepo.findOne({
+      where: { cita: { citaID: citaId } },
+      relations: ['medico', 'medico.especialidad'],
+    });
+    return { cita, consulta };
+  }
+
+  async detalleHistorialMedico(
+    medicoId: number,
+    citaId: number,
+  ): Promise<{ cita: Cita; consulta: ConsultaClinica | null }> {
+    const cita = await this.citaRepo.findOne({
+      where: {
+        citaID: citaId,
+        medicoID: medicoId,
+        estado: EstadoCita.COMPLETADA,
+      },
+      relations: ['paciente', 'sucursal', 'medico', 'medico.especialidad', 'pagos'],
+    });
+    if (!cita) {
+      throw new NotFoundException('Cita completada no encontrada');
+    }
+    const consulta = await this.consultaRepo.findOne({
+      where: { cita: { citaID: citaId }, medico: { medicoID: medicoId } },
+    });
+    return { cita, consulta };
   }
 
   async listarCitasPendientesAtencionMed(medicoId: number): Promise<Cita[]> {

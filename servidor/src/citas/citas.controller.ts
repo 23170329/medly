@@ -60,6 +60,21 @@ export class CitasController {
     return this.citasService.estadisticasPerfil(user.sub);
   }
 
+  @Get('historial')
+  @ApiBearerAuth()
+  historial(@CurrentUser() user: JwtPayload) {
+    return this.citasService.listarHistorialPaciente(user.sub);
+  }
+
+  @Get('historial/:id')
+  @ApiBearerAuth()
+  historialDetalle(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.citasService.detalleHistorialPaciente(user.sub, id);
+  }
+
   @Get(':id')
   @ApiBearerAuth()
   obtener(

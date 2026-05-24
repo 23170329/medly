@@ -94,6 +94,14 @@ export default function MedicoInicio(): React.JSX.Element {
 
         <TouchableOpacity
           style={estilos.btnAccion}
+          onPress={() => router.push("/(medico)/historial")}
+        >
+          <Ionicons name="archive-outline" size={22} color={paleta.white} />
+          <Text style={estilos.btnAccionTxt}>HISTORIAL DE CITAS</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={estilos.btnAccion}
           onPress={() => router.push("/(medico)/expedientes")}
         >
           <Ionicons name="folder-open-outline" size={22} color={paleta.white} />

@@ -13,6 +13,7 @@ import { GuardarExpedienteDto } from './dto/guardar-expediente.dto';
 import { Cita } from '../citas/entities/cita.entity';
 import { Paciente } from '../usuarios/entities/paciente.entity';
 import { Medico } from '../medicos/entities/medico.entity';
+import { EstadoCita } from '../common/enums';
 
 @Injectable()
 export class ConsultasService {
@@ -227,7 +228,27 @@ export class ConsultasService {
       pesoKg: dto.pesoKg,
       alturaM: dto.alturaM,
     });
-    return this.repo.save(row);
+    const consultaGuardada = await this.repo.save(row);
+
+    if (dto.citaID != null) {
+      const cita = await this.citaRepo.findOne({
+        where: {
+          citaID: dto.citaID,
+          medicoID: medicoId,
+          pacienteID: dto.pacienteID,
+        },
+      });
+      if (
+        cita &&
+        (cita.estado === EstadoCita.CONFIRMADA ||
+          cita.estado === EstadoCita.ANTICIPO_REALIZADO)
+      ) {
+        cita.estado = EstadoCita.COMPLETADA;
+        await this.citaRepo.save(cita);
+      }
+    }
+
+    return consultaGuardada;
   }
 
   async actualizar(

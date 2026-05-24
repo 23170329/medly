@@ -53,6 +53,19 @@ export class MedicoPanelController {
     return this.citasService.listarCitasPendientesAtencionMed(this.medicoId(u));
   }
 
+  @Get('citas/historial')
+  historialCitas(@CurrentUser() u: JwtPayload) {
+    return this.citasService.listarHistorialMedico(this.medicoId(u));
+  }
+
+  @Get('citas/historial/:id')
+  historialDetalle(
+    @CurrentUser() u: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.citasService.detalleHistorialMedico(this.medicoId(u), id);
+  }
+
   @Get('citas')
   misCitas(@CurrentUser() u: JwtPayload) {
     return this.citasService.listarCitasMedico(this.medicoId(u));

@@ -27,6 +27,12 @@ export default function CitaExitoMedico(): React.JSX.Element {
         >
           <Text style={estilos.btnTxt}>VOLVER AL INICIO</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={estilos.btnSec}
+          onPress={() => router.replace("/(medico)/historial")}
+        >
+          <Text style={estilos.btnSecTxt}>VER HISTORIAL</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -69,6 +75,19 @@ const estilos = StyleSheet.create({
     borderRadius: BORDES.radioPill,
     paddingVertical: 16,
     paddingHorizontal: 32,
+    width: "100%",
+    alignItems: "center",
   },
   btnTxt: { color: paleta.white, fontWeight: "800" },
+  btnSec: {
+    marginTop: 12,
+    borderRadius: BORDES.radioPill,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    width: "100%",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: paleta.navy,
+  },
+  btnSecTxt: { color: paleta.navy, fontWeight: "800" },
 });
