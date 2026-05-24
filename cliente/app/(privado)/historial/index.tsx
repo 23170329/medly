@@ -8,7 +8,10 @@ export default function HistorialPaciente(): React.JSX.Element {
       titulo="HISTORIAL DE CITAS"
       rol="paciente"
       cargarLista={fetchHistorialPaciente}
-      rutaDetalle={(id) => `/(privado)/historial/${id}`}
+      rutaDetalle={(id) => ({
+        pathname: "/(privado)/historial/[id]",
+        params: { id: String(id) },
+      })}
     />
   );
 }

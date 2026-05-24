@@ -157,7 +157,10 @@ function TarjetaCita({ cita }: TarjetaCitaProps): React.JSX.Element {
 
   const handleVerDetalle = (): void => {
     if (cita.estado === "COMPLETADA") {
-      router.push(`/(privado)/historial/${cita.citaID}`);
+      router.push({
+        pathname: "/(privado)/historial/[id]",
+        params: { id: String(cita.citaID) },
+      });
       return;
     }
     router.push(`/(privado)/citas/${cita.id}`);

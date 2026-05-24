@@ -1,19 +1,23 @@
 import React, { useCallback } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { PantallaHistorialDetalle } from "../../../componentes/citas/PantallaHistorialDetalle";
-import { fetchHistorialDetalleMedico, nombrePaciente } from "../../../lib/medicoApi";
-import { useAuthStore } from "../../../stores/auth.store";
+import { fetchHistorialDetalleMedicoAuthed, nombrePaciente } from "../../../lib/medicoApi";
+
+function parseCitaId(raw: string | string[] | undefined): number {
+  const id = Array.isArray(raw) ? raw[0] : raw;
+  const n = parseInt(id ?? "0", 10);
+  return Number.isFinite(n) ? n : 0;
+}
 
 export default function HistorialDetalleMedico(): React.JSX.Element {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const token = useAuthStore((s) => s.accessToken);
-  const citaId = parseInt(id ?? "0", 10);
+  const { id } = useLocalSearchParams<{ id: string | string[] }>();
+  const citaId = parseCitaId(id);
 
   const cargarDetalle = useCallback(async () => {
-    if (!token) throw new Error("Sin sesión");
-    const data = await fetchHistorialDetalleMedico(token, citaId);
+    if (citaId < 1) throw new Error("Cita no válida");
+    const data = await fetchHistorialDetalleMedicoAuthed(citaId);
     return { cita: data.cita, consulta: data.consulta };
-  }, [token, citaId]);
+  }, [citaId]);
 
   return (
     <PantallaHistorialDetalle

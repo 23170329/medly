@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
@@ -38,7 +38,7 @@ interface Props {
   readonly titulo: string;
   readonly rol: "paciente" | "medico";
   readonly cargarLista: () => Promise<HistorialCitaItem[]>;
-  readonly rutaDetalle: (id: number) => string;
+  readonly rutaDetalle: (id: number) => Href;
 }
 
 function tituloPersona(item: HistorialCitaItem, rol: Props["rol"]): string {
@@ -114,7 +114,7 @@ export function PantallaHistorialCitas({
               <TouchableOpacity
                 key={item.citaID}
                 style={estilos.card}
-                onPress={() => router.push(rutaDetalle(item.citaID) as never)}
+                onPress={() => router.push(rutaDetalle(item.citaID))}
                 accessibilityRole="button"
               >
                 <View style={estilos.fechaFranja}>

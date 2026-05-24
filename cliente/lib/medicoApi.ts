@@ -1,3 +1,4 @@
+import api from "./apiCliente";
 import { API_URL } from "../constants/api";
 
 async function medicoFetch<T>(
@@ -83,11 +84,25 @@ export function fetchHistorialMedico(token: string): Promise<CitaMedicoDto[]> {
   return medicoFetch("/medico/citas/historial", token);
 }
 
+export async function fetchHistorialMedicoAuthed(): Promise<CitaMedicoDto[]> {
+  const { data } = await api.get<CitaMedicoDto[]>("/medico/citas/historial");
+  return data;
+}
+
 export function fetchHistorialDetalleMedico(
   token: string,
   citaId: number,
 ): Promise<{ cita: CitaMedicoDto; consulta: ConsultaMedicoDto | null }> {
   return medicoFetch(`/medico/citas/historial/${citaId}`, token);
+}
+
+export async function fetchHistorialDetalleMedicoAuthed(
+  citaId: number,
+): Promise<{ cita: CitaMedicoDto; consulta: ConsultaMedicoDto | null }> {
+  const { data } = await api.get<{ cita: CitaMedicoDto; consulta: ConsultaMedicoDto | null }>(
+    `/medico/citas/historial/${citaId}`,
+  );
+  return data;
 }
 
 export function fetchCitasMedico(token: string): Promise<CitaMedicoDto[]> {
