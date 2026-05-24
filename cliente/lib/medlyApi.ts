@@ -145,7 +145,7 @@ export async function cancelarCita(id: number): Promise<{
   mensaje: string;
   reembolsoProcesado: boolean;
 }> {
-  const { data } = await api.patch(`/citas/${id}/cancelar`);
+  const { data } = await api.patch(`/citas/${id}/cancelar`, {});
   return data;
 }
 

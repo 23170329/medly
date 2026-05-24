@@ -101,7 +101,6 @@ const FILTROS: readonly Filtro[] = [
   { label: "Todas", valor: "TODAS" },
   { label: "Próximas", valor: "CONFIRMADA" },
   { label: "Pendientes", valor: "PENDIENTE" },
-  { label: "Completadas", valor: "COMPLETADA" },
   { label: "Canceladas", valor: "CANCELADA" },
 ] as const;
 
@@ -266,7 +265,9 @@ export default function AgendaPantalla(): React.JSX.Element {
     setCargando(true);
     try {
       const data = await fetchMisCitas();
-      setCitas(data.map(toUi));
+      setCitas(
+        data.filter((c) => c.estado !== "COMPLETADA").map(toUi),
+      );
     } catch {
       setCitas([]);
     } finally {

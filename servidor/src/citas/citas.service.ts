@@ -517,6 +517,8 @@ export class CitasService {
           mensaje: `Cancelaste tu reserva con ${nombreMed} del ${fechaStr}. Puedes agendar una nueva cita cuando quieras.`,
           tipo: 'CITA_CANCELADA',
           citaID: cita.citaID,
+          medicoID: cita.medicoID,
+          sucursalID: cita.sucursalID,
           permiteReagendar: true,
         });
         await this.notificacionesService.crearParaMedico({
@@ -578,6 +580,8 @@ export class CitasService {
         mensaje: `Cancelaste tu cita con ${nombreMed} del ${fechaStr}.${msgReembolsoPac} Puedes reagendar cuando quieras.`,
         tipo: 'CITA_CANCELADA',
         citaID: cita.citaID,
+        medicoID: cita.medicoID,
+        sucursalID: cita.sucursalID,
         permiteReagendar: true,
       });
       await this.notificacionesService.crearParaMedico({
