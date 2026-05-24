@@ -142,6 +142,7 @@ describe('UsuariosService', () => {
         password: 'hashed',
         paciente: pacienteMock,
         esInvitado: false,
+        origenRegistro: 'AUTOREGISTRO',
       });
     });
 

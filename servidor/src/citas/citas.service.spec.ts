@@ -6,6 +6,7 @@ import { CitasService } from './citas.service';
 import { Cita } from './entities/cita.entity';
 import { SlotAgenda } from '../horarios/entities/slot-agenda.entity';
 import { Pago } from '../pagos/entities/pago.entity';
+import { ConsultaClinica } from '../consultas/entities/consulta-clinica.entity';
 import { EstadoCita, EstadoPago, EstadoSlot, TipoPago } from '../common/enums';
 import { PagosService } from '../pagos/pagos.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
@@ -84,6 +85,10 @@ describe('CitasService', () => {
         },
         {
           provide: getRepositoryToken(Pago),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(ConsultaClinica),
           useValue: {},
         },
         {
