@@ -23,3 +23,8 @@ export enum EstadoPago {
   COMPLETADO = 'COMPLETADO',
   FALLIDO = 'FALLIDO',
 }
+
+export enum OrigenRegistro {
+  AUTOREGISTRO = 'AUTOREGISTRO',
+  RECEPCION = 'RECEPCION',
+}

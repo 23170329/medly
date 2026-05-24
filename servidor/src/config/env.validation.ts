@@ -20,4 +20,14 @@ export const envValidationSchema = Joi.object({
   FRONTEND_URL: Joi.string().uri().optional(),
   /** Base URL del API (redirects Stripe Checkout → deep link Medly) */
   APP_PUBLIC_URL: Joi.string().optional(),
+  /** AES-256-GCM para campos clínicos cifrados en reposo */
+  DATA_ENCRYPTION_KEY: Joi.string()
+    .length(64)
+    .hex()
+    .required()
+    .messages({
+      'string.length':
+        'DATA_ENCRYPTION_KEY debe ser una cadena hex de 64 caracteres (32 bytes)',
+      'string.hex': 'DATA_ENCRYPTION_KEY solo puede contener caracteres hex (0-9, a-f)',
+    }),
 });

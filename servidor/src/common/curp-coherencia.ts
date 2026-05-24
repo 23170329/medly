@@ -1,9 +1,24 @@
 /** Valida coherencia básica CURP ↔ nombre/apellidos/fecha (reglas MX simplificadas). */
+
+export function apellidoMaternoEfectivo(raw: string): string {
+  const t = raw.trim().toUpperCase();
+  if (!t || t === '-') return '';
+  return t;
+}
+
+export function primeraConsonanteInterna(apellido: string): string {
+  for (let i = 1; i < apellido.length; i++) {
+    const c = apellido[i];
+    if (/[BCDFGHJKLMNPQRSTVWXYZ]/.test(c)) return c;
+  }
+  return 'X';
+}
+
 export function validarCoherenciaCurpServidor(params: {
   curp: string;
   nombre: string;
   apellido_pat: string;
-  apellido_mat: string;
+  apellido_mat?: string | null;
   fechaNacimiento: string;
 }): string | null {
   const curp = params.curp.trim().toUpperCase();
@@ -12,7 +27,7 @@ export function validarCoherenciaCurpServidor(params: {
   }
 
   const paterno = params.apellido_pat.trim().toUpperCase();
-  const materno = params.apellido_mat.trim().toUpperCase();
+  const materno = apellidoMaternoEfectivo(params.apellido_mat ?? '');
   const nombre = params.nombre.trim().toUpperCase();
 
   if (!paterno.startsWith(curp[0])) {
@@ -25,12 +40,13 @@ export function validarCoherenciaCurpServidor(params: {
     return 'La segunda letra de la CURP no coincide con el apellido paterno.';
   }
 
-  const letraMaterno = materno ? materno[0] : 'X';
-  if (materno && curp[2] !== letraMaterno) {
-    return 'La tercera letra de la CURP no coincide con el apellido materno.';
-  }
-  if (!materno && curp[2] !== 'X') {
-    return 'La tercera letra de la CURP debe ser X sin apellido materno.';
+  const letraTerceraEsperada = materno
+    ? materno[0]
+    : primeraConsonanteInterna(paterno);
+  if (curp[2] !== letraTerceraEsperada) {
+    return materno
+      ? 'La tercera letra de la CURP no coincide con el apellido materno.'
+      : 'La tercera letra de la CURP no coincide con la primera consonante interna del apellido paterno.';
   }
 
   const palabras = nombre.split(/[\s]+/);

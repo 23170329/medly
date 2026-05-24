@@ -6,6 +6,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Paciente } from './paciente.entity';
+import { OrigenRegistro } from '../../common/enums';
 
 @Entity('cuenta_usuario')
 export class CuentaUsuario {
@@ -17,6 +18,13 @@ export class CuentaUsuario {
 
   @Column({ type: 'boolean', default: false })
   esInvitado!: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: OrigenRegistro,
+    default: OrigenRegistro.AUTOREGISTRO,
+  })
+  origenRegistro!: OrigenRegistro;
 
   @Column({ type: 'timestamp', nullable: true })
   fechaExpiracion!: Date;

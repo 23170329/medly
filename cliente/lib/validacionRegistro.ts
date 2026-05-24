@@ -9,6 +9,20 @@ export function normalizarCurp(curp: string): string {
   return curp.trim().toUpperCase().replace(/\s/g, "");
 }
 
+export function apellidoMaternoEfectivo(raw: string): string {
+  const t = raw.trim().toUpperCase();
+  if (!t || t === "-") return "";
+  return t;
+}
+
+export function primeraConsonanteInterna(apellido: string): string {
+  for (let i = 1; i < apellido.length; i++) {
+    const c = apellido[i];
+    if (/[BCDFGHJKLMNPQRSTVWXYZ]/.test(c)) return c;
+  }
+  return "X";
+}
+
 export interface ErroresPaso {
   readonly [campo: string]: string | null;
 }
@@ -30,8 +44,8 @@ export function validarPasoDatosPersonales(params: {
     return "El apellido paterno es obligatorio (máx. 15 caracteres).";
   }
   const am = params.apellidoMaterno.trim();
-  if (am.length < 1 || am.length > 15) {
-    return "El apellido materno es obligatorio (máx. 15 caracteres).";
+  if (am.length > 15) {
+    return "El apellido materno no puede exceder 15 caracteres.";
   }
   if (!params.fechaNacimiento.trim()) {
     return "Selecciona tu fecha de nacimiento.";
@@ -69,8 +83,8 @@ export function validarPasoDatosPersonalesDetallado(params: {
         ? "El apellido paterno es obligatorio (máx. 15 caracteres)."
         : null,
     apellidoMaterno:
-      am.length < 1 || am.length > 15
-        ? "El apellido materno es obligatorio (máx. 15 caracteres)."
+      am.length > 15
+        ? "El apellido materno no puede exceder 15 caracteres."
         : null,
     fechaNacimiento: !params.fechaNacimiento.trim()
       ? "Selecciona tu fecha de nacimiento."
@@ -179,7 +193,7 @@ export function validarCoherenciaCurp(params: {
   if (curp.length !== 18) return "La CURP debe tener 18 caracteres.";
 
   const paterno = params.apellidoPaterno.trim().toUpperCase();
-  const materno = params.apellidoMaterno.trim().toUpperCase();
+  const materno = apellidoMaternoEfectivo(params.apellidoMaterno);
   const nombre = params.nombres.trim().toUpperCase();
 
   const letra1 = curp[0];
@@ -198,12 +212,13 @@ export function validarCoherenciaCurp(params: {
     return `La segunda letra de la CURP debe ser la primera vocal interna del apellido paterno (${vocalEsperada}).`;
   }
 
-  const letraMaterno = materno ? materno[0] : "X";
-  if (materno && letra3 !== letraMaterno) {
-    return `La tercera letra de la CURP debe ser la primera letra del apellido materno (${letraMaterno}).`;
-  }
-  if (!materno && letra3 !== "X") {
-    return "Sin apellido materno, la tercera letra de la CURP debe ser X.";
+  const letraTerceraEsperada = materno
+    ? materno[0]
+    : primeraConsonanteInterna(paterno);
+  if (letra3 !== letraTerceraEsperada) {
+    return materno
+      ? `La tercera letra de la CURP debe ser la primera letra del apellido materno (${letraTerceraEsperada}).`
+      : `Sin apellido materno, la tercera letra de la CURP debe ser la primera consonante interna del apellido paterno (${letraTerceraEsperada}).`;
   }
 
   const palabras = nombre.split(/[\s]+/);

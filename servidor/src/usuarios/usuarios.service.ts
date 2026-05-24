@@ -13,6 +13,7 @@ import { RegistroDto } from './dto/registro.dto';
 import { RegistroRecepcionDto } from './dto/registro-recepcion.dto';
 import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
 import { validarCoherenciaCurpServidor } from '../common/curp-coherencia';
+import { OrigenRegistro } from '../common/enums';
 
 @Injectable()
 export class UsuariosService {
@@ -23,8 +24,12 @@ export class UsuariosService {
     private readonly cuentaRepo: Repository<CuentaUsuario>,
   ) {}
 
-  async registrarPaciente(datos: RegistroDto) {
+  async registrarPaciente(
+    datos: RegistroDto,
+    opts?: { origenRegistro?: OrigenRegistro },
+  ) {
     const curpNorm = datos.curp.trim().toUpperCase();
+    const apellidoMat = datos.apellido_mat?.trim() || null;
     const correoIngresado = (datos.correoElectronico ?? '').trim().toLowerCase();
     const correoNorm =
       correoIngresado ||
@@ -59,7 +64,7 @@ export class UsuariosService {
     const nuevoPaciente = this.pacienteRepo.create({
       nombre: datos.nombre,
       apellido_pat: datos.apellido_pat,
-      apellido_mat: datos.apellido_mat,
+      apellido_mat: apellidoMat,
       correoElectronico: correoNorm,
       telefono: telefonoNorm,
       fechaNacimiento: datos.fechaNacimiento,
@@ -72,6 +77,7 @@ export class UsuariosService {
       password: hash,
       paciente: pacienteGuardado,
       esInvitado: false,
+      origenRegistro: opts?.origenRegistro ?? OrigenRegistro.AUTOREGISTRO,
     });
 
     return await this.cuentaRepo.save(nuevaCuenta);
@@ -84,17 +90,20 @@ export class UsuariosService {
       curp: curpNorm,
       nombre: datos.nombre,
       apellido_pat: datos.apellido_pat,
-      apellido_mat: datos.apellido_mat,
+      apellido_mat: datos.apellido_mat ?? '',
       fechaNacimiento: datos.fechaNacimiento,
     });
     if (errCurp) {
       throw new BadRequestException(errCurp);
     }
 
-    return this.registrarPaciente({
-      ...datos,
-      curp: curpNorm,
-    });
+    return this.registrarPaciente(
+      {
+        ...datos,
+        curp: curpNorm,
+      },
+      { origenRegistro: OrigenRegistro.RECEPCION },
+    );
   }
 
   async obtenerPerfil(pacienteId: number) {

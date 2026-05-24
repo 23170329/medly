@@ -28,13 +28,14 @@ export class RegistroRecepcionDto {
   @MaxLength(15)
   apellido_pat!: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim().slice(0, 15) : value,
-  )
+  @Transform(({ value }) => {
+    if (value == null || String(value).trim() === '') return undefined;
+    return typeof value === 'string' ? value.trim().slice(0, 15) : value;
+  })
+  @IsOptional()
   @IsString()
-  @MinLength(1)
   @MaxLength(15)
-  apellido_mat!: string;
+  apellido_mat?: string;
 
   @Transform(({ value }) => {
     if (value == null || value === '') return '';

@@ -12,8 +12,8 @@ export class Paciente {
   @Column({ type: 'varchar', length: 15 })
   apellido_pat!: string;
 
-  @Column({ type: 'varchar', length: 15 })
-  apellido_mat!: string;
+  @Column({ type: 'varchar', length: 15, nullable: true })
+  apellido_mat!: string | null;
 
   @Column({ type: 'varchar', length: 150, unique: true })
   correoElectronico!: string;

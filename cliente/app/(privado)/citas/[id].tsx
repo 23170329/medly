@@ -27,6 +27,36 @@ export default function CitaDetallePantalla(): React.JSX.Element {
   const [cita, setCita] = useState<CitaDto | null>(null);
   const [cargando, setCargando] = useState(true);
   const [modalCancelar, setModalCancelar] = useState(false);
+  const [modalReagendar, setModalReagendar] = useState(false);
+  const [procesando, setProcesando] = useState(false);
+
+  const puedeGestionar =
+    cita?.estado === "CONFIRMADA" ||
+    cita?.estado === "PENDIENTE_PAGO" ||
+    cita?.estado === "ANTICIPO_REALIZADO";
+
+  const irAgendarReagendar = (): void => {
+    if (!cita) return;
+    router.replace({
+      pathname: "/(privado)/citas/agendar",
+      params: {
+        reagendar: "1",
+        medicoId: String(cita.medicoID),
+        sucursalId: String(cita.sucursalID),
+      },
+    });
+  };
+
+  const liberarCitaActual = async (): Promise<boolean> => {
+    if (!cita) return false;
+    try {
+      await cancelarCita(cita.citaID);
+      return true;
+    } catch {
+      Alert.alert("Error", "No se pudo liberar la cita actual.");
+      return false;
+    }
+  };
 
   const cargar = useCallback(async () => {
     const cid = parseInt(id ?? "0", 10);
@@ -48,6 +78,18 @@ export default function CitaDetallePantalla(): React.JSX.Element {
       void cargar();
     }, [cargar]),
   );
+
+  const ejecutarReagendar = async (): Promise<void> => {
+    if (!cita) return;
+    setModalReagendar(false);
+    setProcesando(true);
+    try {
+      const ok = await liberarCitaActual();
+      if (ok) irAgendarReagendar();
+    } finally {
+      setProcesando(false);
+    }
+  };
 
   const ejecutarCancelacion = async (): Promise<void> => {
     if (!cita) return;
@@ -144,6 +186,51 @@ export default function CitaDetallePantalla(): React.JSX.Element {
         </View>
       </Modal>
 
+      <Modal
+        visible={modalReagendar}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalReagendar(false)}
+      >
+        <View style={estilos.modalOverlay}>
+          <View style={estilos.modalCard}>
+            <Text style={estilos.modalTitulo}>¿Reagendar cita?</Text>
+            <View style={estilos.modalAviso}>
+              <Ionicons
+                name="calendar-outline"
+                size={22}
+                color={paleta.teal}
+                style={{ marginRight: 10 }}
+              />
+              <Text style={estilos.modalAvisoTxt}>
+                Se cancelará tu cita actual y el horario quedará disponible. Podrás
+                elegir una nueva fecha con el mismo médico y sucursal.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={estilos.modalBtnPrim}
+              onPress={() => void ejecutarReagendar()}
+              disabled={procesando}
+              accessibilityRole="button"
+            >
+              {procesando ? (
+                <ActivityIndicator color={paleta.white} />
+              ) : (
+                <Text style={estilos.modalBtnPrimTxt}>Continuar a reagendar</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={estilos.modalBtnSec}
+              onPress={() => setModalReagendar(false)}
+              disabled={procesando}
+              accessibilityRole="button"
+            >
+              <Text style={estilos.modalBtnSecTxt}>Conservar cita</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView contentContainerStyle={estilos.scroll}>
         <View style={estilos.card}>
           <Text style={estilos.label}>Estado</Text>
@@ -187,15 +274,24 @@ export default function CitaDetallePantalla(): React.JSX.Element {
           )}
         </View>
 
-        {(cita.estado === "CONFIRMADA" ||
-          cita.estado === "PENDIENTE_PAGO" ||
-          cita.estado === "ANTICIPO_REALIZADO") && (
-          <TouchableOpacity
-            style={estilos.btnCancel}
-            onPress={() => setModalCancelar(true)}
-          >
-            <Text style={estilos.btnCancelTxt}>Cancelar cita</Text>
-          </TouchableOpacity>
+        {puedeGestionar && (
+          <>
+            <TouchableOpacity
+              style={estilos.btnReagendar}
+              onPress={() => setModalReagendar(true)}
+              disabled={procesando}
+            >
+              <Ionicons name="calendar-outline" size={18} color={paleta.white} />
+              <Text style={estilos.btnReagendarTxt}>Reagendar cita</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={estilos.btnCancel}
+              onPress={() => setModalCancelar(true)}
+              disabled={procesando}
+            >
+              <Text style={estilos.btnCancelTxt}>Cancelar cita</Text>
+            </TouchableOpacity>
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -289,6 +385,19 @@ const estilos = StyleSheet.create({
     fontWeight: "700",
     color: paleta.red,
   },
+  modalBtnSec: {
+    borderWidth: 1.5,
+    borderColor: paleta.navy,
+    borderRadius: BORDES.radioPill,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: paleta.white,
+  },
+  modalBtnSecTxt: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: paleta.navy,
+  },
   scroll: { padding: 24 },
   card: {
     backgroundColor: paleta.white,
@@ -304,6 +413,21 @@ const estilos = StyleSheet.create({
   },
   valor: { fontSize: 16, fontWeight: "600", color: paleta.navy, marginTop: 4 },
   sub: { fontSize: 13, color: paleta.teal, marginTop: 2 },
+  btnReagendar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: paleta.navy,
+    borderRadius: BORDES.radio,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  btnReagendarTxt: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: paleta.white,
+  },
   btnCancel: {
     borderWidth: 1.5,
     borderColor: paleta.red,
