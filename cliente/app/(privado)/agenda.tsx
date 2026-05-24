@@ -303,7 +303,7 @@ export default function AgendaPantalla(): React.JSX.Element {
         <Text style={estilos.headerTitulo}>MI AGENDA</Text>
         <TouchableOpacity
           style={estilos.btnNueva}
-          onPress={() => router.push("/(privado)/citas/agendar")}
+          onPress={() => router.replace("/(privado)/citas/agendar")}
           accessibilityLabel="Agendar nueva cita"
           accessibilityRole="button"
         >
@@ -394,7 +394,7 @@ export default function AgendaPantalla(): React.JSX.Element {
             </Text>
             <TouchableOpacity
               style={estilos.vacioBtn}
-              onPress={() => router.push("/(privado)/citas/agendar")}
+              onPress={() => router.replace("/(privado)/citas/agendar")}
             >
               <Text style={estilos.vacioBtnTexto}>Agendar ahora</Text>
             </TouchableOpacity>

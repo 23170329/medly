@@ -207,7 +207,7 @@ export default function InicioPantalla(): React.JSX.Element {
         <View style={estilos.gridAccesos}>
           <TouchableOpacity
             style={estilos.accesoAnchoCompleto}
-            onPress={() => router.push("/(privado)/citas/agendar")}
+            onPress={() => router.replace("/(privado)/citas/agendar")}
             accessibilityLabel="Agendar cita"
             accessibilityRole="button"
           >
@@ -236,7 +236,7 @@ export default function InicioPantalla(): React.JSX.Element {
           <Text style={[estilos.seccionTitulo, estilos.seccionTituloEnFila]}>
             ESPECIALIDADES
           </Text>
-          <TouchableOpacity onPress={() => router.push("/(privado)/citas/agendar")}>
+          <TouchableOpacity onPress={() => router.replace("/(privado)/citas/agendar")}>
             <Text style={estilos.verTodos}>Ver todas</Text>
           </TouchableOpacity>
         </View>
@@ -248,7 +248,7 @@ export default function InicioPantalla(): React.JSX.Element {
               <TouchableOpacity
                 key={esp.especialidadID}
                 style={[estilos.espCard, { backgroundColor: fondos[idx % fondos.length] }]}
-                onPress={() => router.push("/(privado)/citas/agendar")}
+                onPress={() => router.replace("/(privado)/citas/agendar")}
                 accessibilityLabel={`Agendar cita de ${esp.nombre}`}
                 accessibilityRole="button"
               >

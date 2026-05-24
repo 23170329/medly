@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
@@ -41,7 +42,10 @@ export default function AgendarCitaPantalla() {
     sucursalId?: string;
   }>();
   const esReagendar = params.reagendar === "1" && params.medicoId;
-  const [paso, setPaso] = useState(() => (params.reagendar === "1" && params.medicoId ? 3 : 1));
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pasoRef = useRef(1);
+  const [paso, setPaso] = useState(1);
+  pasoRef.current = paso;
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,15 +67,54 @@ export default function AgendarCitaPantalla() {
   const [horaSeleccionada, setHoraSeleccionada] = useState<string | null>(null);
   const [mesAgenda, setMesAgenda] = useState(() => new Date());
 
-  /** Al reagendar, reiniciar flujo en calendario (evita quedar en paso de pago previo). */
-  useEffect(() => {
-    if (!esReagendar) return;
-    setPaso(3);
-    setSlotSel(null);
-    setFechaSeleccionada(null);
-    setHoraSeleccionada(null);
-    setError(null);
-  }, [esReagendar, params.medicoId, params.sucursalId]);
+  const detenerPolling = useCallback(() => {
+    if (pollingRef.current != null) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  const reiniciarFlujoAgendar = useCallback(
+    (modo: "nuevo" | "reagendar") => {
+      detenerPolling();
+      setCargando(false);
+      setError(null);
+      setSlotSel(null);
+      setFechaSeleccionada(null);
+      setHoraSeleccionada(null);
+      setSlots([]);
+      setMesAgenda(new Date());
+
+      if (modo === "reagendar") {
+        setPaso(3);
+        return;
+      }
+
+      setPaso(1);
+      setBusquedaEsp("");
+      setEspSel(null);
+      setBusquedaMed("");
+      setMedicos([]);
+      setMedSel(null);
+      setSucursalesMed([]);
+      setSucSel(null);
+    },
+    [detenerPolling],
+  );
+
+  /** Al salir reinicia; al entrar solo si quedó en pago/éxito o es reagendar. */
+  useFocusEffect(
+    useCallback(() => {
+      if (esReagendar) {
+        reiniciarFlujoAgendar("reagendar");
+      } else if (pasoRef.current >= 4) {
+        reiniciarFlujoAgendar("nuevo");
+      }
+      return () => {
+        reiniciarFlujoAgendar("nuevo");
+      };
+    }, [esReagendar, reiniciarFlujoAgendar]),
+  );
 
   useEffect(() => {
     let cancel = false;
@@ -223,20 +266,22 @@ export default function AgendarCitaPantalla() {
 
   const iniciarPollingPago = useCallback(
     (id: number) => {
-      const t = setInterval(async () => {
+      detenerPolling();
+      pollingRef.current = setInterval(async () => {
         try {
           const c = await fetchCita(id);
           if (c.estado === "CONFIRMADA") {
-            clearInterval(t);
-            setPaso(5);
+            detenerPolling();
+            reiniciarFlujoAgendar("nuevo");
+            router.replace("/(privado)/agenda");
           }
         } catch {
           /* ignore */
         }
       }, 2500);
-      setTimeout(() => clearInterval(t), 10 * 60 * 1000);
+      setTimeout(() => detenerPolling(), 10 * 60 * 1000);
     },
-    [],
+    [detenerPolling, reiniciarFlujoAgendar],
   );
 
   const confirmarReagendar = async () => {
@@ -245,7 +290,9 @@ export default function AgendarCitaPantalla() {
     try {
       const cita = await crearCita(slotSel.slotID);
       await marcarAnticipoRealizado(cita.citaID);
-      setPaso(5);
+      reiniciarFlujoAgendar("nuevo");
+      router.replace("/(privado)/agenda");
+      Alert.alert("Cita reagendada", "Tu nuevo horario ya está confirmado.");
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "response" in e
@@ -270,6 +317,12 @@ export default function AgendarCitaPantalla() {
       }
       iniciarPollingPago(cita.citaID);
       await WebBrowser.openBrowserAsync(url);
+      reiniciarFlujoAgendar("nuevo");
+      router.replace("/(privado)/agenda");
+      Alert.alert(
+        "Completa tu pago",
+        "Termina el anticipo en el navegador. Tu cita aparecerá confirmada en la agenda al finalizar.",
+      );
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "response" in e
@@ -290,7 +343,10 @@ export default function AgendarCitaPantalla() {
     if (paso > 1) setPaso(paso - 1);
     else router.back();
   };
-  const finalizar = () => router.replace("/(privado)/agenda");
+  const finalizar = (): void => {
+    reiniciarFlujoAgendar("nuevo");
+    router.replace("/(privado)/agenda");
+  };
 
   const espFiltradas = especialidades.filter((e) =>
     e.nombre.toLowerCase().includes(busquedaEsp.toLowerCase()),
