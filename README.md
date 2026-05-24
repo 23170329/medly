@@ -19,9 +19,23 @@ medly/
 
 API y base de datos en [Railway](https://railway.app). En tu PC solo corres la app Expo.
 
-### 1. Variables en Railway
+### 1. Variables requeridas en Railway
 
-En el dashboard de Railway, en el servicio **API**, configura las mismas variables que en `servidor/.env` (sobre todo `JWT_SECRET`, `JWT_REFRESH_SECRET`, `DATABASE_URL`, Stripe, `APP_PUBLIC_URL`).
+En el dashboard de Railway, servicio **API** (el conectado al repo), agrega estas variables:
+
+| Variable | Descripción | Generación |
+|---|---|---|
+| `DATA_ENCRYPTION_KEY` | Clave AES-256-GCM para cifrado de datos clínicos | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `JWT_SECRET` | Secreto para firmar tokens JWT | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `JWT_REFRESH_SECRET` | Secreto para refresh tokens | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `STRIPE_SECRET_KEY` | Tu Stripe secret key (`sk_test_...` o `sk_live_...`) | Stripe Dashboard |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret (`whsec_...`) | Stripe Dashboard |
+| `APP_PUBLIC_URL` | URL pública del API | `https://tu-api.up.railway.app` |
+| `EXPO_PUBLIC_API_URL` | Misma URL para el frontend | `https://tu-api.up.railway.app` |
+| `FRONTEND_URL` | URL del frontend (Expo) | `https://tu-frontend.up.railway.app` o `http://localhost:8081` |
+| `PORT` | Puerto del servidor | `3000` |
+
+> Railway asigna `DATABASE_URL` automáticamente al crear el servicio PostgreSQL — no la agregues manualmente.
 
 ### 2. Variables locales
 
@@ -31,11 +45,7 @@ cp .env.example servidor/.env
 cp cliente/.env.example cliente/.env
 ```
 
-Rellena `DATABASE_URL` y las URLs con los valores de Railway. En `cliente/.env` usa `EXPO_PUBLIC_API_URL=https://….up.railway.app` (el cliente añade `/api/v1` automáticamente).
-
-Tras cambios en login (CURP/teléfono), **sube el código a Git y redespliega** el servicio `servidor` en Railway (`npm run build` + migraciones). La app usa `POST /auth/ingreso` para CURP y teléfono; sin redespliegue solo funcionará el correo en `/auth/login`.
-
-**Probar CURP en local:** `cd servidor && npm run start:dev`, en `cliente/.env` pon `EXPO_PUBLIC_API_URL=http://TU_IP:3000/api/v1`, luego `npx expo start -c`.
+En `servidor/.env` completa las URLs locales. En Railway los valores se toman del dashboard, no del `.env`.
 
 ### 3. App móvil
 
