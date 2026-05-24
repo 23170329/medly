@@ -41,7 +41,7 @@ export default function AgendarCitaPantalla() {
     sucursalId?: string;
   }>();
   const esReagendar = params.reagendar === "1" && params.medicoId;
-  const [paso, setPaso] = useState(esReagendar ? 3 : 1);
+  const [paso, setPaso] = useState(() => (params.reagendar === "1" && params.medicoId ? 3 : 1));
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +62,16 @@ export default function AgendarCitaPantalla() {
   /** Hora elegida "HH:mm" local; debe coincidir con un slot disponible. */
   const [horaSeleccionada, setHoraSeleccionada] = useState<string | null>(null);
   const [mesAgenda, setMesAgenda] = useState(() => new Date());
+
+  /** Al reagendar, reiniciar flujo en calendario (evita quedar en paso de pago previo). */
+  useEffect(() => {
+    if (!esReagendar) return;
+    setPaso(3);
+    setSlotSel(null);
+    setFechaSeleccionada(null);
+    setHoraSeleccionada(null);
+    setError(null);
+  }, [esReagendar, params.medicoId, params.sucursalId]);
 
   useEffect(() => {
     let cancel = false;
@@ -229,6 +239,24 @@ export default function AgendarCitaPantalla() {
     [],
   );
 
+  const confirmarReagendar = async () => {
+    if (!slotSel || !medSel) return;
+    setCargando(true);
+    try {
+      const cita = await crearCita(slotSel.slotID);
+      await marcarAnticipoRealizado(cita.citaID);
+      setPaso(5);
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "response" in e
+          ? JSON.stringify((e as { response?: { data?: unknown } }).response?.data)
+          : "Intenta de nuevo.";
+      Alert.alert("Error", String(msg));
+    } finally {
+      setCargando(false);
+    }
+  };
+
   const confirmarYAbrirPago = async () => {
     if (!slotSel || !medSel) return;
     setCargando(true);
@@ -255,10 +283,14 @@ export default function AgendarCitaPantalla() {
 
   const avanzar = () => setPaso((p) => p + 1);
   const retroceder = () => {
+    if (esReagendar && paso <= 3) {
+      router.back();
+      return;
+    }
     if (paso > 1) setPaso(paso - 1);
     else router.back();
   };
-  const finalizar = () => router.replace("/(privado)/inicio");
+  const finalizar = () => router.replace("/(privado)/agenda");
 
   const espFiltradas = especialidades.filter((e) =>
     e.nombre.toLowerCase().includes(busquedaEsp.toLowerCase()),
@@ -298,19 +330,28 @@ export default function AgendarCitaPantalla() {
         })
       : "";
 
-  const Indicador = () => (
-    <View style={estilos.indicadorContenedor}>
-      {[1, 2, 3, 4].map((num) => (
-        <View
-          key={num}
-          style={[
-            estilos.lineaPaso,
-            paso >= num ? estilos.lineaPasoActiva : estilos.lineaPasoInactiva,
-          ]}
-        />
-      ))}
-    </View>
-  );
+  const Indicador = () => {
+    if (esReagendar) {
+      return (
+        <View style={estilos.indicadorContenedor}>
+          <View style={[estilos.lineaPaso, estilos.lineaPasoActiva, { flex: 1, maxWidth: 120 }]} />
+        </View>
+      );
+    }
+    return (
+      <View style={estilos.indicadorContenedor}>
+        {[1, 2, 3, 4].map((num) => (
+          <View
+            key={num}
+            style={[
+              estilos.lineaPaso,
+              paso >= num ? estilos.lineaPasoActiva : estilos.lineaPasoInactiva,
+            ]}
+          />
+        ))}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={estilos.areaSegura}>
@@ -321,7 +362,9 @@ export default function AgendarCitaPantalla() {
               <Ionicons name="chevron-back" size={24} color={paleta.white} />
             </TouchableOpacity>
             <View style={estilos.headerTextos}>
-              <Text style={estilos.tituloPrincipal}>AGENDAR CITA</Text>
+              <Text style={estilos.tituloPrincipal}>
+                {esReagendar ? "REAGENDAR CITA" : "AGENDAR CITA"}
+              </Text>
               <Indicador />
             </View>
           </View>
@@ -483,6 +526,22 @@ export default function AgendarCitaPantalla() {
 
         {paso === 3 && (
           <View>
+            {esReagendar && (cargando || !medSel || !sucSel) ? (
+              <ActivityIndicator color={paleta.navy} style={{ marginTop: 40 }} />
+            ) : (
+              <>
+            {esReagendar && medSel != null && sucSel != null && (
+              <View style={estilos.reagendarInfo}>
+                <Text style={estilos.reagendarInfoTitulo}>Médico y sucursal</Text>
+                <Text style={estilos.reagendarInfoTxt}>
+                  {nombreMedico(medSel)} · {sucSel.sucursal.nombre}
+                </Text>
+                <Text style={estilos.reagendarInfoSub}>
+                  Elige una nueva fecha y hora para tu cita.
+                </Text>
+              </View>
+            )}
+
             <SeleccionFechaHoraAgenda
               cargando={cargando}
               slots={slots}
@@ -501,17 +560,27 @@ export default function AgendarCitaPantalla() {
               style={[
                 estilos.botonPrimario,
                 { marginTop: 28 },
-                !puedeContinuarPaso3 && estilos.botonPrimarioDeshab,
+                (!puedeContinuarPaso3 || cargando) && estilos.botonPrimarioDeshab,
               ]}
-              onPress={() => avanzar()}
-              disabled={!puedeContinuarPaso3}
+              onPress={() =>
+                esReagendar ? void confirmarReagendar() : avanzar()
+              }
+              disabled={!puedeContinuarPaso3 || cargando}
             >
-              <Text style={estilos.textoBotonPrimario}>REALIZAR PAGO →</Text>
+              <Text style={estilos.textoBotonPrimario}>
+                {cargando
+                  ? "PROCESANDO…"
+                  : esReagendar
+                    ? "CONFIRMAR NUEVO HORARIO →"
+                    : "REALIZAR PAGO →"}
+              </Text>
             </TouchableOpacity>
+              </>
+            )}
           </View>
         )}
 
-        {paso === 4 && medSel != null && slotSel != null && sucSel != null && (
+        {paso === 4 && !esReagendar && medSel != null && slotSel != null && sucSel != null && (
           <View>
             <Text style={estilos.subtitulo}>RESUMEN Y PAGO</Text>
 
@@ -649,7 +718,9 @@ export default function AgendarCitaPantalla() {
               style={[estilos.botonPrimario, { marginTop: 40, width: "100%" }]}
               onPress={finalizar}
             >
-              <Text style={estilos.textoBotonPrimario}>VOLVER AL INICIO</Text>
+              <Text style={estilos.textoBotonPrimario}>
+                {esReagendar ? "VER MI AGENDA" : "VOLVER AL INICIO"}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -710,6 +781,32 @@ const estilos = StyleSheet.create({
     color: paleta.teal,
     letterSpacing: 1,
     marginBottom: 16,
+  },
+  reagendarInfo: {
+    backgroundColor: paleta.white,
+    borderRadius: BORDES.radio,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: paleta.teal,
+  },
+  reagendarInfoTitulo: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: paleta.teal,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  reagendarInfoTxt: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: paleta.navy,
+  },
+  reagendarInfoSub: {
+    fontSize: 12,
+    color: paleta.teal,
+    marginTop: 6,
+    lineHeight: 18,
   },
   ayudaAgenda: {
     fontSize: 12,
