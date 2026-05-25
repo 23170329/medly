@@ -251,6 +251,7 @@ export class HorariosService {
                 this.slotRepo.create({
                   medicoID: medicoId,
                   sucursalID,
+                  consultorioID: horario.consultorio.consultorioID,
                   inicio: new Date(slotStart),
                   fin: new Date(slotEnd),
                   estado: EstadoSlot.LIBRE,

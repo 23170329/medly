@@ -38,6 +38,7 @@ function mapEstadoApi(a: EstadoCitaApi): EstadoCita {
 
 interface CitaUi {
   readonly id: string;
+  readonly citaID: number;
   readonly medico: string;
   readonly especialidad: string;
   readonly fecha: string;
@@ -46,10 +47,18 @@ interface CitaUi {
   readonly diaNumero: string;
   readonly mesCorto: string;
   readonly sucursal: string;
+  readonly consultorio: string;
   readonly estado: EstadoCita;
   readonly monto: number;
   readonly anticipoPagado: boolean;
   readonly raw: CitaDto;
+}
+
+function etiquetaConsultorio(d: CitaDto): string {
+  const raw = d.slot?.consultorio?.numeroConsultorio?.trim();
+  if (!raw) return "—";
+  const num = raw.replace(/^consultorio\s+/i, "").trim();
+  return `Cons. ${num}`;
 }
 
 interface ConfigEstado {
@@ -119,6 +128,7 @@ function toUi(d: CitaDto): CitaUi {
     .replace(".", "");
   return {
     id: String(d.citaID),
+    citaID: d.citaID,
     medico: med,
     especialidad: esp,
     fecha: ini.toLocaleDateString("es-MX", {
@@ -135,6 +145,7 @@ function toUi(d: CitaDto): CitaUi {
     diaNumero,
     mesCorto,
     sucursal: d.sucursal?.nombre ?? "—",
+    consultorio: etiquetaConsultorio(d),
     estado: mapEstadoApi(d.estado),
     monto: Math.round(parseFloat(d.montoTotal)),
     anticipoPagado:
@@ -229,17 +240,25 @@ function TarjetaCita({ cita }: TarjetaCitaProps): React.JSX.Element {
         </TouchableOpacity>
 
         <View style={estilos.tarjetaPie}>
-          <View style={estilos.detalleItem}>
-            <Ionicons name="time-outline" size={13} color={paleta.teal} />
-            <Text style={estilos.detalleTexto} numberOfLines={1}>
-              {cita.hora}
-            </Text>
-          </View>
-          <View style={[estilos.detalleItem, estilos.detalleItemSucursal]}>
-            <Ionicons name="location-outline" size={13} color={paleta.teal} />
-            <Text style={estilos.detalleTexto} numberOfLines={1}>
-              {cita.sucursal}
-            </Text>
+          <View style={estilos.tarjetaPieMeta}>
+            <View style={estilos.detalleItem}>
+              <Ionicons name="time-outline" size={13} color={paleta.teal} />
+              <Text style={estilos.detalleTexto} numberOfLines={1}>
+                {cita.hora}
+              </Text>
+            </View>
+            <View style={estilos.detalleItem}>
+              <Ionicons name="location-outline" size={13} color={paleta.teal} />
+              <Text style={estilos.detalleTexto} numberOfLines={1}>
+                {cita.sucursal}
+              </Text>
+            </View>
+            <View style={estilos.detalleItem}>
+              <Ionicons name="business-outline" size={13} color={paleta.teal} />
+              <Text style={estilos.detalleTexto} numberOfLines={1}>
+                {cita.consultorio}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity
             style={estilos.btnDetalle}
@@ -571,8 +590,16 @@ const estilos = StyleSheet.create({
   tarjetaPie: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     marginTop: 8,
+  },
+  tarjetaPieMeta: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    minWidth: 0,
   },
   detalleItem: {
     flexDirection: "row",
@@ -580,7 +607,6 @@ const estilos = StyleSheet.create({
     gap: 4,
     flexShrink: 1,
   },
-  detalleItemSucursal: { flex: 1, minWidth: 0 },
   detalleTexto: { fontSize: 11, color: paleta.navy, opacity: 0.85 },
   btnDetalle: {
     flexDirection: "row",

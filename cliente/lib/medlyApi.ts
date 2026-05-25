@@ -73,6 +73,10 @@ export interface CitaDto {
   montoAnticipo: string;
   medico?: MedicoDto & { especialidad?: { nombre: string } };
   sucursal?: SucursalDto;
+  slot?: {
+    slotID: number;
+    consultorio?: { numeroConsultorio: string } | null;
+  };
   pagos?: PagoDto[];
 }
 

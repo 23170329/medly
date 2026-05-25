@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Cita } from './entities/cita.entity';
 import { SlotAgenda } from '../horarios/entities/slot-agenda.entity';
+import { Horario } from '../horarios/entities/horario.entity';
 import { Medico } from '../medicos/entities/medico.entity';
 import { Pago } from '../pagos/entities/pago.entity';
 import { EstadoCita, EstadoPago, EstadoSlot, TipoPago } from '../common/enums';
@@ -20,6 +21,33 @@ import {
   CancelarCitaMedicoDto,
   etiquetaCausaCancelacion,
 } from '../medico-panel/dto/cancelar-cita-medico.dto';
+
+const DIAS_MAP: Record<string, number> = {
+  domingo: 0,
+  lunes: 1,
+  martes: 2,
+  miercoles: 3,
+  jueves: 4,
+  viernes: 5,
+  sabado: 6,
+};
+
+function normalizarDia(dia: string): string {
+  return dia
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function diaSemanaANumero(dia: string): number {
+  return DIAS_MAP[normalizarDia(dia)] ?? -1;
+}
+
+function horaStrToMin(h: string): number {
+  const [hh, mm] = h.split(':').map(Number);
+  return hh * 60 + mm;
+}
 
 @Injectable()
 export class CitasService {
@@ -34,6 +62,8 @@ export class CitasService {
     private readonly pagoRepo: Repository<Pago>,
     @InjectRepository(ConsultaClinica)
     private readonly consultaRepo: Repository<ConsultaClinica>,
+    @InjectRepository(Horario)
+    private readonly horarioRepo: Repository<Horario>,
     private readonly ds: DataSource,
     private readonly pagosService: PagosService,
     private readonly notificacionesService: NotificacionesService,
@@ -94,22 +124,66 @@ export class CitasService {
     });
   }
 
+  private async asegurarConsultorioEnCita(cita: Cita): Promise<void> {
+    if (!cita.slot) return;
+    if (cita.slot.consultorio?.numeroConsultorio) return;
+
+    const ini = new Date(cita.inicio);
+    const diaNum = ini.getDay();
+    const minutos = ini.getHours() * 60 + ini.getMinutes();
+
+    const horarios = await this.horarioRepo.find({
+      where: { medico: { medicoID: cita.medicoID } },
+      relations: ['consultorio', 'consultorio.sucursal'],
+    });
+
+    for (const h of horarios) {
+      if (h.consultorio.sucursal.sucursalID !== cita.sucursalID) continue;
+      if (diaSemanaANumero(h.diaSemana) !== diaNum) continue;
+      const iniMin = horaStrToMin(h.horaInicio);
+      const finMin = horaStrToMin(h.horaFin);
+      if (minutos >= iniMin && minutos < finMin) {
+        cita.slot.consultorio = h.consultorio;
+        return;
+      }
+    }
+  }
+
   async misCitas(pacienteId: number): Promise<Cita[]> {
-    return this.citaRepo.find({
+    const citas = await this.citaRepo.find({
       where: { pacienteID: pacienteId },
-      relations: ['medico', 'medico.especialidad', 'sucursal', 'slot', 'pagos'],
+      relations: [
+        'medico',
+        'medico.especialidad',
+        'sucursal',
+        'slot',
+        'slot.consultorio',
+        'pagos',
+      ],
       order: { inicio: 'DESC' },
     });
+    for (const c of citas) {
+      await this.asegurarConsultorioEnCita(c);
+    }
+    return citas;
   }
 
   async obtenerSiPaciente(citaId: number, pacienteId: number): Promise<Cita> {
     const c = await this.citaRepo.findOne({
       where: { citaID: citaId, pacienteID: pacienteId },
-      relations: ['medico', 'medico.especialidad', 'sucursal', 'slot', 'pagos'],
+      relations: [
+        'medico',
+        'medico.especialidad',
+        'sucursal',
+        'slot',
+        'slot.consultorio',
+        'pagos',
+      ],
     });
     if (!c) {
       throw new NotFoundException('Cita no encontrada');
     }
+    await this.asegurarConsultorioEnCita(c);
     return c;
   }
 

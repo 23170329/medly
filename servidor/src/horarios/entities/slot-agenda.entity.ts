@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Medico } from '../../medicos/entities/medico.entity';
 import { Sucursal } from '../../sucursales/entities/sucursal.entity';
+import { Consultorio } from '../../sucursales/entities/consultorio.entity';
 import { EstadoSlot } from '../../common/enums';
 
 @Entity('slot_agenda')
@@ -22,6 +23,9 @@ export class SlotAgenda {
 
   @Column({ type: 'int' })
   sucursalID!: number;
+
+  @Column({ type: 'int', nullable: true })
+  consultorioID!: number | null;
 
   @Column({ type: 'timestamptz' })
   inicio!: Date;
@@ -44,4 +48,8 @@ export class SlotAgenda {
   @ManyToOne(() => Sucursal, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'sucursalID' })
   sucursal!: Sucursal;
+
+  @ManyToOne(() => Consultorio, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'consultorioID' })
+  consultorio!: Consultorio | null;
 }

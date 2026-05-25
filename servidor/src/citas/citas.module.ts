@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Cita } from './entities/cita.entity';
 import { ConsultaClinica } from '../consultas/entities/consulta-clinica.entity';
 import { SlotAgenda } from '../horarios/entities/slot-agenda.entity';
+import { Horario } from '../horarios/entities/horario.entity';
 import { Pago } from '../pagos/entities/pago.entity';
 import { PagosModule } from '../pagos/pagos.module';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
@@ -13,7 +14,7 @@ import { CitasController } from './citas.controller';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Cita, SlotAgenda, Pago, ConsultaClinica]),
+    TypeOrmModule.forFeature([Cita, SlotAgenda, Horario, Pago, ConsultaClinica]),
     PagosModule,
     NotificacionesModule,
     AuditoriaModule,
