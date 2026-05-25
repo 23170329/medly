@@ -64,12 +64,17 @@ export interface ConsultaMedicoDto {
   exploracionFisica?: string | null;
   diagnosticos?: string | null;
   tratamiento?: string | null;
+  estudiosLaboratorio?: string | null;
+  evolucion?: string | null;
+  pronostico?: string | null;
+  notasConfidenciales?: string | null;
   pesoKg?: number | string | null;
   alturaM?: number | string | null;
   paciente?: {
     pacienteID: number;
     nombre: string;
     apellido_pat: string;
+    apellido_mat?: string | null;
   };
 }
 

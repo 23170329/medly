@@ -80,7 +80,21 @@ export function PantallaDetalleExpediente({
       "Consulta médica";
 
     return (
-      <View style={estilos.tarjeta}>
+      <TouchableOpacity
+        style={estilos.tarjeta}
+        activeOpacity={0.85}
+        onPress={() =>
+          router.push({
+            pathname: "/(medico)/expedientes/consulta/[citaId]",
+            params: {
+              citaId: String(item.citaID),
+              nombrePaciente: nombre || nombreInicial || "",
+            },
+          })
+        }
+        accessibilityRole="button"
+        accessibilityLabel={`Ver consulta del ${fechaTxt}`}
+      >
         <View style={estilos.tarjetaFila}>
           <Ionicons name="calendar-outline" size={18} color={paleta.teal} />
           <Text style={estilos.tarjetaFecha}>{fechaTxt}</Text>
@@ -91,7 +105,11 @@ export function PantallaDetalleExpediente({
         </View>
         <Text style={estilos.tarjetaLabel}>MOTIVO / DIAGNÓSTICO</Text>
         <Text style={estilos.tarjetaMotivo}>{motivo}</Text>
-      </View>
+        <View style={estilos.tarjetaVerMas}>
+          <Text style={estilos.tarjetaVerMasTxt}>Ver detalle completo</Text>
+          <Ionicons name="chevron-forward" size={14} color={paleta.teal} />
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -101,18 +119,6 @@ export function PantallaDetalleExpediente({
         titulo={nombre || "Paciente"}
         onAtras={() => router.back()}
       />
-
-      <View style={estilos.acciones}>
-        <TouchableOpacity
-          style={estilos.btnEditar}
-          onPress={() =>
-            router.push(`/(medico)/expedientes/editar/${pacienteId}`)
-          }
-        >
-          <Ionicons name="create-outline" size={18} color={paleta.navy} />
-          <Text style={estilos.btnEditarTxt}>Editar expediente</Text>
-        </TouchableOpacity>
-      </View>
 
       {cargando ? (
         <ActivityIndicator color={paleta.navy} style={{ marginTop: 40 }} />
@@ -143,25 +149,7 @@ export function PantallaDetalleExpediente({
 
 const estilos = StyleSheet.create({
   area: { flex: 1, backgroundColor: COLORES.fondo },
-  acciones: { paddingHorizontal: 20, paddingBottom: 8 },
-  btnEditar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-start",
-    backgroundColor: paleta.white,
-    borderRadius: BORDES.radioPill,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: paleta.skyblue,
-  },
-  btnEditarTxt: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: paleta.navy,
-  },
-  lista: { paddingHorizontal: 20, paddingBottom: 32 },
+  lista: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32 },
   tarjeta: {
     backgroundColor: paleta.white,
     borderRadius: BORDES.radio,
@@ -198,6 +186,18 @@ const estilos = StyleSheet.create({
     fontSize: 14,
     color: paleta.navy,
     lineHeight: 20,
+  },
+  tarjetaVerMas: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 10,
+    alignSelf: "flex-end",
+  },
+  tarjetaVerMasTxt: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: paleta.teal,
   },
   vacio: {
     flex: 1,
