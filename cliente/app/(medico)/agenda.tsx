@@ -15,7 +15,7 @@ import { EncabezadoPaciente } from "../../componentes/layout/EncabezadoPaciente"
 import { COLORES, paleta, BORDES } from "../../constants/theme";
 import { useAuthStore } from "../../stores/auth.store";
 import {
-  fetchCitasMedico,
+  fetchCitasPendientesMedico,
   nombrePaciente,
   type CitaMedicoDto,
 } from "../../lib/medicoApi";
@@ -33,14 +33,16 @@ export default function MedicoAgenda(): React.JSX.Element {
     if (!token) return;
     setLoading(true);
     try {
-      const data = await fetchCitasMedico(token);
-      const futuras = (Array.isArray(data) ? data : []).filter(
-        (c) => new Date(c.inicio).getTime() >= Date.now() - 3600000,
+      const data = await fetchCitasPendientesMedico(token);
+      const pendientes = (Array.isArray(data) ? data : []).filter(
+        (c) =>
+          c.estado !== "CANCELADA" &&
+          c.estado !== "COMPLETADA",
       );
-      futuras.sort(
+      pendientes.sort(
         (a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime(),
       );
-      setCitas(futuras);
+      setCitas(pendientes);
     } catch {
       setCitas([]);
     } finally {
@@ -75,7 +77,7 @@ export default function MedicoAgenda(): React.JSX.Element {
             <Ionicons name="calendar-outline" size={56} color={paleta.skyblue} />
             <Text style={estilos.vacioTit}>¡Todo al día!</Text>
             <Text style={estilos.vacioSub}>
-              No tienes consultas programadas por ahora.
+              No tienes citas pendientes por atender.
             </Text>
           </View>
         ) : (
