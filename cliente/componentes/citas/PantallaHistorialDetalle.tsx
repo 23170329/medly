@@ -160,7 +160,7 @@ export function PantallaHistorialDetalle({
               <CampoSoloLectura label="EXPLORACIÓN" value={consulta.exploracionFisica} />
               {consulta.pesoKg != null && consulta.alturaM != null ? (
                 <CampoSoloLectura
-                  label="SIGNOS VITALES"
+                  label="DATOS FISICOS"
                   value={`Peso: ${consulta.pesoKg} kg · Altura: ${consulta.alturaM} m`}
                 />
               ) : null}

@@ -18,7 +18,7 @@ export function validarPesoAltura(pesoStr: string, alturaStr: string): {
 
   if (!alturaStr.trim() || Number.isNaN(alturaM)) {
     errorAltura = "Indica la altura en metros (ej. 1.80).";
-  } else if (alturaM < 0.5 || alturaM > 2.5) {
+  } else if (alturaM < 0.1 || alturaM > 2.5) {
     errorAltura = "Altura válida: entre 0.50 y 2.50 m.";
   }
 
