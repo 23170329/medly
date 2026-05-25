@@ -115,7 +115,13 @@ export default function ExpedientesBuscar(): React.JSX.Element {
             key={p.pacienteID}
             style={estilos.fila}
             onPress={() =>
-              router.push(`/(medico)/expedientes/${p.pacienteID}`)
+              router.push({
+                pathname: "/(medico)/expedientes/[pacienteId]",
+                params: {
+                  pacienteId: String(p.pacienteID),
+                  nombre: p.nombre,
+                },
+              })
             }
           >
             <View style={estilos.avatar}>

@@ -121,6 +121,17 @@ export class MedicoPanelController {
     );
   }
 
+  @Get('pacientes/:pacienteId/historial')
+  historialExpedientePaciente(
+    @CurrentUser() u: JwtPayload,
+    @Param('pacienteId', ParseIntPipe) pacienteId: number,
+  ) {
+    return this.consultasService.historialExpedientePacienteMedico(
+      this.medicoId(u),
+      pacienteId,
+    );
+  }
+
   @Patch('pacientes/:pacienteId/expediente')
   guardarExpediente(
     @CurrentUser() u: JwtPayload,

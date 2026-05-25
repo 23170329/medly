@@ -55,6 +55,27 @@ export default function NotificacionesPantalla(): React.JSX.Element {
     }
   };
 
+  const handleCalificar = async (n: NotificacionDto): Promise<void> => {
+    if (!n.citaID) return;
+    try {
+      await marcarNotificacionLeida(n.notificacionID);
+      setLista((prev) =>
+        prev.map((x) =>
+          x.notificacionID === n.notificacionID ? { ...x, leida: true } : x,
+        ),
+      );
+    } catch {
+      /* ignore */
+    }
+    router.push({
+      pathname: "/(privado)/calificar/[citaId]",
+      params: {
+        citaId: String(n.citaID),
+        notificacionId: String(n.notificacionID),
+      },
+    });
+  };
+
   const handleReagendar = async (n: NotificacionDto): Promise<void> => {
     try {
       await eliminarNotificacion(n.notificacionID);
@@ -143,6 +164,16 @@ export default function NotificacionesPantalla(): React.JSX.Element {
                   })}
                 </Text>
               </TouchableOpacity>
+              {n.tipo === "CALIFICAR_MEDICO" && n.citaID != null ? (
+                <TouchableOpacity
+                  style={estilos.btnCalificar}
+                  onPress={() => void handleCalificar(n)}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="star" size={16} color={paleta.white} />
+                  <Text style={estilos.btnCalificarTxt}>Calificar médico</Text>
+                </TouchableOpacity>
+              ) : null}
               {n.permiteReagendar && n.tipo === "CITA_CANCELADA" ? (
                 <TouchableOpacity
                   style={estilos.btnReagendar}
@@ -227,6 +258,22 @@ const estilos = StyleSheet.create({
     fontSize: 11,
     color: paleta.teal,
     fontWeight: "500",
+  },
+  btnCalificar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 12,
+    backgroundColor: paleta.navy,
+    borderRadius: BORDES.radio,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  btnCalificarTxt: {
+    color: paleta.white,
+    fontWeight: "700",
+    fontSize: 13,
   },
   btnReagendar: {
     flexDirection: "row",

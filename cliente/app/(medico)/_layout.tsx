@@ -78,6 +78,7 @@ export default function MedicoLayout(): React.JSX.Element {
       <Tabs.Screen name="bloqueos" options={{ href: null }} />
       <Tabs.Screen name="expedientes/index" options={{ href: null }} />
       <Tabs.Screen name="expedientes/[pacienteId]" options={{ href: null }} />
+      <Tabs.Screen name="expedientes/editar/[pacienteId]" options={{ href: null }} />
       <Tabs.Screen name="citas/[id]/index" options={{ href: null }} />
       <Tabs.Screen name="citas/[id]/consulta" options={{ href: null }} />
       <Tabs.Screen name="citas/exito" options={{ href: null }} />

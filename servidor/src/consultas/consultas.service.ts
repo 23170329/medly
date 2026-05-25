@@ -14,6 +14,15 @@ import { Cita } from '../citas/entities/cita.entity';
 import { Paciente } from '../usuarios/entities/paciente.entity';
 import { Medico } from '../medicos/entities/medico.entity';
 import { EstadoCita } from '../common/enums';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
+
+export interface HistorialExpedienteItemDto {
+  citaID: number;
+  inicio: Date;
+  fin: Date;
+  motivo: string | null;
+  diagnostico: string | null;
+}
 
 @Injectable()
 export class ConsultasService {
@@ -24,6 +33,9 @@ export class ConsultasService {
     private readonly citaRepo: Repository<Cita>,
     @InjectRepository(Paciente)
     private readonly pacienteRepo: Repository<Paciente>,
+    @InjectRepository(Medico)
+    private readonly medicoRepo: Repository<Medico>,
+    private readonly notificacionesService: NotificacionesService,
   ) {}
 
   private async sincronizarAntropometriaPaciente(
@@ -54,6 +66,58 @@ export class ConsultasService {
       throw new NotFoundException('Paciente no encontrado');
     }
     return paciente;
+  }
+
+  async historialExpedientePacienteMedico(
+    medicoId: number,
+    pacienteId: number,
+  ): Promise<HistorialExpedienteItemDto[]> {
+    await this.obtenerPacienteParaMedico(medicoId, pacienteId);
+
+    const citas = await this.citaRepo.find({
+      where: {
+        medicoID: medicoId,
+        pacienteID: pacienteId,
+        estado: EstadoCita.COMPLETADA,
+      },
+      order: { inicio: 'DESC' },
+    });
+
+    if (citas.length === 0) {
+      return [];
+    }
+
+    const consultas = await this.repo
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.cita', 'ci')
+      .where('c.medicoID = :mid', { mid: medicoId })
+      .andWhere('c.pacienteID = :pid', { pid: pacienteId })
+      .getMany();
+
+    const consultaPorCita = new Map<number, ConsultaClinica>();
+    for (const co of consultas) {
+      const citaId = co.cita?.citaID;
+      if (citaId != null) {
+        consultaPorCita.set(citaId, co);
+      }
+    }
+
+    return citas.map((cita) => {
+      const consulta = consultaPorCita.get(cita.citaID);
+      const diagnostico = consulta?.diagnosticos?.trim() || null;
+      const motivo =
+        diagnostico ||
+        consulta?.interrogatorio?.trim() ||
+        consulta?.exploracionFisica?.trim() ||
+        null;
+      return {
+        citaID: cita.citaID,
+        inicio: cita.inicio,
+        fin: cita.fin,
+        motivo,
+        diagnostico,
+      };
+    });
   }
 
   async listarPorMedico(
@@ -230,6 +294,7 @@ export class ConsultasService {
     });
     const consultaGuardada = await this.repo.save(row);
 
+    let citaCompletada: Cita | null = null;
     if (dto.citaID != null) {
       const cita = await this.citaRepo.findOne({
         where: {
@@ -237,6 +302,7 @@ export class ConsultasService {
           medicoID: medicoId,
           pacienteID: dto.pacienteID,
         },
+        relations: ['medico'],
       });
       if (
         cita &&
@@ -244,8 +310,25 @@ export class ConsultasService {
           cita.estado === EstadoCita.ANTICIPO_REALIZADO)
       ) {
         cita.estado = EstadoCita.COMPLETADA;
-        await this.citaRepo.save(cita);
+        citaCompletada = await this.citaRepo.save(cita);
       }
+    }
+
+    if (citaCompletada != null) {
+      const medico = citaCompletada.medico ?? (await this.medicoRepo.findOne({
+        where: { medicoID: citaCompletada.medicoID },
+      }));
+      const nombreMed = medico
+        ? `${medico.nombre} ${medico.apellidoPat}`.trim()
+        : 'tu médico';
+      await this.notificacionesService.crear({
+        pacienteID: dto.pacienteID,
+        titulo: 'Califica tu consulta',
+        mensaje: `¿Cómo fue tu visita con ${nombreMed}? Califica de 1 a 5 estrellas.`,
+        tipo: 'CALIFICAR_MEDICO',
+        citaID: citaCompletada.citaID,
+        medicoID: citaCompletada.medicoID,
+      });
     }
 
     return consultaGuardada;

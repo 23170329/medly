@@ -219,6 +219,24 @@ export async function eliminarNotificacion(id: number): Promise<void> {
   await api.delete(`/notificaciones/${id}`);
 }
 
+export async function enviarCalificacion(body: {
+  citaID: number;
+  estrellas: number;
+  comentario?: string;
+}): Promise<{ calificacionID: number; medicoID: number; estrellas: number }> {
+  const { data } = await api.post("/calificaciones", body);
+  return data;
+}
+
+export async function fetchEstadoCalificacionCita(
+  citaId: number,
+): Promise<{ calificada: boolean }> {
+  const { data } = await api.get<{ calificada: boolean }>(
+    `/calificaciones/cita/${citaId}/estado`,
+  );
+  return data;
+}
+
 export async function fetchResultadosPaciente(
   tipo: "diagnostico" | "laboratorio",
 ): Promise<ResultadoClinicoDto[]> {

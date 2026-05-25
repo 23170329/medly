@@ -151,6 +151,24 @@ export function fetchPacienteMedico(
   return medicoFetch(`/medico/pacientes/${pacienteId}`, token);
 }
 
+export interface HistorialExpedienteItemDto {
+  citaID: number;
+  inicio: string;
+  fin: string;
+  motivo: string | null;
+  diagnostico: string | null;
+}
+
+export function fetchHistorialExpedientePaciente(
+  token: string,
+  pacienteId: number,
+): Promise<HistorialExpedienteItemDto[]> {
+  return medicoFetch(
+    `/medico/pacientes/${pacienteId}/historial`,
+    token,
+  );
+}
+
 export function guardarExpedienteMedico(
   token: string,
   pacienteId: number,
