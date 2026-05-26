@@ -6,9 +6,12 @@ import { Horario } from './entities/horario.entity';
 import { HorariosService } from './horarios.service';
 import { HorariosController } from './horarios.controller';
 import { BloqueosService } from './bloqueos.service';
+import { Cita } from '../citas/entities/cita.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Horario, SlotAgenda, BloqueoAgenda])],
+  imports: [
+    TypeOrmModule.forFeature([Horario, SlotAgenda, BloqueoAgenda, Cita]),
+  ],
   controllers: [HorariosController],
   providers: [HorariosService, BloqueosService],
   exports: [HorariosService, BloqueosService],

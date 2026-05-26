@@ -19,7 +19,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/jwt-payload.interface';
 import { CitasService } from '../citas/citas.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
-import { BloqueosService, CrearBloqueoDto } from '../horarios/bloqueos.service';
+import { BloqueosService } from '../horarios/bloqueos.service';
+import { BloquearHorarioDto } from '../horarios/dto/bloquear-horario.dto';
 import { ConsultasService } from '../consultas/consultas.service';
 import { CrearConsultaDto } from '../consultas/dto/crear-consulta.dto';
 import { ActualizarConsultaDto } from '../consultas/dto/actualizar-consulta.dto';
@@ -98,7 +99,7 @@ export class MedicoPanelController {
   }
 
   @Post('bloqueos')
-  crearBloqueo(@CurrentUser() u: JwtPayload, @Body() dto: CrearBloqueoDto) {
+  crearBloqueo(@CurrentUser() u: JwtPayload, @Body() dto: BloquearHorarioDto) {
     return this.bloqueosService.crear(this.medicoId(u), dto);
   }
 
