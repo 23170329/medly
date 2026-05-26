@@ -268,3 +268,28 @@ export function marcarNotificacionLeidaMedico(
     method: "PATCH",
   });
 }
+
+export interface ResenaMedicoDto {
+  calificacionID: number;
+  pacienteID: number;
+  medicoID: number;
+  citaID: number;
+  estrellas: number;
+  comentario: string | null;
+  fechaCalificacion: string;
+  paciente?: {
+    pacienteID: number;
+    nombre: string;
+    apellido_pat: string;
+    apellido_mat?: string | null;
+  };
+}
+
+export function fetchResenasMedico(token: string): Promise<ResenaMedicoDto[]> {
+  return medicoFetch("/medico/calificaciones", token);
+}
+
+export async function fetchResenasMedicoAuthed(): Promise<ResenaMedicoDto[]> {
+  const { data } = await api.get<ResenaMedicoDto[]>("/medico/calificaciones");
+  return data;
+}

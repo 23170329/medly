@@ -87,6 +87,7 @@ export default function MedicoLayout(): React.JSX.Element {
       <Tabs.Screen name="notificaciones/index" options={{ href: null }} />
       <Tabs.Screen name="historial/index" options={{ href: null }} />
       <Tabs.Screen name="historial/[id]" options={{ href: null }} />
+      <Tabs.Screen name="resenas/index" options={{ href: null }} />
     </Tabs>
   );
 }

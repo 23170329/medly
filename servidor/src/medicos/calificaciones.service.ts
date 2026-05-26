@@ -73,6 +73,15 @@ export class CalificacionesService {
     return guardada;
   }
 
+  async listarPorMedico(medicoId: number): Promise<Calificacion[]> {
+    return this.calificacionRepo.find({
+      where: { medicoID: medicoId },
+      relations: ['paciente'],
+      order: { fechaCalificacion: 'DESC' },
+      take: 100,
+    });
+  }
+
   async yaCalificada(pacienteId: number, citaId: number): Promise<boolean> {
     const cita = await this.citaRepo.findOne({
       where: {

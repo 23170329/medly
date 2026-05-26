@@ -6,6 +6,7 @@ import { ConsultasModule } from '../consultas/consultas.module';
 import { AuthModule } from '../auth/auth.module';
 import { AuditoriaModule } from '../auditoria/auditoria.module';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
+import { MedicosModule } from '../medicos/medicos.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { NotificacionesModule } from '../notificaciones/notificaciones.module';
     AuthModule,
     AuditoriaModule,
     NotificacionesModule,
+    MedicosModule,
   ],
   controllers: [MedicoPanelController],
 })

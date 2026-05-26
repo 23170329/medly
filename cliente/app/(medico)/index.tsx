@@ -115,6 +115,14 @@ export default function MedicoInicio(): React.JSX.Element {
           <Ionicons name="calendar-outline" size={22} color={paleta.white} />
           <Text style={estilos.btnAccionTxt}>GESTIONAR AGENDA</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={estilos.btnAccion}
+          onPress={() => router.push("/(medico)/resenas")}
+        >
+          <Ionicons name="star-outline" size={22} color={paleta.white} />
+          <Text style={estilos.btnAccionTxt}>MIS RESEÑAS</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );

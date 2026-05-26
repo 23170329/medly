@@ -26,6 +26,7 @@ import { ActualizarConsultaDto } from '../consultas/dto/actualizar-consulta.dto'
 import { CancelarCitaMedicoDto } from './dto/cancelar-cita-medico.dto';
 import { GuardarExpedienteDto } from '../consultas/dto/guardar-expediente.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { CalificacionesService } from '../medicos/calificaciones.service';
 
 @ApiTags('medico')
 @Controller('medico')
@@ -39,6 +40,7 @@ export class MedicoPanelController {
     private readonly consultasService: ConsultasService,
     private readonly auditoriaService: AuditoriaService,
     private readonly notificacionesService: NotificacionesService,
+    private readonly calificacionesService: CalificacionesService,
   ) {}
 
   private medicoId(u: JwtPayload): number {
@@ -198,5 +200,10 @@ export class MedicoPanelController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.notificacionesService.marcarLeidaMedico(this.medicoId(u), id);
+  }
+
+  @Get('calificaciones')
+  listarCalificaciones(@CurrentUser() u: JwtPayload) {
+    return this.calificacionesService.listarPorMedico(this.medicoId(u));
   }
 }
