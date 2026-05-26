@@ -529,7 +529,25 @@ export default function AgendarCitaPantalla() {
                     />
                   </View>
                   <View style={estilos.infoMedico}>
-                    <Text style={estilos.nombreMedico}>{nombreMedico(med)}</Text>
+                    <View style={estilos.filaNombreMedico}>
+                      <Text style={estilos.nombreMedico}>{nombreMedico(med)}</Text>
+                      <TouchableOpacity
+                        style={estilos.btnResenas}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/(privado)/resenas-doctor/[medicoId]",
+                            params: {
+                              medicoId: String(med.medicoID),
+                              nombre: nombreMedico(med),
+                            },
+                          })
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel={`Ver reseñas de ${nombreMedico(med)}`}
+                      >
+                        <Ionicons name="star-outline" size={18} color={paleta.navy} />
+                      </TouchableOpacity>
+                    </View>
                     <Text style={estilos.califMedico}>
                       ★ {med.promedioCalificacion} ({med.totalResenas})
                     </Text>
@@ -1085,7 +1103,18 @@ const estilos = StyleSheet.create({
     marginRight: 16,
   },
   infoMedico: { flex: 1 },
+  filaNombreMedico: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
   nombreMedico: { fontSize: 15, fontWeight: "bold", color: paleta.navy },
+  btnResenas: {
+    padding: 6,
+    borderRadius: 14,
+    backgroundColor: "transparent",
+  },
   califMedico: { fontSize: 12, color: paleta.teal },
   precioMedico: { fontSize: 12, color: paleta.teal, marginTop: 4 },
 
