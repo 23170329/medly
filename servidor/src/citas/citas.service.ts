@@ -173,6 +173,7 @@ export class CitasService {
     const c = await this.citaRepo.findOne({
       where: { citaID: citaId, pacienteID: pacienteId },
       relations: [
+        'paciente',
         'medico',
         'medico.especialidad',
         'sucursal',
@@ -630,7 +631,7 @@ export class CitasService {
           sucursalID: cita.sucursalID,
           permiteReagendar: true,
         });
-        const msgMedico = `El paciente ${nombrePac} (ID ${cita.pacienteID}) ha cancelado su cita del ${fechaStr} antes de completar el pago.${sufijoMotivo}`;
+        const msgMedico = `${nombrePac} ha cancelado su cita del ${fechaStr} antes de completar el pago.${sufijoMotivo}`;
         this.logger.log(
           `[Push/WebSocket/Email → médico ${cita.medicoID}] ${msgMedico}`,
         );
@@ -699,7 +700,7 @@ export class CitasService {
         sucursalID: cita.sucursalID,
         permiteReagendar: true,
       });
-      const msgMedico = `El paciente ${nombrePac} (ID ${cita.pacienteID}) ha cancelado su cita del ${fechaStr}.${sufijoMotivo}${msgReembolsoMed}`;
+      const msgMedico = `${nombrePac} ha cancelado su cita del ${fechaStr}.${sufijoMotivo}${msgReembolsoMed}`;
       this.logger.log(
         `[Push/WebSocket/Email → médico ${cita.medicoID}] ${msgMedico}`,
       );
