@@ -86,10 +86,20 @@ export default function GestionarCitaMedico(): React.JSX.Element {
         causa,
         motivo: motivoTrim,
       });
+      const mensaje =
+        r.mensaje ?? "La cita ha sido cancelada correctamente.";
       setModalCancel(false);
-      Alert.alert("Cita cancelada", r.mensaje, [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      setCausa("");
+      setMotivo("");
+      setCita(null);
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/(medico)/agenda");
+      }
+      setTimeout(() => {
+        Alert.alert("Cita cancelada", mensaje);
+      }, 300);
     } catch (e: unknown) {
       Alert.alert("Error", e instanceof Error ? e.message : "No se pudo cancelar.");
     } finally {
