@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   Alert,
 } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { EncabezadoPantallaMedico } from "../../componentes/medico/EncabezadoPantallaMedico";
 import { Entrada } from "../../componentes/comunes/Entrada";
 import { FechaNacimientoGenero } from "../../componentes/comunes/FechaNacimientoGenero";
@@ -20,36 +19,10 @@ import { useAuthStore } from "../../stores/auth.store";
 import {
   normalizarCurp,
   validarCoherenciaCurp,
-  validarPasoAccesoDetallado,
+  validarPasoAccesoRecepcionDetallado,
   validarPasoDatosPersonalesDetallado,
   type ErroresPaso,
 } from "../../lib/validacionRegistro";
-
-function RequisitoContra({
-  cumple,
-  texto,
-}: {
-  cumple: boolean;
-  texto: string;
-}): React.JSX.Element {
-  return (
-    <View style={estilos.reqRow}>
-      <Ionicons
-        name={cumple ? "checkmark-circle" : "ellipse-outline"}
-        size={16}
-        color={cumple ? COLORES.exito : COLORES.textoMuted}
-      />
-      <Text
-        style={[
-          estilos.reqTexto,
-          { color: cumple ? COLORES.exito : COLORES.textoMuted },
-        ]}
-      >
-        {texto}
-      </Text>
-    </View>
-  );
-}
 
 export default function RecepcionRegistrarPaciente(): React.JSX.Element {
   const token = useAuthStore((s) => s.accessToken);
@@ -61,25 +34,11 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
   const [curp, setCurp] = useState("");
   const [telefono, setTelefono] = useState("");
   const [correo, setCorreo] = useState("");
-  const [contrasena, setContrasena] = useState("");
-  const [confirmar, setConfirmar] = useState("");
   const [erroresP1, setErroresP1] = useState<ErroresPaso>({});
   const [erroresP2, setErroresP2] = useState<ErroresPaso>({});
   const [errorCurpCoherencia, setErrorCurpCoherencia] = useState<
     string | null
   >(null);
-
-  const reqsContra = useMemo(
-    () => [
-      { cumple: contrasena.length >= 8, texto: "Mínimo 8 caracteres" },
-      {
-        cumple: /(?=.*[A-Za-zÁÉÍÓÚÑáéíóúñ])/.test(contrasena),
-        texto: "Al menos una letra",
-      },
-      { cumple: /(?=.*\d)/.test(contrasena), texto: "Al menos un número" },
-    ],
-    [contrasena],
-  );
 
   const limpiarFormulario = (): void => {
     setNombres("");
@@ -90,8 +49,6 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
     setCurp("");
     setTelefono("");
     setCorreo("");
-    setContrasena("");
-    setConfirmar("");
     setErroresP1({});
     setErroresP2({});
     setErrorCurpCoherencia(null);
@@ -119,11 +76,9 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
     setErrorCurpCoherencia(errCurp);
     if (errCurp) return;
 
-    const errP2 = validarPasoAccesoDetallado({
+    const errP2 = validarPasoAccesoRecepcionDetallado({
       telefono,
       correo,
-      contrasena,
-      confirmarContrasena: confirmar,
     });
     setErroresP2(errP2);
     if (Object.values(errP2).some(Boolean)) return;
@@ -153,17 +108,29 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           fechaNacimiento,
           genero: genero.trim().toUpperCase(),
           curp: normalizarCurp(curp),
-          password: contrasena,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { mensaje?: string; message?: unknown };
+      const data = (await res.json().catch(() => ({}))) as {
+        mensaje?: string;
+        message?: unknown;
+      };
       if (!res.ok) {
         const raw = data.message ?? "Error al registrar";
         Alert.alert("Error", Array.isArray(raw) ? raw.join("\n") : String(raw));
         return;
       }
       limpiarFormulario();
-      router.replace("/(recepcion)/citas/exito");
+      Alert.alert(
+        "Paciente registrado",
+        data.mensaje ??
+          "El paciente se registró correctamente. Comunícale su contraseña temporal.",
+        [
+          {
+            text: "Aceptar",
+            onPress: () => router.replace("/(recepcion)"),
+          },
+        ],
+      );
     } catch {
       Alert.alert("Error", "No se pudo conectar con el servidor.");
     }
@@ -238,6 +205,10 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           }
         />
         <Text style={estilos.subtituloAcceso}>DATOS DE ACCESO</Text>
+        <Text style={estilos.notaAcceso}>
+          La contraseña se generará automáticamente con el primer nombre y la
+          fecha de nacimiento del paciente.
+        </Text>
         <Entrada
           etiqueta="NÚMERO DE TELÉFONO"
           placeholder="000-000-0000"
@@ -265,35 +236,6 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           keyboardType="email-address"
           mensajeError={erroresP2.correo ?? undefined}
         />
-        <Entrada
-          etiqueta="CONTRASEÑA"
-          placeholder="Mínimo 8 caracteres"
-          icono="lock-closed-outline"
-          permitirVerContrasena
-          value={contrasena}
-          onChangeText={(t) => {
-            setContrasena(t);
-            setErroresP2((p) => ({ ...p, contrasena: null }));
-          }}
-          mensajeError={erroresP2.contrasena ?? undefined}
-        />
-        <View style={estilos.reqsContainer}>
-          {reqsContra.map((r) => (
-            <RequisitoContra key={r.texto} cumple={r.cumple} texto={r.texto} />
-          ))}
-        </View>
-        <Entrada
-          etiqueta="CONFIRMAR CONTRASEÑA"
-          placeholder="********"
-          icono="lock-closed-outline"
-          permitirVerContrasena
-          value={confirmar}
-          onChangeText={(t) => {
-            setConfirmar(t);
-            setErroresP2((p) => ({ ...p, confirmarContrasena: null }));
-          }}
-          mensajeError={erroresP2.confirmarContrasena ?? undefined}
-        />
         <Boton titulo="GUARDAR PACIENTE" alPresionar={() => void enviar()} />
         <TouchableOpacity style={estilos.back} onPress={() => router.back()}>
           <Text style={estilos.backTxt}>Volver</Text>
@@ -319,22 +261,13 @@ const estilos = StyleSheet.create({
     letterSpacing: 0.6,
     color: paleta.teal,
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  reqsContainer: {
-    marginBottom: 16,
-    marginTop: -8,
-    paddingHorizontal: 4,
-  },
-  reqRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
-  },
-  reqTexto: {
+  notaAcceso: {
     fontSize: 12,
-    fontWeight: "500",
+    color: COLORES.textoMuted,
+    marginBottom: 16,
+    lineHeight: 18,
   },
   back: { marginTop: 20, alignItems: "center" },
   backTxt: { color: paleta.teal, fontWeight: "600" },

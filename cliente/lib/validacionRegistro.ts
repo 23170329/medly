@@ -100,12 +100,10 @@ export function validarPasoDatosPersonalesDetallado(params: {
   };
 }
 
-/** Registro desde recepción: teléfono obligatorio; correo opcional. */
+/** Registro desde recepción: teléfono obligatorio; correo opcional (sin contraseña en formulario). */
 export function validarPasoAccesoRecepcion(params: {
   telefono: string;
   correo: string;
-  contrasena: string;
-  confirmarContrasena: string;
 }): string | null {
   const tel = params.telefono.replace(/\D/g, "");
   if (tel.length !== 10) {
@@ -123,6 +121,44 @@ export function validarPasoAccesoRecepcion(params: {
       return "No se permiten correos con dominio @medly.";
     }
   }
+  return null;
+}
+
+export function validarPasoAccesoRecepcionDetallado(params: {
+  telefono: string;
+  correo: string;
+}): ErroresPaso {
+  const tel = params.telefono.replace(/\D/g, "");
+  const email = params.correo.trim();
+  return {
+    telefono:
+      tel.length !== 10
+        ? "El teléfono es obligatorio y debe tener 10 dígitos."
+        : null,
+    correo: email
+      ? email.length > 150
+        ? "El correo no puede exceder 150 caracteres."
+        : !REGEX_CORREO.test(email)
+          ? "El formato del correo electrónico no es válido."
+          : /@medly\./i.test(email)
+            ? "No se permiten correos con dominio @medly."
+            : null
+      : null,
+  };
+}
+
+/** Registro paciente (autoregistro): teléfono obligatorio; correo opcional; contraseña obligatoria. */
+export function validarPasoAcceso(params: {
+  telefono: string;
+  correo: string;
+  contrasena: string;
+  confirmarContrasena: string;
+}): string | null {
+  const base = validarPasoAccesoRecepcion({
+    telefono: params.telefono,
+    correo: params.correo,
+  });
+  if (base) return base;
   if (params.contrasena.length < 8 || params.contrasena.length > 72) {
     return "La contraseña debe tener entre 8 y 72 caracteres.";
   }
@@ -133,16 +169,6 @@ export function validarPasoAccesoRecepcion(params: {
     return "Las contraseñas no coinciden.";
   }
   return null;
-}
-
-/** Registro paciente: teléfono obligatorio; correo opcional. */
-export function validarPasoAcceso(params: {
-  telefono: string;
-  correo: string;
-  contrasena: string;
-  confirmarContrasena: string;
-}): string | null {
-  return validarPasoAccesoRecepcion(params);
 }
 
 export function validarPasoAccesoDetallado(params: {
