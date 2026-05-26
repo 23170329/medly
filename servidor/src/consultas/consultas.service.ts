@@ -315,9 +315,11 @@ export class ConsultasService {
     }
 
     if (citaCompletada != null) {
-      const medico = citaCompletada.medico ?? (await this.medicoRepo.findOne({
-        where: { medicoID: citaCompletada.medicoID },
-      }));
+      const medico =
+        citaCompletada.medico ??
+        (await this.medicoRepo.findOne({
+          where: { medicoID: citaCompletada.medicoID },
+        }));
       const nombreMed = medico
         ? `${medico.nombre} ${medico.apellidoPat}`.trim()
         : 'tu médico';

@@ -10,6 +10,8 @@ import { ConsultasService } from './consultas.service';
 import { ConsultaClinica } from './entities/consulta-clinica.entity';
 import { Cita } from '../citas/entities/cita.entity';
 import { Paciente } from '../usuarios/entities/paciente.entity';
+import { Medico } from '../medicos/entities/medico.entity';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { CrearConsultaDto } from './dto/crear-consulta.dto';
 import { ActualizarConsultaDto } from './dto/actualizar-consulta.dto';
 
@@ -18,6 +20,8 @@ describe('ConsultasService', () => {
   let repo: jest.Mocked<Repository<ConsultaClinica>>;
   let citaRepo: jest.Mocked<Repository<Cita>>;
   let pacienteRepo: jest.Mocked<Repository<Paciente>>;
+  let medicoRepo: jest.Mocked<Repository<Medico>>;
+  let notificacionesService: jest.Mocked<NotificacionesService>;
 
   const mockQueryBuilder = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -28,6 +32,10 @@ describe('ConsultasService', () => {
   };
 
   beforeEach(async () => {
+    const mockNotificacionesService = {
+      crear: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConsultasService,
@@ -55,6 +63,14 @@ describe('ConsultasService', () => {
             save: jest.fn(),
           },
         },
+        {
+          provide: getRepositoryToken(Medico),
+          useValue: { findOne: jest.fn() },
+        },
+        {
+          provide: NotificacionesService,
+          useValue: mockNotificacionesService,
+        },
       ],
     }).compile();
 
@@ -62,6 +78,8 @@ describe('ConsultasService', () => {
     repo = module.get(getRepositoryToken(ConsultaClinica));
     citaRepo = module.get(getRepositoryToken(Cita));
     pacienteRepo = module.get(getRepositoryToken(Paciente));
+    medicoRepo = module.get(getRepositoryToken(Medico));
+    notificacionesService = module.get(NotificacionesService);
   });
 
   afterEach(() => {

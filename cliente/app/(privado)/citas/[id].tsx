@@ -117,7 +117,7 @@ export default function CitaDetallePantalla(): React.JSX.Element {
       cita.estado === "PENDIENTE_PAGO" ||
       cita.estado === "ANTICIPO_REALIZADO"
     ) {
-      return "Aún no se ha completado el pago en Stripe. Si abandonas la reserva, podrás elegir otro horario sin cargo.";
+      return "Aún no se ha completado el pago. El anticipo que realizo se le será devuelto en su totalidad.";
     }
     const ini = new Date(cita.inicio).getTime();
     const horas = (ini - Date.now()) / (1000 * 60 * 60);
@@ -203,8 +203,8 @@ export default function CitaDetallePantalla(): React.JSX.Element {
                 style={{ marginRight: 10 }}
               />
               <Text style={estilos.modalAvisoTxt}>
-                Se cancelará tu cita actual y el horario quedará disponible. Podrás
-                elegir una nueva fecha con el mismo médico y sucursal.
+                Se cancelará tu cita actual y el horario quedará disponible.
+                Podrás elegir una nueva fecha con el mismo médico y sucursal.
               </Text>
             </View>
             <TouchableOpacity
@@ -216,7 +216,9 @@ export default function CitaDetallePantalla(): React.JSX.Element {
               {procesando ? (
                 <ActivityIndicator color={paleta.white} />
               ) : (
-                <Text style={estilos.modalBtnPrimTxt}>Continuar a reagendar</Text>
+                <Text style={estilos.modalBtnPrimTxt}>
+                  Continuar a reagendar
+                </Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity
@@ -254,8 +256,8 @@ export default function CitaDetallePantalla(): React.JSX.Element {
 
           <Text style={[estilos.label, { marginTop: 16 }]}>Montos</Text>
           <Text style={estilos.valor}>
-            Total: ${cita.montoTotal} MXN · Anticipo (50%): ${cita.montoAnticipo}{" "}
-            MXN
+            Total: ${cita.montoTotal} MXN · Anticipo (50%): $
+            {cita.montoAnticipo} MXN
           </Text>
           {(cita.estado === "ANTICIPO_REALIZADO" ||
             (cita.pagos ?? []).some(
@@ -281,7 +283,11 @@ export default function CitaDetallePantalla(): React.JSX.Element {
               onPress={() => setModalReagendar(true)}
               disabled={procesando}
             >
-              <Ionicons name="calendar-outline" size={18} color={paleta.white} />
+              <Ionicons
+                name="calendar-outline"
+                size={18}
+                color={paleta.white}
+              />
               <Text style={estilos.btnReagendarTxt}>Reagendar cita</Text>
             </TouchableOpacity>
             <TouchableOpacity
