@@ -334,7 +334,7 @@ export default function AgendaPantalla(): React.JSX.Element {
   );
 
   const citasFiltradas = citas.filter((c) => {
-    if (filtroActivo === "TODAS") return true;
+    if (filtroActivo === "TODAS") return c.estado !== "CANCELADA";
     if (filtroActivo === "CONFIRMADA") {
       return c.estado === "CONFIRMADA" || c.estado === "ANTICIPO";
     }
