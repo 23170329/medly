@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -9,15 +9,44 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../constants/theme";
+import {
+  fetchResenasDoctor,
+  type ResenaDoctorDto,
+} from "../../lib/medlyApi";
 
 export interface ResenaDoctorUi {
   id: string;
   nombrePaciente: string;
-  calificacion: number; // 1..5
+  calificacion: number;
   comentario: string;
   fecha: string;
+}
+
+function nombrePacienteAbreviado(
+  p?: ResenaDoctorDto["paciente"],
+): string {
+  if (!p) return "Paciente";
+  const primer = (p.nombre ?? "").trim().split(/\s+/)[0] || "Paciente";
+  const inicial = (p.apellido_pat ?? "").trim().charAt(0).toUpperCase();
+  return inicial ? `${primer} ${inicial}.` : primer;
+}
+
+function aUi(item: ResenaDoctorDto): ResenaDoctorUi {
+  const fecha = new Date(item.fechaCalificacion).toLocaleDateString("es-MX", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  return {
+    id: String(item.calificacionID),
+    nombrePaciente: nombrePacienteAbreviado(item.paciente),
+    calificacion: item.estrellas,
+    comentario: item.comentario?.trim() || "Sin comentario escrito.",
+    fecha,
+  };
 }
 
 function Estrellas({ n }: { n: number }): React.JSX.Element {
@@ -50,37 +79,28 @@ export function PantallaResenasDoctor({
     return n ? `Reseñas de ${n}` : "Reseñas del Doctor";
   }, [nombreDoctor]);
 
-  useEffect(() => {
-    let cancel = false;
-    setCargando(true);
-
-    // Mock inicial: reemplazar por fetch real cuando exista el endpoint público.
-    const timer = setTimeout(() => {
-      if (cancel) return;
-      setResenas([
-        {
-          id: "1",
-          nombrePaciente: "Ana P.",
-          calificacion: 5,
-          comentario: "Excelente atención, muy claro y amable.",
-          fecha: "27 may 2026",
-        },
-        {
-          id: "2",
-          nombrePaciente: "Luis C.",
-          calificacion: 4,
-          comentario: "Todo bien, solo un poco de espera.",
-          fecha: "25 may 2026",
-        },
-      ]);
+  const cargar = useCallback(async () => {
+    if (!medicoId) {
+      setResenas([]);
       setCargando(false);
-    }, 700);
-
-    return () => {
-      cancel = true;
-      clearTimeout(timer);
-    };
+      return;
+    }
+    setCargando(true);
+    try {
+      const data = await fetchResenasDoctor(medicoId);
+      setResenas(data.map(aUi));
+    } catch {
+      setResenas([]);
+    } finally {
+      setCargando(false);
+    }
   }, [medicoId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void cargar();
+    }, [cargar]),
+  );
 
   return (
     <SafeAreaView style={estilos.area}>
@@ -93,13 +113,22 @@ export function PantallaResenasDoctor({
         </Text>
       </View>
 
-      {cargando ? (
+      {cargando && resenas.length === 0 ? (
         <ActivityIndicator color={paleta.navy} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={resenas}
           keyExtractor={(item) => item.id}
           contentContainerStyle={estilos.lista}
+          ListEmptyComponent={
+            <View style={estilos.vacio}>
+              <Ionicons name="star-outline" size={56} color={paleta.skyblue} />
+              <Text style={estilos.vacioTitulo}>Sin reseñas aún</Text>
+              <Text style={estilos.vacioSub}>
+                Este médico aún no tiene calificaciones de pacientes.
+              </Text>
+            </View>
+          }
           renderItem={({ item }) => (
             <View style={estilos.card}>
               <View style={estilos.cardHeader}>
@@ -141,7 +170,7 @@ const estilos = StyleSheet.create({
     color: paleta.navy,
     letterSpacing: 0.3,
   },
-  lista: { padding: 20, paddingBottom: 40 },
+  lista: { padding: 20, paddingBottom: 40, flexGrow: 1 },
   card: {
     backgroundColor: paleta.white,
     borderRadius: BORDES.radio,
@@ -161,5 +190,23 @@ const estilos = StyleSheet.create({
   fecha: { fontSize: 11, fontWeight: "600", color: paleta.teal, opacity: 0.8 },
   estrellas: { flexDirection: "row", gap: 2, marginBottom: 10 },
   comentario: { fontSize: 14, color: paleta.navy, lineHeight: 20 },
+  vacio: {
+    alignItems: "center",
+    paddingTop: 56,
+    paddingHorizontal: 32,
+  },
+  vacioTitulo: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: paleta.navy,
+    marginTop: 16,
+    textAlign: "center",
+  },
+  vacioSub: {
+    fontSize: 14,
+    color: paleta.teal,
+    marginTop: 8,
+    textAlign: "center",
+    lineHeight: 20,
+  },
 });
-

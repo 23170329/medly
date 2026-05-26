@@ -74,6 +74,13 @@ export class CalificacionesService {
   }
 
   async listarPorMedico(medicoId: number): Promise<Calificacion[]> {
+    const medico = await this.medicoRepo.findOne({
+      where: { medicoID: medicoId },
+      select: ['medicoID'],
+    });
+    if (!medico) {
+      throw new NotFoundException('Médico no encontrado');
+    }
     return this.calificacionRepo.find({
       where: { medicoID: medicoId },
       relations: ['paciente'],

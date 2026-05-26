@@ -241,6 +241,31 @@ export async function fetchEstadoCalificacionCita(
   return data;
 }
 
+export interface ResenaDoctorDto {
+  calificacionID: number;
+  pacienteID: number;
+  medicoID: number;
+  citaID: number;
+  estrellas: number;
+  comentario: string | null;
+  fechaCalificacion: string;
+  paciente?: {
+    pacienteID: number;
+    nombre: string;
+    apellido_pat: string;
+    apellido_mat?: string | null;
+  };
+}
+
+export async function fetchResenasDoctor(
+  medicoId: number,
+): Promise<ResenaDoctorDto[]> {
+  const { data } = await api.get<ResenaDoctorDto[]>(
+    `/calificaciones/medico/${medicoId}`,
+  );
+  return data;
+}
+
 export async function fetchResultadosPaciente(
   tipo: "diagnostico" | "laboratorio",
 ): Promise<ResultadoClinicoDto[]> {

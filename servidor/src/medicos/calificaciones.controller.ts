@@ -19,6 +19,13 @@ export class CalificacionesController {
     return this.calificacionesService.crear(u.sub, dto);
   }
 
+  @Get('medico/:medicoId')
+  listarPorMedico(
+    @Param('medicoId', ParseIntPipe) medicoId: number,
+  ) {
+    return this.calificacionesService.listarPorMedico(medicoId);
+  }
+
   @Get('cita/:citaId/estado')
   estado(
     @CurrentUser() u: JwtPayload,
