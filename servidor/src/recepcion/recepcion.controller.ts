@@ -54,13 +54,14 @@ export class RecepcionController {
 
   @Post('pacientes/registro')
   async registrarPaciente(@Body() dto: RegistroRecepcionDto) {
-    await this.usuariosService.registrarPacienteRecepcion(dto);
+    const { passwordTemporal } =
+      await this.usuariosService.registrarPacienteRecepcion(dto);
     const conCorreo = Boolean(dto.correoElectronico?.trim());
     return {
       ok: true,
       mensaje: conCorreo
-        ? 'Paciente registrado. Podrá iniciar sesión con su correo, CURP o teléfono.'
-        : 'Paciente registrado. Podrá iniciar sesión con su CURP o teléfono y contraseña.',
+        ? `Paciente creado con éxito. La contraseña temporal es: ${passwordTemporal}. Podrá iniciar sesión con su correo, CURP o teléfono.`
+        : `Paciente creado con éxito. La contraseña temporal es: ${passwordTemporal}. Podrá iniciar sesión con su CURP o teléfono y contraseña.`,
     };
   }
 

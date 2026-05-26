@@ -97,13 +97,52 @@ export class UsuariosService {
       throw new BadRequestException(errCurp);
     }
 
-    return this.registrarPaciente(
+    const passwordTemporal = this.generarPasswordTemporalRecepcion(
+      datos.nombre,
+      datos.fechaNacimiento,
+    );
+
+    const cuenta = await this.registrarPaciente(
       {
         ...datos,
         curp: curpNorm,
+        password: passwordTemporal,
       },
       { origenRegistro: OrigenRegistro.RECEPCION },
     );
+
+    return { cuenta, passwordTemporal };
+  }
+
+  private generarPasswordTemporalRecepcion(
+    nombreCompleto: string,
+    fechaNacimientoYYYYMMDD: string,
+  ): string {
+    const primerNombre = this.extraerPrimerNombreNormalizado(nombreCompleto);
+    const ddmmyyyy = this.formatearFechaDDMMYYYY(fechaNacimientoYYYYMMDD);
+    return `${primerNombre}${ddmmyyyy}`;
+  }
+
+  private extraerPrimerNombreNormalizado(nombreCompleto: string): string {
+    const limpio = (nombreCompleto ?? '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)[0];
+    const base = (limpio || 'paciente')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z]/g, '');
+    return base || 'paciente';
+  }
+
+  private formatearFechaDDMMYYYY(fechaNacimientoYYYYMMDD: string): string {
+    // Entrada validada por DTO: YYYY-MM-DD
+    const [yyyy, mm, dd] = String(fechaNacimientoYYYYMMDD).split('-');
+    const d2 = String(dd ?? '').padStart(2, '0').slice(0, 2);
+    const m2 = String(mm ?? '').padStart(2, '0').slice(0, 2);
+    const y4 = String(yyyy ?? '').padStart(4, '0').slice(0, 4);
+    return `${d2}${m2}${y4}`;
   }
 
   async obtenerPerfil(pacienteId: number) {

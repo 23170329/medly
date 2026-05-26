@@ -79,12 +79,4 @@ export class RegistroRecepcionDto {
     message: 'CURP inválida: 18 caracteres alfanuméricos',
   })
   curp!: string;
-
-  @IsString()
-  @MinLength(8)
-  @MaxLength(72)
-  @Matches(/^(?=.*[A-Za-zÁÉÍÓÚÑáéíóúñ])(?=.*\d).{8,}$/, {
-    message: 'La contraseña debe incluir al menos una letra y un número',
-  })
-  password!: string;
 }
