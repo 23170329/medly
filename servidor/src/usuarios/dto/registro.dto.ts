@@ -10,6 +10,8 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
+const REGEX_SOLO_LETRAS = /^[A-Za-zÁÉÍÓÚÑáéíóúñÜü\s]+$/;
+
 export class RegistroDto {
   @Transform(({ value }) =>
     typeof value === 'string' ? value.trim().slice(0, 50) : value,
@@ -17,6 +19,9 @@ export class RegistroDto {
   @IsString()
   @MinLength(1, { message: 'El nombre es obligatorio' })
   @MaxLength(50)
+  @Matches(REGEX_SOLO_LETRAS, {
+    message: 'El nombre solo puede contener letras y espacios',
+  })
   nombre!: string;
 
   @Transform(({ value }) =>
@@ -25,6 +30,9 @@ export class RegistroDto {
   @IsString()
   @MinLength(1, { message: 'El apellido paterno es obligatorio' })
   @MaxLength(15)
+  @Matches(REGEX_SOLO_LETRAS, {
+    message: 'El apellido paterno solo puede contener letras y espacios',
+  })
   apellido_pat!: string;
 
   @Transform(({ value }) => {
@@ -34,6 +42,9 @@ export class RegistroDto {
   @IsOptional()
   @IsString()
   @MaxLength(15)
+  @Matches(REGEX_SOLO_LETRAS, {
+    message: 'El apellido materno solo puede contener letras y espacios',
+  })
   apellido_mat?: string;
 
   @Transform(({ value }) => {

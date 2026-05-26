@@ -1,6 +1,25 @@
 /** CURP: 18 caracteres alfanuméricos (se normaliza a mayúsculas). */
 export const REGEX_CURP = /^[A-Z0-9]{18}$/;
 
+/** Nombres y apellidos: letras (incl. acentos) y espacios. */
+export const REGEX_SOLO_LETRAS = /^[A-Za-zÁÉÍÓÚÑáéíóúñÜü\s]+$/;
+
+export function filtrarEntradaSoloLetras(texto: string): string {
+  return texto.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñüÜ\s]/g, "");
+}
+
+function errorCampoSoloLetras(
+  valor: string,
+  obligatorio: boolean,
+): string | null {
+  const t = valor.trim();
+  if (!t) return obligatorio ? null : null;
+  if (!REGEX_SOLO_LETRAS.test(t)) {
+    return "Solo se permiten letras y espacios.";
+  }
+  return null;
+}
+
 /** Correo con formato razonablemente estricto (RFC simplificado). */
 export const REGEX_CORREO =
   /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -39,14 +58,20 @@ export function validarPasoDatosPersonales(params: {
   if (n.length < 1 || n.length > 50) {
     return "Indica tu nombre (máx. 50 caracteres).";
   }
+  const errN = errorCampoSoloLetras(n, true);
+  if (errN) return errN;
   const ap = params.apellidoPaterno.trim();
   if (ap.length < 1 || ap.length > 15) {
     return "El apellido paterno es obligatorio (máx. 15 caracteres).";
   }
+  const errAp = errorCampoSoloLetras(ap, true);
+  if (errAp) return errAp;
   const am = params.apellidoMaterno.trim();
   if (am.length > 15) {
     return "El apellido materno no puede exceder 15 caracteres.";
   }
+  const errAm = errorCampoSoloLetras(am, false);
+  if (errAm) return errAm;
   if (!params.fechaNacimiento.trim()) {
     return "Selecciona tu fecha de nacimiento.";
   }
@@ -77,15 +102,15 @@ export function validarPasoDatosPersonalesDetallado(params: {
     nombres:
       n.length < 1 || n.length > 50
         ? "Indica tu nombre (máx. 50 caracteres)."
-        : null,
+        : errorCampoSoloLetras(n, true),
     apellidoPaterno:
       ap.length < 1 || ap.length > 15
         ? "El apellido paterno es obligatorio (máx. 15 caracteres)."
-        : null,
+        : errorCampoSoloLetras(ap, true),
     apellidoMaterno:
       am.length > 15
         ? "El apellido materno no puede exceder 15 caracteres."
-        : null,
+        : errorCampoSoloLetras(am, false),
     fechaNacimiento: !params.fechaNacimiento.trim()
       ? "Selecciona tu fecha de nacimiento."
       : null,

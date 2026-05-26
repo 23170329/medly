@@ -51,7 +51,16 @@ interface CitaUi {
   readonly estado: EstadoCita;
   readonly monto: number;
   readonly anticipoPagado: boolean;
+  readonly canceladaPorPaciente: boolean;
   readonly raw: CitaDto;
+}
+
+/** Cita cancelada por el paciente (no por el médico). */
+function esCanceladaPorPaciente(d: CitaDto): boolean {
+  if (d.estado !== "CANCELADA") return false;
+  const causa = (d.causaCancelacion ?? "").trim().toUpperCase();
+  if (causa === "PACIENTE") return true;
+  return !causa && !(d.motivoCancelacion?.trim());
 }
 
 function etiquetaConsultorio(d: CitaDto): string {
@@ -154,6 +163,7 @@ function toUi(d: CitaDto): CitaUi {
         (d.pagos ?? []).some(
           (p) => p.tipo === "ANTICIPO_50" && p.estado === "COMPLETADO",
         )),
+    canceladaPorPaciente: esCanceladaPorPaciente(d),
     raw: d,
   };
 }
@@ -233,6 +243,19 @@ function TarjetaCita({ cita }: TarjetaCitaProps): React.JSX.Element {
             </View>
           )}
 
+          {cita.estado === "CANCELADA" && cita.canceladaPorPaciente && (
+            <View style={estilos.cancelInfo}>
+              <Ionicons
+                name="information-circle-outline"
+                size={14}
+                color={paleta.red}
+              />
+              <Text style={estilos.cancelInfoTexto}>
+                Cancelaste esta cita. El horario quedó liberado.
+              </Text>
+            </View>
+          )}
+
           <View style={estilos.precioBloque}>
             <Text style={estilos.precioEtiqueta}>Total consulta</Text>
             <Text style={estilos.monto}>${cita.monto} MXN</Text>
@@ -304,6 +327,9 @@ export default function AgendaPantalla(): React.JSX.Element {
     if (filtroActivo === "TODAS") return true;
     if (filtroActivo === "CONFIRMADA") {
       return c.estado === "CONFIRMADA" || c.estado === "ANTICIPO";
+    }
+    if (filtroActivo === "CANCELADA") {
+      return c.estado === "CANCELADA" && c.canceladaPorPaciente;
     }
     return c.estado === filtroActivo;
   });
@@ -403,20 +429,32 @@ export default function AgendaPantalla(): React.JSX.Element {
         ) : citasFiltradas.length === 0 ? (
           <View style={estilos.vacio}>
             <Ionicons
-              name="calendar-outline"
+              name={
+                filtroActivo === "CANCELADA"
+                  ? "close-circle-outline"
+                  : "calendar-outline"
+              }
               size={56}
               color={paleta.skyblue}
             />
-            <Text style={estilos.vacioTitulo}>Sin citas</Text>
-            <Text style={estilos.vacioSub}>
-              No tienes citas en esta categoría
+            <Text style={estilos.vacioTitulo}>
+              {filtroActivo === "CANCELADA"
+                ? "Sin citas canceladas"
+                : "Sin citas"}
             </Text>
-            <TouchableOpacity
-              style={estilos.vacioBtn}
-              onPress={() => router.replace("/(privado)/citas/agendar")}
-            >
-              <Text style={estilos.vacioBtnTexto}>Agendar ahora</Text>
-            </TouchableOpacity>
+            <Text style={estilos.vacioSub}>
+              {filtroActivo === "CANCELADA"
+                ? "Aquí verás las citas que hayas cancelado tú, con médico, fecha, sucursal y consultorio."
+                : "No tienes citas en esta categoría"}
+            </Text>
+            {filtroActivo !== "CANCELADA" && (
+              <TouchableOpacity
+                style={estilos.vacioBtn}
+                onPress={() => router.replace("/(privado)/citas/agendar")}
+              >
+                <Text style={estilos.vacioBtnTexto}>Agendar ahora</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           citasFiltradas.map((cita) => (
@@ -577,6 +615,20 @@ const estilos = StyleSheet.create({
     justifyContent: "space-between",
     gap: 6,
     marginTop: 2,
+  },
+  cancelInfo: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    marginTop: 4,
+    marginBottom: 4,
+    paddingVertical: 4,
+  },
+  cancelInfoTexto: {
+    flex: 1,
+    fontSize: 11,
+    color: paleta.red,
+    lineHeight: 15,
   },
   precioEtiqueta: {
     fontSize: 10,

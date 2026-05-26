@@ -19,6 +19,7 @@ import { useAuthStore, type Usuario } from "../../stores/auth.store";
 
 import { API_URL } from "../../constants/api";
 import {
+  filtrarEntradaSoloLetras,
   normalizarCurp,
   validarCoherenciaCurp,
   validarPasoAccesoDetallado,
@@ -279,7 +280,7 @@ export default function RegistroScreen() {
               placeholder="Nombres"
               value={nombres}
               onChangeText={(t) => {
-                setNombres(t);
+                setNombres(filtrarEntradaSoloLetras(t));
                 setErroresP1((p) => ({ ...p, nombres: null }));
               }}
               mensajeError={erroresP1.nombres ?? undefined}
@@ -289,7 +290,7 @@ export default function RegistroScreen() {
               placeholder="Apellido Paterno"
               value={apellidoPaterno}
               onChangeText={(t) => {
-                setApellidoPaterno(t);
+                setApellidoPaterno(filtrarEntradaSoloLetras(t));
                 setErroresP1((p) => ({ ...p, apellidoPaterno: null }));
               }}
               mensajeError={erroresP1.apellidoPaterno ?? undefined}
@@ -299,7 +300,7 @@ export default function RegistroScreen() {
               placeholder="Apellido materno (opcional)"
               value={apellidoMaterno}
               onChangeText={(t) => {
-                setApellidoMaterno(t);
+                setApellidoMaterno(filtrarEntradaSoloLetras(t));
                 setErroresP1((p) => ({ ...p, apellidoMaterno: null }));
               }}
               mensajeError={erroresP1.apellidoMaterno ?? undefined}

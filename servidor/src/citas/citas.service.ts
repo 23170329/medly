@@ -293,6 +293,8 @@ export class CitasService {
     }
 
     cita.estado = EstadoCita.CANCELADA;
+    cita.causaCancelacion = 'PACIENTE';
+    cita.motivoCancelacion = null;
     await this.citaRepo.save(cita);
 
     const slot =

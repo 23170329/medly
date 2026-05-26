@@ -71,6 +71,8 @@ export interface CitaDto {
   estado: EstadoCitaApi;
   montoTotal: string;
   montoAnticipo: string;
+  causaCancelacion?: string | null;
+  motivoCancelacion?: string | null;
   medico?: MedicoDto & { especialidad?: { nombre: string } };
   sucursal?: SucursalDto;
   slot?: {

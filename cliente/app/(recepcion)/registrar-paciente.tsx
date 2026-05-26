@@ -17,6 +17,7 @@ import { COLORES, paleta } from "../../constants/theme";
 import { API_URL } from "../../constants/api";
 import { useAuthStore } from "../../stores/auth.store";
 import {
+  filtrarEntradaSoloLetras,
   normalizarCurp,
   validarCoherenciaCurp,
   validarPasoAccesoRecepcionDetallado,
@@ -152,7 +153,7 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           placeholder="Nombres"
           value={nombres}
           onChangeText={(t) => {
-            setNombres(t);
+            setNombres(filtrarEntradaSoloLetras(t));
             setErroresP1((p) => ({ ...p, nombres: null }));
           }}
           mensajeError={erroresP1.nombres ?? undefined}
@@ -162,7 +163,7 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           placeholder="Apellido Paterno"
           value={apellidoPaterno}
           onChangeText={(t) => {
-            setApellidoPaterno(t);
+            setApellidoPaterno(filtrarEntradaSoloLetras(t));
             setErroresP1((p) => ({ ...p, apellidoPaterno: null }));
           }}
           mensajeError={erroresP1.apellidoPaterno ?? undefined}
@@ -172,7 +173,7 @@ export default function RecepcionRegistrarPaciente(): React.JSX.Element {
           placeholder="Apellido materno (opcional)"
           value={apellidoMaterno}
           onChangeText={(t) => {
-            setApellidoMaterno(t);
+            setApellidoMaterno(filtrarEntradaSoloLetras(t));
             setErroresP1((p) => ({ ...p, apellidoMaterno: null }));
           }}
           mensajeError={erroresP1.apellidoMaterno ?? undefined}
