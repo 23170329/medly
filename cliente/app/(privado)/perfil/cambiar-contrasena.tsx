@@ -7,15 +7,57 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORES, paleta, BORDES } from "../../../constants/theme";
+import api from "../../../lib/apiCliente";
 
 export default function PantallaCambiarContrasena(): React.JSX.Element {
   const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
   const [confirmar, setConfirmar] = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  const actualizar = async (): Promise<void> => {
+    const a = actual.trim();
+    const n = nueva.trim();
+    const c = confirmar.trim();
+
+    if (!a || !n || !c) {
+      Alert.alert("Faltan datos", "Completa todos los campos.");
+      return;
+    }
+    if (n.length < 8) {
+      Alert.alert("Nueva contraseña", "Debe tener al menos 8 caracteres.");
+      return;
+    }
+    if (n !== c) {
+      Alert.alert("Confirmación", "La nueva contraseña no coincide.");
+      return;
+    }
+
+    setEnviando(true);
+    try {
+      await api.patch("/usuarios/password", {
+        passwordActual: a,
+        passwordNueva: n,
+      });
+      setActual("");
+      setNueva("");
+      setConfirmar("");
+      Alert.alert("Listo", "Tu contraseña se actualizó correctamente.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "No se pudo actualizar.";
+      Alert.alert("Error", msg);
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   return (
     <SafeAreaView style={estilos.area}>
@@ -61,13 +103,16 @@ export default function PantallaCambiarContrasena(): React.JSX.Element {
 
           <TouchableOpacity
             style={estilos.btn}
-            onPress={() => {
-              // TODO: conectar con backend (validar actual, hashear nueva, etc.)
-            }}
+            onPress={() => void actualizar()}
+            disabled={enviando}
             accessibilityRole="button"
             accessibilityLabel="Actualizar contraseña"
           >
-            <Text style={estilos.btnTxt}>ACTUALIZAR CONTRASEÑA</Text>
+            {enviando ? (
+              <ActivityIndicator color={paleta.white} />
+            ) : (
+              <Text style={estilos.btnTxt}>ACTUALIZAR CONTRASEÑA</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>

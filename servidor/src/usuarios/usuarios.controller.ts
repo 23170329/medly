@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UsuariosService } from './usuarios.service';
 import { RegistroDto } from './dto/registro.dto';
 import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
+import { CambiarPasswordDto } from './dto/cambiar-password.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PatientOnlyGuard } from '../auth/guards/patient-only.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -34,5 +35,12 @@ export class UsuariosController {
     @Body() dto: ActualizarPerfilDto,
   ) {
     return this.usuariosService.actualizarPerfil(user.sub, dto);
+  }
+
+  @Patch('password')
+  @UseGuards(JwtAuthGuard, PatientOnlyGuard)
+  @ApiBearerAuth()
+  cambiarPassword(@CurrentUser() user: JwtPayload, @Body() dto: CambiarPasswordDto) {
+    return this.usuariosService.cambiarPasswordPaciente(user.sub, dto);
   }
 }

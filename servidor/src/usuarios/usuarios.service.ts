@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +15,7 @@ import { RegistroRecepcionDto } from './dto/registro-recepcion.dto';
 import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
 import { validarCoherenciaCurpServidor } from '../common/curp-coherencia';
 import { OrigenRegistro } from '../common/enums';
+import { CambiarPasswordDto } from './dto/cambiar-password.dto';
 
 @Injectable()
 export class UsuariosService {
@@ -188,6 +190,29 @@ export class UsuariosService {
     Object.assign(p, dto);
     await this.pacienteRepo.save(p);
     return this.obtenerPerfil(pacienteId);
+  }
+
+  async cambiarPasswordPaciente(
+    pacienteId: number,
+    dto: CambiarPasswordDto,
+  ): Promise<{ ok: true }> {
+    const cuenta = await this.cuentaRepo.findOne({
+      where: { paciente: { pacienteID: pacienteId } },
+      relations: ['paciente'],
+    });
+    if (!cuenta) {
+      throw new NotFoundException('Cuenta no encontrada');
+    }
+
+    const okActual = await bcrypt.compare(dto.passwordActual, cuenta.password);
+    if (!okActual) {
+      throw new UnauthorizedException('La contraseña actual es incorrecta');
+    }
+
+    const hash = await bcrypt.hash(dto.passwordNueva, 10);
+    cuenta.password = hash;
+    await this.cuentaRepo.save(cuenta);
+    return { ok: true };
   }
 
   async buscarPacientes(q: string) {
