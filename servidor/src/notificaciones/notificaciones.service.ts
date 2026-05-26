@@ -1,8 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Notificacion } from './entities/notificacion.entity';
 import { NotificacionMedico } from './entities/notificacion-medico.entity';
+import { Cita } from '../citas/entities/cita.entity';
+import { CAUSAS_CANCELACION_MEDICO } from '../medico-panel/dto/cancelar-cita-medico.dto';
+
+export type NotificacionPacienteDto = Notificacion & {
+  motivoCancelacion?: string | null;
+  canceladaPorMedico?: boolean;
+};
 
 export interface CrearNotificacionParams {
   titulo: string;
@@ -21,6 +28,8 @@ export class NotificacionesService {
     private readonly notifRepo: Repository<Notificacion>,
     @InjectRepository(NotificacionMedico)
     private readonly notifMedicoRepo: Repository<NotificacionMedico>,
+    @InjectRepository(Cita)
+    private readonly citaRepo: Repository<Cita>,
   ) {}
 
   async crear(
@@ -53,11 +62,47 @@ export class NotificacionesService {
     return this.notifMedicoRepo.save(notif);
   }
 
-  async listarPorPaciente(pacienteID: number): Promise<Notificacion[]> {
-    return this.notifRepo.find({
+  async listarPorPaciente(
+    pacienteID: number,
+  ): Promise<NotificacionPacienteDto[]> {
+    const lista = await this.notifRepo.find({
       where: { pacienteID },
       order: { fechaCreacion: 'DESC' },
       take: 50,
+    });
+
+    const citaIds = [
+      ...new Set(
+        lista
+          .filter((n) => n.citaID != null && n.tipo === 'CITA_CANCELADA')
+          .map((n) => n.citaID as number),
+      ),
+    ];
+
+    const citas =
+      citaIds.length > 0
+        ? await this.citaRepo.find({
+            where: { citaID: In(citaIds), pacienteID },
+          })
+        : [];
+    const citasPorId = new Map(citas.map((c) => [c.citaID, c]));
+
+    return lista.map((n) => {
+      const cita = n.citaID != null ? citasPorId.get(n.citaID) : undefined;
+      const causa = (cita?.causaCancelacion ?? '').trim().toUpperCase();
+      const canceladaPorMedico =
+        cita?.estado === 'CANCELADA' &&
+        CAUSAS_CANCELACION_MEDICO.includes(
+          causa as (typeof CAUSAS_CANCELACION_MEDICO)[number],
+        );
+
+      return {
+        ...n,
+        motivoCancelacion: canceladaPorMedico
+          ? (cita?.motivoCancelacion ?? null)
+          : null,
+        canceladaPorMedico: canceladaPorMedico || undefined,
+      };
     });
   }
 

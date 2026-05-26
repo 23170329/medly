@@ -20,6 +20,26 @@ import {
   type NotificacionDto,
 } from "../../../lib/medlyApi";
 
+function motivoCancelacionMedico(n: NotificacionDto): string | null {
+  const desdeApi = n.motivoCancelacion?.trim();
+  if (desdeApi) return desdeApi;
+  if (
+    n.tipo !== "CITA_CANCELADA" ||
+    !/médico/i.test(n.titulo ?? "")
+  ) {
+    return null;
+  }
+  const match = n.mensaje.match(/Motivo:\s*([\s\S]+?)(?:\.\s*(?:El anticipo|Toca Reagendar|Puedes reagendar)|$)/i);
+  return match?.[1]?.trim() || null;
+}
+
+function esCancelacionPorMedico(n: NotificacionDto): boolean {
+  return (
+    n.tipo === "CITA_CANCELADA" &&
+    (n.canceladaPorMedico === true || /médico/i.test(n.titulo ?? ""))
+  );
+}
+
 export default function NotificacionesPantalla(): React.JSX.Element {
   const [lista, setLista] = useState<NotificacionDto[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -155,6 +175,17 @@ export default function NotificacionesPantalla(): React.JSX.Element {
                   </Text>
                 </View>
                 <Text style={estilos.cardMensaje}>{n.mensaje}</Text>
+                {esCancelacionPorMedico(n) ? (
+                  <View style={estilos.motivoBloque}>
+                    <Text style={estilos.motivoLbl}>
+                      Motivo de cancelación del médico
+                    </Text>
+                    <Text style={estilos.motivoTxt}>
+                      {motivoCancelacionMedico(n) ??
+                        "No se registró el motivo de cancelación."}
+                    </Text>
+                  </View>
+                ) : null}
                 <Text style={estilos.cardFecha}>
                   {new Date(n.fechaCreacion).toLocaleDateString("es-MX", {
                     day: "numeric",
@@ -253,6 +284,27 @@ const estilos = StyleSheet.create({
     color: "#666",
     lineHeight: 19,
     marginBottom: 8,
+  },
+  motivoBloque: {
+    backgroundColor: "#F0F7FA",
+    borderRadius: BORDES.radio,
+    padding: 12,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: paleta.red,
+  },
+  motivoLbl: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: paleta.teal,
+    letterSpacing: 0.3,
+    marginBottom: 6,
+  },
+  motivoTxt: {
+    fontSize: 13,
+    color: paleta.navy,
+    lineHeight: 19,
+    fontWeight: "600",
   },
   cardFecha: {
     fontSize: 11,

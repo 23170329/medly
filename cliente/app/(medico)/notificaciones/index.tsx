@@ -58,9 +58,18 @@ export default function NotificacionesMedicoPantalla(): React.JSX.Element {
     }
   };
 
-  const handleReagendar = (n: NotificacionMedicoDto): void => {
+  const handleVerAgenda = (n: NotificacionMedicoDto): void => {
     void handleMarcarLeida(n.notificacionID);
     router.push("/(medico)/agenda");
+  };
+
+  const handleVerDetalle = (n: NotificacionMedicoDto): void => {
+    if (!n.citaID) return;
+    void handleMarcarLeida(n.notificacionID);
+    router.push({
+      pathname: "/(medico)/citas/[id]",
+      params: { id: String(n.citaID) },
+    });
   };
 
   return (
@@ -128,10 +137,20 @@ export default function NotificacionesMedicoPantalla(): React.JSX.Element {
                   })}
                 </Text>
               </TouchableOpacity>
+              {n.tipo === "CITA_CANCELADA" && n.citaID != null ? (
+                <TouchableOpacity
+                  style={estilos.btnDetalle}
+                  onPress={() => handleVerDetalle(n)}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="document-text-outline" size={16} color={paleta.white} />
+                  <Text style={estilos.btnDetalleTxt}>Ver detalle de cita</Text>
+                </TouchableOpacity>
+              ) : null}
               {n.permiteReagendar && n.tipo === "CITA_CANCELADA" ? (
                 <TouchableOpacity
                   style={estilos.btnReagendar}
-                  onPress={() => handleReagendar(n)}
+                  onPress={() => handleVerAgenda(n)}
                   accessibilityRole="button"
                 >
                   <Ionicons name="calendar-outline" size={16} color={paleta.white} />
@@ -213,12 +232,28 @@ const estilos = StyleSheet.create({
     color: paleta.teal,
     fontWeight: "500",
   },
-  btnReagendar: {
+  btnDetalle: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
     marginTop: 12,
+    backgroundColor: paleta.navy,
+    borderRadius: BORDES.radio,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  btnDetalleTxt: {
+    color: paleta.white,
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  btnReagendar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 8,
     backgroundColor: paleta.teal,
     borderRadius: BORDES.radio,
     paddingVertical: 10,

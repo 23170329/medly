@@ -1,4 +1,4 @@
-import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export const CAUSAS_CANCELACION_MEDICO = [
@@ -26,6 +26,7 @@ export class CancelarCitaMedicoDto {
     typeof value === 'string' ? value.trim().slice(0, 500) : value,
   )
   @IsString()
+  @IsNotEmpty({ message: 'El motivo de cancelación es obligatorio' })
   @MinLength(10, {
     message: 'Describe el motivo de la cancelación (mínimo 10 caracteres)',
   })

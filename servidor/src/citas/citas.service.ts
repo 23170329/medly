@@ -506,6 +506,23 @@ export class CitasService {
     });
   }
 
+  async obtenerCitaMedico(medicoId: number, citaId: number): Promise<Cita> {
+    const cita = await this.citaRepo.findOne({
+      where: { citaID: citaId, medicoID: medicoId },
+      relations: [
+        'paciente',
+        'sucursal',
+        'slot',
+        'medico',
+        'medico.especialidad',
+      ],
+    });
+    if (!cita) {
+      throw new NotFoundException('Cita no encontrada');
+    }
+    return cita;
+  }
+
   async listarHistorialPaciente(pacienteId: number): Promise<Cita[]> {
     return this.citaRepo.find({
       where: { pacienteID: pacienteId, estado: EstadoCita.COMPLETADA },
@@ -755,6 +772,7 @@ export class CitasService {
         titulo: 'Cita cancelada por el médico',
         mensaje: `Tu cita con ${nombreMed} del ${fechaStr} fue cancelada. Causa: ${causa}. Motivo: ${cancelacion.motivo}.${msgReembolso} Toca Reagendar para elegir otro horario con el mismo médico.`,
         tipo: 'CITA_CANCELADA',
+        citaID: cita.citaID,
         medicoID: cita.medicoID,
         sucursalID: cita.sucursalID,
         permiteReagendar: true,
@@ -798,36 +816,48 @@ export class CitasService {
       cita.estado === EstadoCita.PENDIENTE_PAGO ||
       cita.estado === EstadoCita.ANTICIPO_REALIZADO
     ) {
-      const inicio = cita.inicio;
-      const fin = cita.fin;
-      const medicoID = cita.medicoID;
-      const sucursalID = cita.sucursalID;
-      const pacienteID = cita.pacienteID;
-      await this.abandonarPago(cita.pacienteID, citaId);
-      await this.bloqueosService.crear(medicoID, {
-        inicio: new Date(inicio).toISOString(),
-        fin: new Date(fin).toISOString(),
-        motivo: `Cancelación médica de reserva: ${cancelacion.motivo}`.slice(
-          0,
-          240,
-        ),
-      });
-      await this.notificacionesService.crear({
-        pacienteID,
-        titulo: 'Cita cancelada por el médico',
-        mensaje: `El médico canceló tu reserva. Motivo: ${cancelacion.motivo}. Puedes reagendar con el mismo médico en otro horario.`,
-        tipo: 'CITA_CANCELADA',
-        medicoID,
-        sucursalID,
-        permiteReagendar: true,
-      });
-      await this.notificacionesService.crearParaMedico({
-        medicoID,
-        titulo: 'Reserva cancelada',
-        mensaje: `Cancelaste la reserva de ${this.nombrePaciente(cita)}.`,
-        tipo: 'CITA_CANCELADA',
-        permiteReagendar: true,
-      });
+      cita.estado = EstadoCita.CANCELADA;
+      cita.causaCancelacion = cancelacion.causa;
+      cita.motivoCancelacion = cancelacion.motivo;
+      await this.citaRepo.save(cita);
+
+      const slot =
+        cita.slot ??
+        (await this.slotRepo.findOne({ where: { slotID: cita.slotID } }));
+      if (slot) {
+        slot.estado = EstadoSlot.LIBRE;
+        await this.slotRepo.save(slot);
+      }
+
+      await this.bloquearHorarioCancelado(cita, cancelacion.motivo);
+
+      const fechaStr = this.formatearFechaCita(cita.inicio);
+      const nombrePac = this.nombrePaciente(cita);
+      const causa = etiquetaCausaCancelacion(cancelacion.causa);
+
+      try {
+        await this.notificacionesService.crear({
+          pacienteID: cita.pacienteID,
+          titulo: 'Reserva cancelada por el médico',
+          mensaje: `El médico canceló tu reserva del ${fechaStr}. Causa: ${causa}. Motivo: ${cancelacion.motivo}. Puedes reagendar con el mismo médico en otro horario.`,
+          tipo: 'CITA_CANCELADA',
+          citaID: cita.citaID,
+          medicoID: cita.medicoID,
+          sucursalID: cita.sucursalID,
+          permiteReagendar: true,
+        });
+        await this.notificacionesService.crearParaMedico({
+          medicoID: cita.medicoID,
+          titulo: 'Reserva cancelada',
+          mensaje: `Cancelaste la reserva de ${nombrePac} del ${fechaStr}. Causa: ${causa}. Motivo: ${cancelacion.motivo}.`,
+          tipo: 'CITA_CANCELADA',
+          citaID: cita.citaID,
+          permiteReagendar: true,
+        });
+      } catch {
+        this.logger.warn('No se pudo crear notificación de cancelación');
+      }
+
       return {
         mensaje: 'Reserva cancelada por el médico. El horario quedó bloqueado.',
         reembolsoProcesado: false,

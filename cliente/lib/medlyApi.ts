@@ -195,6 +195,8 @@ export interface NotificacionDto {
   medicoID?: number | null;
   sucursalID?: number | null;
   permiteReagendar?: boolean;
+  motivoCancelacion?: string | null;
+  canceladaPorMedico?: boolean;
   fechaCreacion: string;
 }
 

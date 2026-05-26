@@ -74,6 +74,14 @@ export class MedicoPanelController {
     return this.citasService.listarCitasMedico(this.medicoId(u));
   }
 
+  @Get('citas/:id')
+  detalleCita(
+    @CurrentUser() u: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.citasService.obtenerCitaMedico(this.medicoId(u), id);
+  }
+
   @Patch('citas/:id/cancelar')
   async cancelarCita(
     @CurrentUser() u: JwtPayload,

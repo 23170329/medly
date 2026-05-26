@@ -11,6 +11,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -20,8 +21,10 @@ import { COLORES, paleta, BORDES } from "../../../../constants/theme";
 import { useAuthStore } from "../../../../stores/auth.store";
 import {
   cancelarCitaMedico,
-  fetchCitasMedico,
+  fetchCitaMedico,
   nombrePaciente,
+  esCanceladaPorMedico,
+  etiquetaCausaCancelacionMedico,
   type CausaCancelacionMedico,
   type CitaMedicoDto,
 } from "../../../../lib/medicoApi";
@@ -39,39 +42,43 @@ export default function GestionarCitaMedico(): React.JSX.Element {
   const citaId = parseInt(id ?? "0", 10);
   const token = useAuthStore((s) => s.accessToken);
   const [cita, setCita] = useState<CitaMedicoDto | null>(null);
+  const [cargando, setCargando] = useState(true);
   const [modalCancel, setModalCancel] = useState(false);
   const [causa, setCausa] = useState<CausaCancelacionMedico | "">("");
   const [motivo, setMotivo] = useState("");
   const [enviando, setEnviando] = useState(false);
 
-  // FIX: Unificamos el cierre del modal y la navegación tras una cancelación exitosa.
-  const finalizarCancelacionExitosa = useCallback((mensaje: string): void => {
-    setModalCancel(false);
-    setCausa("");
-    setMotivo("");
-    setCita(null);
-    Alert.alert("Cita cancelada", mensaje, [
-      {
-        text: "OK",
-        onPress: () => {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.replace("/(medico)/agenda");
-          }
-        },
-      },
-    ]);
-  }, []);
+  const finalizarCancelacionExitosa = useCallback(
+    async (mensaje: string): Promise<void> => {
+      setModalCancel(false);
+      setCausa("");
+      setMotivo("");
+      if (token) {
+        try {
+          const actualizada = await fetchCitaMedico(token, citaId);
+          setCita(actualizada);
+        } catch {
+          /* se recargará al volver a enfocar */
+        }
+      }
+      Alert.alert("Cita cancelada", mensaje, [{ text: "OK" }]);
+    },
+    [token, citaId],
+  );
 
   const cargar = useCallback(async () => {
-    if (!token || !citaId) return;
+    if (!token || !citaId) {
+      setCargando(false);
+      return;
+    }
+    setCargando(true);
     try {
-      const todas = await fetchCitasMedico(token);
-      const found = todas.find((c) => c.citaID === citaId) ?? null;
-      setCita(found);
+      const data = await fetchCitaMedico(token, citaId);
+      setCita(data);
     } catch {
       setCita(null);
+    } finally {
+      setCargando(false);
     }
   }, [token, citaId]);
 
@@ -87,13 +94,20 @@ export default function GestionarCitaMedico(): React.JSX.Element {
     setModalCancel(true);
   };
 
+  const motivoTrim = motivo.trim();
+  const motivoValido = motivoTrim.length >= 10;
+
   const cancelar = async (): Promise<void> => {
-    if (!token || !causa) {
+    if (!token) return;
+    if (!causa) {
       Alert.alert("Revisa", "Selecciona la causa de la cancelación.");
       return;
     }
-    const motivoTrim = motivo.trim();
-    if (motivoTrim.length < 10) {
+    if (motivoTrim.length === 0) {
+      Alert.alert("Revisa", "El motivo de cancelación es obligatorio.");
+      return;
+    }
+    if (!motivoValido) {
       Alert.alert(
         "Revisa",
         "Describe el motivo de la cancelación (mínimo 10 caracteres).",
@@ -108,14 +122,15 @@ export default function GestionarCitaMedico(): React.JSX.Element {
       });
       const mensaje =
         r.mensaje ?? "La cita ha sido cancelada correctamente.";
-      finalizarCancelacionExitosa(mensaje);
+      await finalizarCancelacionExitosa(mensaje);
     } catch (e: unknown) {
-      // FIX: Si el backend respondió error pero la cita ya quedó cancelada, tratamos el resultado como éxito.
       try {
-        const todas = await fetchCitasMedico(token);
-        const citaActualizada = todas.find((item) => item.citaID === citaId) ?? null;
-        if (citaActualizada?.estado === "CANCELADA") {
-          finalizarCancelacionExitosa(
+        const citaActualizada = await fetchCitaMedico(token, citaId);
+        if (
+          citaActualizada.estado === "CANCELADA" &&
+          esCanceladaPorMedico(citaActualizada)
+        ) {
+          await finalizarCancelacionExitosa(
             "La cita sí fue cancelada correctamente.",
           );
           return;
@@ -129,15 +144,13 @@ export default function GestionarCitaMedico(): React.JSX.Element {
     }
   };
 
-  if (!cita) {
-    return (
-      <SafeAreaView style={estilos.area}>
-        <Text style={estilos.cargando}>Cargando cita…</Text>
-      </SafeAreaView>
-    );
-  }
-
-  const ini = new Date(cita.inicio);
+  const canceladaPorMedico = cita != null && esCanceladaPorMedico(cita);
+  const puedeGestionar =
+    cita != null &&
+    !canceladaPorMedico &&
+    (cita.estado === "CONFIRMADA" ||
+      cita.estado === "PENDIENTE_PAGO" ||
+      cita.estado === "ANTICIPO_REALIZADO");
 
   return (
     <SafeAreaView style={estilos.area}>
@@ -147,50 +160,99 @@ export default function GestionarCitaMedico(): React.JSX.Element {
           onAtras={() => router.back()}
         />
 
-        <View style={estilos.card}>
-          <Text style={estilos.label}>PACIENTE</Text>
-          <Text style={estilos.valor}>{nombrePaciente(cita.paciente)}</Text>
+        {cargando ? (
+          <ActivityIndicator style={estilos.cargando} color={paleta.teal} />
+        ) : !cita ? (
+          <Text style={estilos.cargandoTxt}>No se encontró la cita.</Text>
+        ) : (
+          <>
+            {canceladaPorMedico ? (
+              <View style={estilos.badgeCancelada}>
+                <Ionicons
+                  name="close-circle-outline"
+                  size={18}
+                  color={paleta.red}
+                />
+                <Text style={estilos.badgeCanceladaTxt}>
+                  Cita cancelada por ti
+                </Text>
+              </View>
+            ) : null}
 
-          <Text style={[estilos.label, { marginTop: 14 }]}>HORARIO</Text>
-          <Text style={estilos.valor}>
-            {ini.toLocaleTimeString("es-MX", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
+            <View style={estilos.card}>
+              <Text style={estilos.label}>PACIENTE</Text>
+              <Text style={estilos.valor}>{nombrePaciente(cita.paciente)}</Text>
 
-          <Text style={[estilos.label, { marginTop: 14 }]}>FECHA</Text>
-          <Text style={estilos.valor}>
-            {ini.toLocaleDateString("es-MX", { dateStyle: "full" })}
-          </Text>
+              <Text style={[estilos.label, { marginTop: 14 }]}>HORARIO</Text>
+              <Text style={estilos.valor}>
+                {new Date(cita.inicio).toLocaleTimeString("es-MX", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </Text>
 
-          <Text style={[estilos.label, { marginTop: 14 }]}>TIPO</Text>
-          <Text style={estilos.valor}>
-            {cita.medico?.especialidad?.nombre ?? "Consulta general"}
-          </Text>
+              <Text style={[estilos.label, { marginTop: 14 }]}>FECHA</Text>
+              <Text style={estilos.valor}>
+                {new Date(cita.inicio).toLocaleDateString("es-MX", {
+                  dateStyle: "full",
+                })}
+              </Text>
 
-          <Text style={[estilos.label, { marginTop: 14 }]}>UBICACIÓN</Text>
-          <Text style={estilos.valor}>{cita.sucursal?.nombre ?? "—"}</Text>
-        </View>
+              <Text style={[estilos.label, { marginTop: 14 }]}>TIPO</Text>
+              <Text style={estilos.valor}>
+                {cita.medico?.especialidad?.nombre ?? "Consulta general"}
+              </Text>
 
-        <TouchableOpacity
-          style={estilos.btnIniciar}
-          onPress={() =>
-            router.push({
-              pathname: "/(medico)/citas/[id]/consulta",
-              params: {
-                id: String(citaId),
-                pacienteId: String(cita.paciente?.pacienteID ?? ""),
-              },
-            })
-          }
-        >
-          <Text style={estilos.btnIniciarTxt}>INICIAR</Text>
-        </TouchableOpacity>
+              <Text style={[estilos.label, { marginTop: 14 }]}>UBICACIÓN</Text>
+              <Text style={estilos.valor}>{cita.sucursal?.nombre ?? "—"}</Text>
 
-        <TouchableOpacity style={estilos.btnCancelar} onPress={abrirModalCancelar}>
-          <Text style={estilos.btnCancelarTxt}>CANCELAR CITA</Text>
-        </TouchableOpacity>
+              {canceladaPorMedico ? (
+                <>
+                  <Text style={[estilos.label, { marginTop: 14 }]}>
+                    CAUSA DE CANCELACIÓN
+                  </Text>
+                  <Text style={estilos.valor}>
+                    {etiquetaCausaCancelacionMedico(cita.causaCancelacion)}
+                  </Text>
+                  <View style={estilos.motivoBloque}>
+                    <Text style={estilos.motivoLbl}>
+                      MOTIVO DE CANCELACIÓN
+                    </Text>
+                    <Text style={estilos.motivoValor}>
+                      {cita.motivoCancelacion?.trim() || "—"}
+                    </Text>
+                  </View>
+                </>
+              ) : null}
+            </View>
+
+            {puedeGestionar ? (
+              <>
+                <TouchableOpacity
+                  style={estilos.btnIniciar}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(medico)/citas/[id]/consulta",
+                      params: {
+                        id: String(citaId),
+                        pacienteId: String(cita.paciente?.pacienteID ?? ""),
+                      },
+                    })
+                  }
+                >
+                  <Text style={estilos.btnIniciarTxt}>INICIAR</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={estilos.btnCancelar}
+                  onPress={abrirModalCancelar}
+                >
+                  <Text style={estilos.btnCancelarTxt}>CANCELAR CITA</Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
+          </>
+        )}
       </ScrollView>
 
       <Modal visible={modalCancel} transparent animationType="fade">
@@ -244,7 +306,7 @@ export default function GestionarCitaMedico(): React.JSX.Element {
                 textAlignVertical="top"
               />
               <Text style={estilos.motivoHint}>
-                Mínimo 10 caracteres · {motivo.trim().length}/500
+                Mínimo 10 caracteres · {motivoTrim.length}/500
               </Text>
 
               <View style={estilos.aviso}>
@@ -266,9 +328,14 @@ export default function GestionarCitaMedico(): React.JSX.Element {
                 <Text style={estilos.modalPrimTxt}>CONTINUAR ATENDIENDO</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[estilos.modalPel, enviando && { opacity: 0.6 }]}
+                style={[
+                  estilos.modalPel,
+                  (enviando || !causa || motivoTrim.length === 0) && {
+                    opacity: 0.5,
+                  },
+                ]}
                 onPress={() => void cancelar()}
-                disabled={enviando}
+                disabled={enviando || !causa || motivoTrim.length === 0}
               >
                 <Text style={estilos.modalPelTxt}>
                   {enviando ? "CANCELANDO…" : "CONFIRMAR CANCELACIÓN"}
@@ -285,7 +352,22 @@ export default function GestionarCitaMedico(): React.JSX.Element {
 const estilos = StyleSheet.create({
   area: { flex: 1, backgroundColor: COLORES.fondo },
   scroll: { padding: 20, paddingBottom: 40 },
-  cargando: { margin: 24, color: paleta.teal },
+  cargando: { marginTop: 32 },
+  cargandoTxt: { marginTop: 24, color: paleta.teal, textAlign: "center" },
+  badgeCancelada: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FDE8E8",
+    borderRadius: BORDES.radio,
+    padding: 12,
+    marginBottom: 14,
+  },
+  badgeCanceladaTxt: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: paleta.red,
+  },
   card: {
     backgroundColor: paleta.white,
     borderRadius: BORDES.radio,
@@ -303,6 +385,27 @@ const estilos = StyleSheet.create({
     fontWeight: "700",
     color: paleta.navy,
     marginTop: 4,
+  },
+  motivoBloque: {
+    marginTop: 14,
+    backgroundColor: "#F0F7FA",
+    borderRadius: BORDES.radio,
+    padding: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: paleta.red,
+  },
+  motivoLbl: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: paleta.teal,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  motivoValor: {
+    fontSize: 14,
+    color: paleta.navy,
+    lineHeight: 20,
+    fontWeight: "600",
   },
   btnIniciar: {
     backgroundColor: paleta.navy,

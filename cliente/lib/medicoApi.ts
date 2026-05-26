@@ -22,6 +22,45 @@ async function medicoFetch<T>(
   return data as T;
 }
 
+export type CausaCancelacionMedico =
+  | "EMERGENCIA_MEDICA"
+  | "ENFERMEDAD_MEDICO"
+  | "CONFLICTO_AGENDA"
+  | "REAGENDAMIENTO"
+  | "OTRO";
+
+const CAUSAS_CANCELACION_MEDICO: readonly CausaCancelacionMedico[] = [
+  "EMERGENCIA_MEDICA",
+  "ENFERMEDAD_MEDICO",
+  "CONFLICTO_AGENDA",
+  "REAGENDAMIENTO",
+  "OTRO",
+] as const;
+
+const ETIQUETA_CAUSA_CANCELACION: Record<CausaCancelacionMedico, string> = {
+  EMERGENCIA_MEDICA: "Emergencia médica",
+  ENFERMEDAD_MEDICO: "Enfermedad del médico",
+  CONFLICTO_AGENDA: "Conflicto de agenda",
+  REAGENDAMIENTO: "Reagendamiento",
+  OTRO: "Otro",
+};
+
+export function esCanceladaPorMedico(cita: {
+  estado: string;
+  causaCancelacion?: string | null;
+}): boolean {
+  if (cita.estado !== "CANCELADA") return false;
+  const causa = (cita.causaCancelacion ?? "").trim().toUpperCase();
+  return CAUSAS_CANCELACION_MEDICO.includes(causa as CausaCancelacionMedico);
+}
+
+export function etiquetaCausaCancelacionMedico(
+  causa: string | null | undefined,
+): string {
+  const key = (causa ?? "").trim().toUpperCase() as CausaCancelacionMedico;
+  return ETIQUETA_CAUSA_CANCELACION[key] ?? causa ?? "—";
+}
+
 export interface CitaMedicoDto {
   citaID: number;
   inicio: string;
@@ -29,6 +68,8 @@ export interface CitaMedicoDto {
   estado: string;
   montoTotal: string;
   montoAnticipo: string;
+  causaCancelacion?: string | null;
+  motivoCancelacion?: string | null;
   paciente?: {
     pacienteID: number;
     nombre: string;
@@ -191,12 +232,17 @@ export function guardarExpedienteMedico(
   });
 }
 
-export type CausaCancelacionMedico =
-  | "EMERGENCIA_MEDICA"
-  | "ENFERMEDAD_MEDICO"
-  | "CONFLICTO_AGENDA"
-  | "REAGENDAMIENTO"
-  | "OTRO";
+export function fetchCitaMedico(
+  token: string,
+  citaId: number,
+): Promise<CitaMedicoDto> {
+  return medicoFetch(`/medico/citas/${citaId}`, token);
+}
+
+export async function fetchCitaMedicoAuthed(citaId: number): Promise<CitaMedicoDto> {
+  const { data } = await api.get<CitaMedicoDto>(`/medico/citas/${citaId}`);
+  return data;
+}
 
 export function cancelarCitaMedico(
   token: string,
