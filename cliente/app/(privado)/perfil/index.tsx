@@ -160,11 +160,7 @@ export default function PerfilPantalla(): React.JSX.Element {
           etiqueta: "Seguridad",
           subtitulo: "Contraseña de acceso",
           tipo: "nav",
-          onPress: () =>
-            Alert.alert(
-              "Seguridad",
-              "Próximamente podrás cambiar tu contraseña desde la app.",
-            ),
+          onPress: () => router.push("/(privado)/perfil/cambiar-contrasena"),
         },
         {
           id: "ayuda",
