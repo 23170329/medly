@@ -16,6 +16,7 @@ import { PatientOnlyGuard } from '../auth/guards/patient-only.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/jwt-payload.interface';
 import { CrearCitaDto } from './dto/crear-cita.dto';
+import { CancelarCitaPacienteDto } from './dto/cancelar-cita-paciente.dto';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @ApiTags('citas')
@@ -89,11 +90,14 @@ export class CitasController {
   async cancelar(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CancelarCitaPacienteDto,
   ) {
-    const result = await this.citasService.cancelar(user.sub, id);
+    const result = await this.citasService.cancelar(user.sub, id, dto);
     await this.auditoriaService.registrar({
       tipo: 'CITA_CANCELADA_PACIENTE',
-      descripcion: `Cita #${id} cancelada por paciente #${user.sub}`,
+      descripcion: `Cita #${id} cancelada por paciente #${user.sub}${
+        dto.motivo ? `. Motivo: ${dto.motivo}` : ''
+      }`,
       usuarioID: user.sub,
     });
     return result;
@@ -104,13 +108,14 @@ export class CitasController {
   async abandonar(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CancelarCitaPacienteDto,
   ) {
-    await this.citasService.abandonarPago(user.sub, id);
+    const cita = await this.citasService.abandonarPago(user.sub, id, dto.motivo);
     await this.auditoriaService.registrar({
       tipo: 'RESERVA_ABANDONADA',
       descripcion: `Reserva #${id} abandonada por paciente #${user.sub}`,
       usuarioID: user.sub,
     });
-    return { ok: true };
+    return { cita, mensaje: 'Reserva cancelada. El horario quedó liberado.' };
   }
 }

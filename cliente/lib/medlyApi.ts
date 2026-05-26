@@ -147,16 +147,25 @@ export async function fetchCita(id: number): Promise<CitaDto> {
   return data;
 }
 
-export async function cancelarCita(id: number): Promise<{
+export async function cancelarCita(
+  id: number,
+  body?: { motivo?: string },
+): Promise<{
+  cita: CitaDto;
   mensaje: string;
   reembolsoProcesado: boolean;
 }> {
-  const { data } = await api.patch(`/citas/${id}/cancelar`, {});
+  const { data } = await api.patch(`/citas/${id}/cancelar`, body ?? {});
   return data;
 }
 
-export async function abandonarReserva(id: number): Promise<void> {
-  await api.delete(`/citas/${id}/reserva`);
+/** @deprecated Preferir cancelarCita; mantiene DELETE por compatibilidad */
+export async function abandonarReserva(
+  id: number,
+  body?: { motivo?: string },
+): Promise<{ cita: CitaDto; mensaje: string }> {
+  const { data } = await api.delete(`/citas/${id}/reserva`, { data: body ?? {} });
+  return data;
 }
 
 export async function marcarAnticipoRealizado(citaID: number): Promise<{

@@ -21,6 +21,7 @@ import {
   CancelarCitaMedicoDto,
   etiquetaCausaCancelacion,
 } from '../medico-panel/dto/cancelar-cita-medico.dto';
+import { CancelarCitaPacienteDto } from './dto/cancelar-cita-paciente.dto';
 
 const DIAS_MAP: Record<string, number> = {
   domingo: 0,
@@ -217,38 +218,65 @@ export class CitasService {
     };
   }
 
-  async abandonarPago(pacienteId: number, citaId: number): Promise<void> {
-    const cita = await this.citaRepo.findOne({
-      where: { citaID: citaId, pacienteID: pacienteId },
-      relations: ['slot'],
-    });
-    if (!cita) {
-      throw new NotFoundException('Cita no encontrada');
-    }
-    if (
-      cita.estado !== EstadoCita.PENDIENTE_PAGO &&
-      cita.estado !== EstadoCita.ANTICIPO_REALIZADO
-    ) {
-      throw new BadRequestException('La cita no está pendiente de pago');
-    }
+  /**
+   * Cancelación suave: marca CANCELADA, libera slot y conserva el registro en BD.
+   */
+  private async marcarCitaCanceladaPorPaciente(
+    cita: Cita,
+    motivoOpcional?: string,
+    opciones?: { eliminarPagosPendientes: boolean },
+  ): Promise<Cita> {
+    const motivo = motivoOpcional?.trim().slice(0, 80) || null;
+    const estadoPrevio = cita.estado;
+
+    cita.estado = EstadoCita.CANCELADA;
+    cita.causaCancelacion = motivo ?? 'PACIENTE';
+    cita.motivoCancelacion = motivo;
 
     await this.ds.transaction(async (em) => {
-      await em.delete(Pago, { citaID: citaId });
-      await em.delete(Cita, { citaID: citaId });
-      const slot = await em.findOne(SlotAgenda, {
-        where: { slotID: cita.slotID },
-      });
+      if (
+        opciones?.eliminarPagosPendientes ??
+        (estadoPrevio === EstadoCita.PENDIENTE_PAGO ||
+          estadoPrevio === EstadoCita.ANTICIPO_REALIZADO)
+      ) {
+        await em.delete(Pago, { citaID: cita.citaID });
+      }
+      await em.save(Cita, cita);
+
+      const slot =
+        cita.slot ??
+        (await em.findOne(SlotAgenda, {
+          where: { slotID: cita.slotID },
+        }));
       if (slot) {
         slot.estado = EstadoSlot.LIBRE;
-        await em.save(slot);
+        await em.save(SlotAgenda, slot);
       }
     });
+
+    this.logger.log(
+      `Cita #${cita.citaID} cancelada por paciente #${cita.pacienteID} (soft). Slot liberado.`,
+    );
+
+    return this.obtenerSiPaciente(cita.citaID, cita.pacienteID);
+  }
+
+  /** @deprecated Use cancelar(); mantiene compatibilidad con DELETE /reserva */
+  async abandonarPago(
+    pacienteId: number,
+    citaId: number,
+    motivo?: string,
+  ): Promise<Cita> {
+    const { cita } = await this.cancelar(pacienteId, citaId, { motivo });
+    return cita;
   }
 
   async cancelar(
     pacienteId: number,
     citaId: number,
+    dto: CancelarCitaPacienteDto = {},
   ): Promise<{
+    cita: Cita;
     mensaje: string;
     reembolsoProcesado: boolean;
   }> {
@@ -269,13 +297,20 @@ export class CitasService {
       );
     }
 
+    const motivo = dto.motivo?.trim();
+
     if (
       cita.estado === EstadoCita.PENDIENTE_PAGO ||
       cita.estado === EstadoCita.ANTICIPO_REALIZADO
     ) {
-      await this.notificarCancelacionReserva(cita, 'paciente');
-      await this.abandonarPago(pacienteId, citaId);
+      const citaActualizada = await this.marcarCitaCanceladaPorPaciente(
+        cita,
+        motivo,
+      );
+      await this.notificarCancelacionReserva(citaActualizada, 'paciente', motivo);
+
       return {
+        cita: citaActualizada,
         mensaje: 'Reserva cancelada. El horario quedó liberado.',
         reembolsoProcesado: false,
       };
@@ -292,31 +327,27 @@ export class CitasService {
         await this.pagosService.reembolsarAnticipoSiAplica(cita);
     }
 
-    cita.estado = EstadoCita.CANCELADA;
-    cita.causaCancelacion = 'PACIENTE';
-    cita.motivoCancelacion = null;
-    await this.citaRepo.save(cita);
-
-    const slot =
-      cita.slot ??
-      (await this.slotRepo.findOne({ where: { slotID: cita.slotID } }));
-    if (slot) {
-      slot.estado = EstadoSlot.LIBRE;
-      await this.slotRepo.save(slot);
-    }
-
-    await this.notificarCancelacionPorPaciente(
+    const citaActualizada = await this.marcarCitaCanceladaPorPaciente(
       cita,
-      puedeReembolso,
-      reembolsoProcesado,
+      motivo,
     );
 
+    await this.notificarCancelacionPorPaciente(
+      citaActualizada,
+      puedeReembolso,
+      reembolsoProcesado,
+      motivo,
+    );
+
+    const mensaje = puedeReembolso
+      ? reembolsoProcesado
+        ? 'Cita cancelada. El anticipo será reembolsado según tu banco.'
+        : 'Cita cancelada. Hubo un problema al procesar el reembolso automático; contacta soporte.'
+      : 'Cita cancelada. No aplica reembolso por política de menos de 24 horas.';
+
     return {
-      mensaje: puedeReembolso
-        ? reembolsoProcesado
-          ? 'Cita cancelada. El anticipo será reembolsado según tu banco.'
-          : 'Cita cancelada. Hubo un problema al procesar el reembolso automático; contacta soporte.'
-        : 'Cita cancelada. No aplica reembolso por política de menos de 24 horas.',
+      cita: citaActualizada,
+      mensaje,
       reembolsoProcesado,
     };
   }
@@ -580,10 +611,12 @@ export class CitasService {
   private async notificarCancelacionReserva(
     cita: Cita,
     quien: 'paciente' | 'medico',
+    motivoPaciente?: string,
   ): Promise<void> {
     const fechaStr = this.formatearFechaCita(cita.inicio);
     const nombreMed = this.nombreMedico(cita);
     const nombrePac = this.nombrePaciente(cita);
+    const sufijoMotivo = motivoPaciente ? ` Motivo: ${motivoPaciente}.` : '';
 
     try {
       if (quien === 'paciente') {
@@ -597,10 +630,14 @@ export class CitasService {
           sucursalID: cita.sucursalID,
           permiteReagendar: true,
         });
+        const msgMedico = `El paciente ${nombrePac} (ID ${cita.pacienteID}) ha cancelado su cita del ${fechaStr} antes de completar el pago.${sufijoMotivo}`;
+        this.logger.log(
+          `[Push/WebSocket/Email → médico ${cita.medicoID}] ${msgMedico}`,
+        );
         await this.notificacionesService.crearParaMedico({
           medicoID: cita.medicoID,
           titulo: 'Reserva cancelada por el paciente',
-          mensaje: `${nombrePac} canceló la reserva del ${fechaStr} antes de completar el pago.`,
+          mensaje: msgMedico,
           tipo: 'CITA_CANCELADA',
           citaID: cita.citaID,
           permiteReagendar: true,
@@ -632,10 +669,12 @@ export class CitasService {
     cita: Cita,
     puedeReembolso: boolean,
     reembolsoProcesado: boolean,
+    motivoPaciente?: string,
   ): Promise<void> {
     const fechaStr = this.formatearFechaCita(cita.inicio);
     const nombreMed = this.nombreMedico(cita);
     const nombrePac = this.nombrePaciente(cita);
+    const sufijoMotivo = motivoPaciente ? ` Motivo: ${motivoPaciente}.` : '';
 
     const msgReembolsoPac = puedeReembolso
       ? reembolsoProcesado
@@ -660,10 +699,14 @@ export class CitasService {
         sucursalID: cita.sucursalID,
         permiteReagendar: true,
       });
+      const msgMedico = `El paciente ${nombrePac} (ID ${cita.pacienteID}) ha cancelado su cita del ${fechaStr}.${sufijoMotivo}${msgReembolsoMed}`;
+      this.logger.log(
+        `[Push/WebSocket/Email → médico ${cita.medicoID}] ${msgMedico}`,
+      );
       await this.notificacionesService.crearParaMedico({
         medicoID: cita.medicoID,
         titulo: 'Cita cancelada por el paciente',
-        mensaje: `${nombrePac} canceló la cita del ${fechaStr}.${msgReembolsoMed}`,
+        mensaje: msgMedico,
         tipo: 'CITA_CANCELADA',
         citaID: cita.citaID,
         permiteReagendar: true,

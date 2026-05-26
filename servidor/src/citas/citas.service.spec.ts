@@ -231,12 +231,19 @@ describe('CitasService', () => {
   // abandonarPago
   // ---------------------------------------------------------------------------
   describe('abandonarPago', () => {
-    it('should delete Pago, delete Cita and free slot in a transaction', async () => {
+    it('should soft-cancel cita, delete pagos and free slot (no hard delete)', async () => {
       const cita = {
         ...citaPendiente,
         slot: { ...slotLibre, estado: EstadoSlot.RESERVADO },
       };
-      mockCitaRepo.findOne.mockResolvedValue(cita);
+      const citaCancelada = {
+        ...cita,
+        estado: EstadoCita.CANCELADA,
+        causaCancelacion: 'PACIENTE',
+      };
+      mockCitaRepo.findOne
+        .mockResolvedValueOnce(cita)
+        .mockResolvedValueOnce(citaCancelada);
 
       const em = {
         delete: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -247,22 +254,20 @@ describe('CitasService', () => {
         async (cb: (em: any) => Promise<any>) => cb(em),
       );
 
-      await service.abandonarPago(1, 1);
+      const result = await service.abandonarPago(1, 1);
 
-      expect(mockCitaRepo.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { citaID: 1, pacienteID: 1 },
-        }),
-      );
       expect(mockDataSource.transaction).toHaveBeenCalled();
       expect(em.delete).toHaveBeenCalledWith(Pago, { citaID: 1 });
-      expect(em.delete).toHaveBeenCalledWith(Cita, { citaID: 1 });
-      expect(em.findOne).toHaveBeenCalledWith(SlotAgenda, {
-        where: { slotID: 1 },
-      });
+      expect(em.delete).not.toHaveBeenCalledWith(Cita, expect.anything());
       expect(em.save).toHaveBeenCalledWith(
+        Cita,
+        expect.objectContaining({ estado: EstadoCita.CANCELADA }),
+      );
+      expect(em.save).toHaveBeenCalledWith(
+        SlotAgenda,
         expect.objectContaining({ estado: EstadoSlot.LIBRE }),
       );
+      expect(result.estado).toBe(EstadoCita.CANCELADA);
     });
 
     it('should throw NotFoundException when cita does not exist', async () => {
@@ -305,22 +310,32 @@ describe('CitasService', () => {
       mockCitaRepo.findOne.mockResolvedValue(citaFutura);
       mockPagosService.reembolsarAnticipoSiAplica.mockResolvedValue(true);
 
+      mockCitaRepo.findOne
+        .mockResolvedValueOnce(citaFutura)
+        .mockResolvedValueOnce({
+          ...citaFutura,
+          estado: EstadoCita.CANCELADA,
+        });
+      mockDataSource.transaction.mockImplementation(
+        async (cb: (em: any) => Promise<any>) =>
+          cb({
+            delete: jest.fn(),
+            save: jest.fn(),
+            findOne: jest.fn().mockResolvedValue({
+              ...slotLibre,
+              estado: EstadoSlot.RESERVADO,
+            }),
+          }),
+      );
+
       const result = await service.cancelar(1, 1);
 
       expect(mockPagosService.reembolsarAnticipoSiAplica).toHaveBeenCalledWith(
         citaFutura,
       );
-      expect(mockCitaRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ estado: EstadoCita.CANCELADA }),
-      );
-      expect(mockSlotRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ estado: EstadoSlot.LIBRE }),
-      );
-      expect(result).toEqual({
-        mensaje:
-          'Cita cancelada. El anticipo será reembolsado según tu banco.',
-        reembolsoProcesado: true,
-      });
+      expect(result.reembolsoProcesado).toBe(true);
+      expect(result.cita.estado).toBe(EstadoCita.CANCELADA);
+      expect(result.mensaje).toContain('reembolsado');
     });
 
     it('should cancel CONFIRMADA cita <24h before without refund and return policy message', async () => {
@@ -332,27 +347,42 @@ describe('CitasService', () => {
       };
       mockCitaRepo.findOne.mockResolvedValue(citaCercana);
 
+      mockCitaRepo.findOne
+        .mockResolvedValueOnce(citaCercana)
+        .mockResolvedValueOnce({
+          ...citaCercana,
+          estado: EstadoCita.CANCELADA,
+        });
+      mockDataSource.transaction.mockImplementation(
+        async (cb: (em: any) => Promise<any>) =>
+          cb({
+            delete: jest.fn(),
+            save: jest.fn(),
+            findOne: jest.fn().mockResolvedValue(slotLibre),
+          }),
+      );
+
       const result = await service.cancelar(1, 1);
 
       expect(
         mockPagosService.reembolsarAnticipoSiAplica,
       ).not.toHaveBeenCalled();
-      expect(mockCitaRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ estado: EstadoCita.CANCELADA }),
-      );
-      expect(result).toEqual({
-        mensaje:
-          'Cita cancelada. No aplica reembolso por política de menos de 24 horas.',
-        reembolsoProcesado: false,
-      });
+      expect(result.reembolsoProcesado).toBe(false);
+      expect(result.cita.estado).toBe(EstadoCita.CANCELADA);
+      expect(result.mensaje).toContain('No aplica reembolso');
     });
 
-    it('should delegate to abandonarPago when cita is PENDIENTE_PAGO', async () => {
+    it('should soft-cancel PENDIENTE_PAGO without deleting cita row', async () => {
       const cita = {
         ...citaPendiente,
         slot: { ...slotLibre, estado: EstadoSlot.RESERVADO },
       };
-      mockCitaRepo.findOne.mockResolvedValue(cita);
+      mockCitaRepo.findOne
+        .mockResolvedValueOnce(cita)
+        .mockResolvedValueOnce({
+          ...cita,
+          estado: EstadoCita.CANCELADA,
+        });
 
       const em = {
         delete: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -363,14 +393,19 @@ describe('CitasService', () => {
         async (cb: (em: any) => Promise<any>) => cb(em),
       );
 
-      const result = await service.cancelar(1, 1);
+      const result = await service.cancelar(1, 1, { motivo: 'Ya no puedo asistir' });
 
       expect(em.delete).toHaveBeenCalledWith(Pago, { citaID: 1 });
-      expect(em.delete).toHaveBeenCalledWith(Cita, { citaID: 1 });
-      expect(result).toEqual({
-        mensaje: 'Reserva cancelada. El horario quedó liberado.',
-        reembolsoProcesado: false,
-      });
+      expect(em.delete).not.toHaveBeenCalledWith(Cita, expect.anything());
+      expect(em.save).toHaveBeenCalledWith(
+        Cita,
+        expect.objectContaining({
+          estado: EstadoCita.CANCELADA,
+          causaCancelacion: 'Ya no puedo asistir',
+        }),
+      );
+      expect(result.cita.estado).toBe(EstadoCita.CANCELADA);
+      expect(result.mensaje).toContain('liberado');
     });
 
     it('should throw BadRequestException for COMPLETADA cita', async () => {

@@ -55,12 +55,22 @@ interface CitaUi {
   readonly raw: CitaDto;
 }
 
+const CAUSAS_CANCELACION_MEDICO = [
+  "EMERGENCIA_MEDICA",
+  "ENFERMEDAD_MEDICO",
+  "CONFLICTO_AGENDA",
+  "REAGENDAMIENTO",
+  "OTRO",
+] as const;
+
 /** Cita cancelada por el paciente (no por el médico). */
 function esCanceladaPorPaciente(d: CitaDto): boolean {
   if (d.estado !== "CANCELADA") return false;
   const causa = (d.causaCancelacion ?? "").trim().toUpperCase();
-  if (causa === "PACIENTE") return true;
-  return !causa && !(d.motivoCancelacion?.trim());
+  if (!causa || causa === "PACIENTE") return true;
+  return !CAUSAS_CANCELACION_MEDICO.includes(
+    causa as (typeof CAUSAS_CANCELACION_MEDICO)[number],
+  );
 }
 
 function etiquetaConsultorio(d: CitaDto): string {

@@ -17,7 +17,6 @@ import { COLORES, paleta, BORDES } from "../../../constants/theme";
 import {
   fetchCita,
   cancelarCita,
-  abandonarReserva,
   type CitaDto,
 } from "../../../lib/medlyApi";
 import { etiquetaEstadoCita } from "../../../lib/estadoCita";
@@ -95,16 +94,9 @@ export default function CitaDetallePantalla(): React.JSX.Element {
     if (!cita) return;
     setModalCancelar(false);
     try {
-      if (
-        cita.estado === "PENDIENTE_PAGO" ||
-        cita.estado === "ANTICIPO_REALIZADO"
-      ) {
-        await abandonarReserva(cita.citaID);
-        Alert.alert("Listo", "Se liberó la reserva pendiente de pago.");
-      } else {
-        const r = await cancelarCita(cita.citaID);
-        Alert.alert("Resultado", r.mensaje);
-      }
+      const r = await cancelarCita(cita.citaID);
+      setCita(r.cita);
+      Alert.alert("Resultado", r.mensaje);
       router.back();
     } catch {
       Alert.alert("Error", "No se pudo cancelar.");
