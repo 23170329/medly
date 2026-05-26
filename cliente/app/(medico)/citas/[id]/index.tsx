@@ -44,6 +44,26 @@ export default function GestionarCitaMedico(): React.JSX.Element {
   const [motivo, setMotivo] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  // FIX: Unificamos el cierre del modal y la navegación tras una cancelación exitosa.
+  const finalizarCancelacionExitosa = useCallback((mensaje: string): void => {
+    setModalCancel(false);
+    setCausa("");
+    setMotivo("");
+    setCita(null);
+    Alert.alert("Cita cancelada", mensaje, [
+      {
+        text: "OK",
+        onPress: () => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace("/(medico)/agenda");
+          }
+        },
+      },
+    ]);
+  }, []);
+
   const cargar = useCallback(async () => {
     if (!token || !citaId) return;
     try {
@@ -88,19 +108,21 @@ export default function GestionarCitaMedico(): React.JSX.Element {
       });
       const mensaje =
         r.mensaje ?? "La cita ha sido cancelada correctamente.";
-      setModalCancel(false);
-      setCausa("");
-      setMotivo("");
-      setCita(null);
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace("/(medico)/agenda");
-      }
-      setTimeout(() => {
-        Alert.alert("Cita cancelada", mensaje);
-      }, 300);
+      finalizarCancelacionExitosa(mensaje);
     } catch (e: unknown) {
+      // FIX: Si el backend respondió error pero la cita ya quedó cancelada, tratamos el resultado como éxito.
+      try {
+        const todas = await fetchCitasMedico(token);
+        const citaActualizada = todas.find((item) => item.citaID === citaId) ?? null;
+        if (citaActualizada?.estado === "CANCELADA") {
+          finalizarCancelacionExitosa(
+            "La cita sí fue cancelada correctamente.",
+          );
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
       Alert.alert("Error", e instanceof Error ? e.message : "No se pudo cancelar.");
     } finally {
       setEnviando(false);

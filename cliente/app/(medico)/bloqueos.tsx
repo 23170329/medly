@@ -125,6 +125,11 @@ export default function MedicoBloqueos(): React.JSX.Element {
   };
 
   const desbloquear = (b: BloqueoDto): void => {
+    const finalizarDesbloqueoExitoso = (lista: BloqueoDto[]): void => {
+      setBloqueos(lista);
+      Alert.alert("Listo", "Bloqueo eliminado. La agenda quedó disponible.");
+    };
+
     Alert.alert(
       "Desbloquear agenda",
       `¿Quitar el bloqueo del ${formatearRangoBloqueo(b.inicio, b.fin)}? Se regenerarán los cupos libres en ese periodo.`,
@@ -139,9 +144,24 @@ export default function MedicoBloqueos(): React.JSX.Element {
               setEnviando(true);
               try {
                 await eliminarBloqueoMedico(token, b.bloqueoID);
-                await cargarBloqueos();
-                Alert.alert("Listo", "Bloqueo eliminado. La agenda quedó disponible.");
+                // FIX: El bloqueo ya fue eliminado; el refresco remoto no debe cambiar el resultado visible.
+                finalizarDesbloqueoExitoso(
+                  bloqueos.filter((item) => item.bloqueoID !== b.bloqueoID),
+                );
+                void fetchBloqueosMedico(token)
+                  .then(setBloqueos)
+                  .catch(() => undefined);
               } catch (e: unknown) {
+                try {
+                  const lista = await fetchBloqueosMedico(token);
+                  if (!lista.some((item) => item.bloqueoID === b.bloqueoID)) {
+                    // FIX: Si el API respondió error pero el bloqueo ya no existe, mostramos éxito.
+                    finalizarDesbloqueoExitoso(lista);
+                    return;
+                  }
+                } catch {
+                  /* ignore */
+                }
                 Alert.alert(
                   "Error",
                   e instanceof Error ? e.message : "No se pudo desbloquear.",

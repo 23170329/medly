@@ -5,6 +5,7 @@ import { BloqueosService } from './bloqueos.service';
 import { HorariosService } from './horarios.service';
 import { BloqueoAgenda } from './entities/bloqueo-agenda.entity';
 import { SlotAgenda } from './entities/slot-agenda.entity';
+import { Cita } from '../citas/entities/cita.entity';
 import { EstadoSlot } from '../common/enums';
 
 const createMockQueryBuilder = () => ({
@@ -20,13 +21,17 @@ describe('BloqueosService', () => {
   let service: BloqueosService;
   let mockRepo: any;
   let mockSlotRepo: any;
+  let mockCitaRepo: any;
   let mockHorariosService: any;
   let mockBloqueoQB: ReturnType<typeof createMockQueryBuilder>;
   let mockSlotQB: ReturnType<typeof createMockQueryBuilder>;
+  let mockCitaQB: ReturnType<typeof createMockQueryBuilder>;
 
   beforeEach(async () => {
     mockBloqueoQB = createMockQueryBuilder();
     mockSlotQB = createMockQueryBuilder();
+    mockCitaQB = createMockQueryBuilder();
+    mockCitaQB.getCount.mockResolvedValue(0);
 
     mockRepo = {
       find: jest.fn(),
@@ -38,6 +43,9 @@ describe('BloqueosService', () => {
     mockSlotRepo = {
       createQueryBuilder: jest.fn(() => mockSlotQB),
     };
+    mockCitaRepo = {
+      createQueryBuilder: jest.fn(() => mockCitaQB),
+    };
 
     mockHorariosService = {
       regenerarSlotsMedico: jest.fn(),
@@ -48,6 +56,7 @@ describe('BloqueosService', () => {
         BloqueosService,
         { provide: getRepositoryToken(BloqueoAgenda), useValue: mockRepo },
         { provide: getRepositoryToken(SlotAgenda), useValue: mockSlotRepo },
+        { provide: getRepositoryToken(Cita), useValue: mockCitaRepo },
         { provide: HorariosService, useValue: mockHorariosService },
       ],
     }).compile();
@@ -154,6 +163,15 @@ describe('BloqueosService', () => {
       expect(mockBloqueoQB.andWhere).toHaveBeenCalledWith('"medicoID" = :mid', { mid: 1 });
       expect(mockBloqueoQB.execute).toHaveBeenCalled();
       expect(mockHorariosService.regenerarSlotsMedico).toHaveBeenCalledWith(1);
+    });
+
+    it('no falla si la regeneracion posterior al desbloqueo falla', async () => {
+      mockBloqueoQB.execute.mockResolvedValue({ affected: 1 });
+      mockHorariosService.regenerarSlotsMedico.mockRejectedValue(
+        new Error('regeneracion fallida'),
+      );
+
+      await expect(service.eliminar(1, 5)).resolves.toBeUndefined();
     });
 
     it('7. lanza NotFoundException si el bloqueo no existe', async () => {

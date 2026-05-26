@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,6 +17,8 @@ import { BloquearHorarioDto } from './dto/bloquear-horario.dto';
 
 @Injectable()
 export class BloqueosService {
+  private readonly logger = new Logger(BloqueosService.name);
+
   constructor(
     @InjectRepository(BloqueoAgenda)
     private readonly repo: Repository<BloqueoAgenda>,
@@ -110,6 +113,13 @@ export class BloqueosService {
     if (!r.affected) {
       throw new NotFoundException('Bloqueo no encontrado');
     }
-    await this.horariosService.regenerarSlotsMedico(medicoId);
+    try {
+      await this.horariosService.regenerarSlotsMedico(medicoId);
+    } catch (err) {
+      // FIX: El desbloqueo ya se aplicó; no devolvemos 500 por una regeneración secundaria.
+      this.logger.warn(
+        `No se pudieron regenerar slots tras eliminar bloqueo #${bloqueoId}: ${String(err)}`,
+      );
+    }
   }
 }
